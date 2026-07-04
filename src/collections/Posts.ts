@@ -115,7 +115,6 @@ export const Posts: CollectionConfig = {
         description: 'Ringkasan singkat untuk daftar artikel, meta description, dan social cards.',
       },
     },
-    /*
     {
       name: 'heroImage',
       type: 'upload',
@@ -125,7 +124,6 @@ export const Posts: CollectionConfig = {
         description: 'Gambar cover (juga digunakan untuk OpenGraph/social image).',
       },
     },
-    */
     {
       name: 'content',
       type: 'richText',
