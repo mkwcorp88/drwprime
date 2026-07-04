@@ -1,3 +1,18 @@
+export type ProductOrderItem = {
+  name: string;
+  price: number;
+  quantity: number;
+};
+
+export type ProductOrderWhatsappPayload = {
+  items: ProductOrderItem[];
+  totalPrice: number;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  notes?: string;
+};
+
 type ReservationWhatsappPayload = {
   reservationId: string;
   treatmentName: string;
@@ -78,6 +93,59 @@ export async function sendReservationToAdminWhatsApp(payload: ReservationWhatsap
   }
 
   const message = buildReservationMessage(payload);
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: token,
+    },
+    body: JSON.stringify({
+      target: adminPhone,
+      message,
+    }),
+  });
+
+  if (!response.ok) {
+    const raw = await response.text();
+    throw new Error(`WhatsApp API error: ${response.status} ${raw}`);
+  }
+}
+
+function buildProductOrderMessage(payload: ProductOrderWhatsappPayload) {
+  const itemsList = payload.items
+    .map(
+      (item, i) =>
+        `${i + 1}. ${item.name}\n   ${item.quantity}x ${formatRupiah(item.price)} = ${formatRupiah(item.price * item.quantity)}`
+    )
+    .join('\n');
+
+  return [
+    '*Pesanan Produk Baru DRW Prime*',
+    '',
+    '*Data Pemesan*',
+    `Nama: ${payload.customerName}`,
+    `Telepon: ${payload.customerPhone}`,
+    `Email: ${payload.customerEmail || '-'}`,
+    '',
+    '*Pesanan*',
+    itemsList,
+    '',
+    `Total: *${formatRupiah(payload.totalPrice)}*`,
+    `Catatan: ${payload.notes || '-'}`,
+  ].join('\n');
+}
+
+export async function sendProductOrderToAdminWhatsApp(
+  payload: ProductOrderWhatsappPayload
+) {
+  const { token, adminPhone, apiUrl } = getWhatsAppConfig();
+
+  if (!token || !adminPhone) {
+    return;
+  }
+
+  const message = buildProductOrderMessage(payload);
 
   const response = await fetch(apiUrl, {
     method: 'POST',

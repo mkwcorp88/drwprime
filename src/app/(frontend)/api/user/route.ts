@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ensureUniqueAffiliateCode } from '@/lib/affiliate';
-import { ADMIN_USER_IDS } from '@/lib/admin';
+import { ADMIN_USER_IDS, ADMIN_EMAILS } from '@/lib/admin';
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -84,8 +84,8 @@ export async function POST(req: Request) {
       isTeamLeader = true;
     }
 
-    // Check if user is admin
-    const isAdmin = ADMIN_USER_IDS.includes(userId);
+    // Check if user is admin (by Clerk User ID or email)
+    const isAdmin = ADMIN_USER_IDS.includes(userId) || ADMIN_EMAILS.includes(email);
 
     // Create new user
     const user = await prisma.user.create({
@@ -218,7 +218,7 @@ export async function GET() {
     }
 
     // Recalculate admin status from hardcoded list (in case DB is stale)
-    const isAdmin = user.isAdmin || ADMIN_USER_IDS.includes(userId);
+    const isAdmin = user.isAdmin || ADMIN_USER_IDS.includes(userId) || ADMIN_EMAILS.includes(user.email);
     if (isAdmin && !user.isAdmin) {
       await prisma.user.update({
         where: { clerkUserId: userId },
