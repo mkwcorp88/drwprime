@@ -2,7 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { postgresAdapter } from '@payloadcms/db-postgres';
-import { lexicalEditor, UploadFeature } from '@payloadcms/richtext-lexical';
+import { lexicalEditor } from '@payloadcms/richtext-lexical';
 import { s3Storage } from '@payloadcms/storage-s3';
 import { buildConfig } from 'payload';
 import sharp from 'sharp';
@@ -39,24 +39,7 @@ export default buildConfig({
     api: '/cms-api',
   },
   collections: [Posts, Media, Users],
-  editor: lexicalEditor({
-    features: ({ defaultFeatures }) => [
-      ...defaultFeatures,
-      UploadFeature({
-        collections: {
-          [Media.slug]: {
-            fields: [
-              {
-                name: 'alt',
-                type: 'text',
-                label: 'Alt Text',
-              },
-            ],
-          },
-        },
-      }),
-    ],
-  }),
+  editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
