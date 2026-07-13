@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { sendProductOrderToAdminWhatsApp } from '@/lib/whatsapp';
+import { normalizePhone } from '@/lib/phone';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { items, customerName, customerPhone, customerEmail, notes } = body;
+    const { items, customerName, customerPhone: rawPhone, customerEmail, notes } = body;
+    const customerPhone = normalizePhone(rawPhone);
 
     if (!customerName || !customerPhone || !items?.length) {
       return NextResponse.json(

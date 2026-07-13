@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { calculateCommission, calculateLoyaltyPoints } from '@/lib/affiliate';
 import { sendReservationToAdminWhatsApp } from '@/lib/whatsapp';
+import { normalizePhone } from '@/lib/phone';
 
 export async function POST(req: Request) {
   try {
@@ -12,7 +13,7 @@ export async function POST(req: Request) {
     const treatmentId = body.treatmentId;
     const patientName = body.patientName;
     const patientEmail = body.patientEmail ?? body.email;
-    const patientPhone = body.patientPhone ?? body.phone;
+    const patientPhone = normalizePhone(body.patientPhone ?? body.phone);
     const patientNotes = body.patientNotes ?? body.notes;
     const reservationDate = body.reservationDate ?? body.preferredDate;
     const reservationTime = body.reservationTime ?? body.preferredTime;

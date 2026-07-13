@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { normalizePhone } from '@/lib/phone';
 
 // Front Office endpoint - no auth required
 export async function GET(req: Request) {
@@ -365,7 +366,7 @@ export async function POST(req: Request) {
 
     if (patientName !== undefined) updateData.patientName = patientName;
     if (patientEmail !== undefined) updateData.patientEmail = patientEmail;
-    if (patientPhone !== undefined) updateData.patientPhone = patientPhone;
+    if (patientPhone !== undefined) updateData.patientPhone = normalizePhone(patientPhone);
     if (reservationDate !== undefined) updateData.reservationDate = new Date(reservationDate);
     if (reservationTime !== undefined) updateData.reservationTime = reservationTime;
     if (treatmentId !== undefined) updateData.treatmentId = treatmentId;

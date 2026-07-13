@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { normalizePhone } from '@/lib/phone';
 
 const GENDERS = ['Pria', 'Wanita'];
 
@@ -95,7 +96,7 @@ export async function PUT(req: Request) {
 
     const body = await req.json();
 
-    const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
+    const phone = typeof body.phone === 'string' ? normalizePhone(body.phone.trim()) : '';
     const nik = typeof body.nik === 'string' ? body.nik.trim() : '';
     const gender = typeof body.gender === 'string' ? body.gender.trim() : '';
     const dateOfBirth = typeof body.dateOfBirth === 'string' ? body.dateOfBirth.trim() : '';
@@ -107,7 +108,7 @@ export async function PUT(req: Request) {
 
     if (!phone) {
       errors.phone = 'Nomor HP wajib diisi';
-    } else if (!/^(\+62|62|0)[0-9]{8,13}$/.test(phone.replace(/[\s-]/g, ''))) {
+    } else if (!/^[0-9]{8,13}$/.test(phone)) {
       errors.phone = 'Format nomor HP tidak valid';
     }
 
