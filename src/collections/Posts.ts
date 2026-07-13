@@ -74,12 +74,6 @@ export const Posts: CollectionConfig = {
   },
   fields: [
     {
-      name: 'title',
-      type: 'text',
-      required: true,
-      label: 'Judul',
-    },
-    {
       name: 'slug',
       type: 'text',
       unique: true,
@@ -108,60 +102,79 @@ export const Posts: CollectionConfig = {
       },
     },
     {
-      name: 'excerpt',
-      type: 'textarea',
-      label: 'Ringkasan',
-      admin: {
-        description: 'Ringkasan singkat untuk daftar artikel, meta description, dan social cards.',
-      },
-    },
-    {
-      name: 'heroImage',
-      type: 'upload',
-      relationTo: 'media',
-      label: 'Gambar Cover',
-      admin: {
-        description: 'Gambar cover (juga digunakan untuk OpenGraph/social image).',
-      },
-    },
-    {
-      name: 'content',
-      type: 'richText',
-      required: true,
-      label: 'Konten',
-    },
-    {
       name: 'tags',
       type: 'text',
       hasMany: true,
-    },
-    /*
-    {
-      name: 'relatedTreatmentSlugs',
-      type: 'text',
-      hasMany: true,
-      label: 'Treatment Terkait',
       admin: {
-        description: 'Slug treatment untuk cross-link (contoh: radiance-glow-peel).',
+        position: 'sidebar',
+        description: 'Tekan Enter setelah mengetik tag.',
       },
     },
-    */
     {
-      type: 'collapsible',
-      label: 'SEO',
-      admin: { initCollapsed: true },
-      fields: [
+      type: 'tabs',
+      tabs: [
         {
-          name: 'seoTitle',
-          type: 'text',
-          label: 'Judul SEO',
-          admin: { description: 'Override <title>. Jika kosong, menggunakan judul artikel.' },
+          label: 'Tulis Artikel',
+          fields: [
+            {
+              name: 'title',
+              type: 'text',
+              required: true,
+              label: 'Judul Artikel',
+              admin: {
+                style: { fontSize: '1.5rem', fontWeight: 'bold' },
+                placeholder: 'Masukkan judul artikel yang menarik...',
+              },
+            },
+            {
+              name: 'heroImage',
+              type: 'upload',
+              relationTo: 'media',
+              label: 'Gambar Cover Utama',
+              admin: {
+                description: 'Gambar hero yang muncul di bagian paling atas artikel dan thumbnail.',
+              },
+            },
+            {
+              name: 'content',
+              type: 'richText',
+              required: true,
+              label: 'Isi Konten Artikel',
+            },
+          ],
         },
         {
-          name: 'seoDescription',
-          type: 'textarea',
-          label: 'Deskripsi SEO',
-          admin: { description: 'Override meta description. Jika kosong, menggunakan ringkasan.' },
+          label: 'Ringkasan & SEO',
+          fields: [
+            {
+              name: 'excerpt',
+              type: 'textarea',
+              label: 'Ringkasan Pendek (Excerpt)',
+              admin: {
+                description: 'Muncul di daftar artikel blog dan preview sosial media.',
+                rows: 3,
+              },
+            },
+            {
+              type: 'collapsible',
+              label: 'Advanced SEO (Opsional)',
+              admin: { initCollapsed: false },
+              fields: [
+                {
+                  name: 'seoTitle',
+                  type: 'text',
+                  label: 'Custom SEO Title',
+                  admin: { description: 'Override <title> browser. Jika kosong, otomatis menggunakan Judul Artikel.' },
+                },
+                {
+                  name: 'seoDescription',
+                  type: 'textarea',
+                  label: 'Custom Meta Description',
+                  admin: { description: 'Override tag <meta name="description">. Jika kosong, otomatis menggunakan Ringkasan Pendek.' },
+                },
+              ],
+            },
+          ],
         },
       ],
     },
