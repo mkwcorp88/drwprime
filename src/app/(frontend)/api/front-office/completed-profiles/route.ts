@@ -19,7 +19,23 @@ export async function GET() {
         address: true,
         city: true,
         province: true,
+        postalCode: true,
         profileCompletedAt: true,
+        points: true,
+        loyaltyPoints: true,
+        loyaltyLevel: true,
+        totalEarnings: true,
+        totalReferrals: true,
+        transactions: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { createdAt: true, description: true, points: true },
+        },
+        reservations: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { createdAt: true, status: true, treatment: { select: { name: true } } },
+        },
       },
       orderBy: {
         profileCompletedAt: 'desc',
@@ -38,7 +54,22 @@ export async function GET() {
       address: u.address || '',
       city: u.city || '',
       province: u.province || '',
+      postalCode: u.postalCode || '',
       profileCompletedAt: u.profileCompletedAt ? u.profileCompletedAt.toISOString() : null,
+      points: u.points,
+      loyaltyPoints: u.loyaltyPoints,
+      loyaltyLevel: u.loyaltyLevel,
+      totalEarnings: Number(u.totalEarnings),
+      totalReferrals: u.totalReferrals,
+      lastTransaction: u.transactions[0] ? {
+        date: u.transactions[0].createdAt.toISOString(),
+        description: u.transactions[0].description,
+      } : null,
+      lastReservation: u.reservations[0] ? {
+        date: u.reservations[0].createdAt.toISOString(),
+        treatment: u.reservations[0].treatment.name,
+        status: u.reservations[0].status,
+      } : null,
     }));
 
     return NextResponse.json({

@@ -333,7 +333,7 @@ export default function FrontOfficePage() {
                   href="/front-office/completed-profiles"
                   className="fo-nav-chip text-sm text-center"
                 >
-                  Report Profil Lengkap
+                  Membership Profil
                 </Link>
                 <Link 
                   href="/front-office/spending-scan"
