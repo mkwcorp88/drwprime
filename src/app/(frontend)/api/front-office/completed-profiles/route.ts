@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { normalizePhone } from '@/lib/phone';
 
 export async function GET() {
   try {
@@ -47,7 +48,7 @@ export async function GET() {
       lastName: u.lastName || '',
       email: u.email,
       affiliateCode: u.affiliateCode,
-      phone: u.phone || '',
+      phone: normalizePhone(u.phone || ''),
       nik: u.nik || '',
       gender: u.gender || '',
       dateOfBirth: u.dateOfBirth ? u.dateOfBirth.toISOString() : null,

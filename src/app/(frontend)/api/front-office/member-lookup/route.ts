@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { normalizePhone } from '@/lib/phone';
 
 const TIER_THRESHOLDS = { GOLD: 1_000_000, PLATINUM: 5_000_000 };
 
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
         id: user.id,
         name: [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Member',
         email: user.email,
-        phone: user.phone || '-',
+        phone: normalizePhone(user.phone || '-'),
         totalSpending,
         tier: computeTier(totalSpending),
       },

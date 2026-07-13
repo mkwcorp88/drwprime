@@ -56,7 +56,12 @@ export async function GET(req: Request) {
       ]
     });
 
-    return NextResponse.json({ reservations });
+    const normalizedReservations = reservations.map(r => ({
+      ...r,
+      patientPhone: normalizePhone(r.patientPhone)
+    }));
+
+    return NextResponse.json({ reservations: normalizedReservations });
   } catch (error) {
     console.error('Error fetching reservations:', error);
     return NextResponse.json(

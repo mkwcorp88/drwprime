@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ensureUniqueAffiliateCode } from '@/lib/affiliate';
 import { ADMIN_USER_IDS, ADMIN_EMAILS } from '@/lib/admin';
+import { normalizePhone } from '@/lib/phone';
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -241,6 +242,7 @@ export async function GET() {
     return NextResponse.json({ 
       user: {
         ...user,
+        phone: user.phone ? normalizePhone(user.phone) : null,
         isAdmin,
         totalReferrals,
         loyaltyLevel,
