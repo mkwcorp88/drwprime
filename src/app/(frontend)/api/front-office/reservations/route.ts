@@ -65,10 +65,67 @@ export async function GET(req: Request) {
   }
 }
 
+const RUPIAH_PER_POINT = 10000; // Rp 10.000 = 1 poin
+
+function getLoyaltyLevel(totalPoints: number): string {
+  if (totalPoints >= 10000) return 'Platinum';
+  if (totalPoints >= 5000) return 'Gold';
+  if (totalPoints >= 1000) return 'Silver';
+  return 'Bronze';
+}
+
+async function awardMemberPoints(reservationId: string, userId: string, finalPrice: number) {
+  const pointsEarned = Math.floor(finalPrice / RUPIAH_PER_POINT);
+  if (pointsEarned <= 0) return;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { loyaltyPoints: true, points: true }
+  });
+  if (!user) return;
+
+  const newLoyaltyPoints = user.loyaltyPoints + pointsEarned;
+  const newPoints = user.points + pointsEarned;
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      points: { increment: pointsEarned },
+      loyaltyPoints: { increment: pointsEarned },
+      loyaltyLevel: getLoyaltyLevel(newLoyaltyPoints)
+    }
+  });
+
+  await prisma.transaction.create({
+    data: {
+      userId,
+      type: 'points_earned',
+      amount: 0,
+      points: pointsEarned,
+      description: `Poin dari reservasi terkonfirmasi (${pointsEarned} poin)`,
+      referenceId: reservationId
+    }
+  });
+
+  console.log(`[POINTS] Awarded ${pointsEarned} points to user ${userId} for reservation ${reservationId}`);
+}
+
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
     const { reservationId, status, adminNotes, finalPrice } = body;
+
+    const prevReservation = await prisma.reservation.findUnique({
+      where: { id: reservationId },
+      select: { status: true, userId: true, finalPrice: true, referrerId: true, commissionPaid: true, commissionAmount: true, patientName: true }
+    });
+
+    if (!prevReservation) {
+      return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
+    }
+
+    const wasConfirmed = prevReservation.status === 'confirmed';
+    const wasCompleted = prevReservation.status === 'completed';
 
     // Calculate commission based on finalPrice if provided
     const updateData: Record<string, unknown> = {
@@ -88,6 +145,12 @@ export async function PATCH(req: Request) {
       where: { id: reservationId },
       data: updateData
     });
+
+    // Award loyalty points to member when confirmed for the first time
+    if (status === 'confirmed' && !wasConfirmed && !wasCompleted && reservation.userId) {
+      const effectivePrice = finalPrice !== undefined ? finalPrice : Number(prevReservation.finalPrice);
+      await awardMemberPoints(reservationId, reservation.userId, effectivePrice);
+    }
 
     // If completed and has referrer, pay commission
     if (status === 'completed' && reservation.referrerId && !reservation.commissionPaid) {
@@ -323,6 +386,19 @@ export async function POST(req: Request) {
       updateData.commissionAmount = finalPrice * commissionRate;
     }
 
+    // Fetch current reservation to know previous status
+    const currentReservation = await prisma.reservation.findUnique({
+      where: { id: reservationId },
+      select: { status: true, userId: true, finalPrice: true }
+    });
+
+    if (!currentReservation) {
+      return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
+    }
+
+    const wasConfirmed = currentReservation.status === 'confirmed';
+    const wasCompleted = currentReservation.status === 'completed';
+
     // Handle affiliate code change
     if (affiliateCode !== undefined && affiliateCode !== null && affiliateCode !== '') {
       const referrer = await prisma.user.findFirst({
@@ -333,15 +409,8 @@ export async function POST(req: Request) {
         updateData.referredBy = affiliateCode.toUpperCase();
         updateData.referrerId = referrer.id;
         
-        // Recalculate commission if finalPrice exists
-        const currentReservation = await prisma.reservation.findUnique({
-          where: { id: reservationId }
-        });
-        
-        if (currentReservation) {
-          const price = finalPrice !== undefined ? finalPrice : currentReservation.finalPrice;
-          updateData.commissionAmount = Number(price) * 0.10;
-        }
+        const price = finalPrice !== undefined ? finalPrice : currentReservation.finalPrice;
+        updateData.commissionAmount = Number(price) * 0.10;
       }
     }
 
@@ -372,6 +441,12 @@ export async function POST(req: Request) {
         }
       }
     });
+
+    // Award loyalty points when confirmed for the first time
+    if (status === 'confirmed' && !wasConfirmed && !wasCompleted && reservation.userId) {
+      const effectivePrice = finalPrice !== undefined ? finalPrice : Number(currentReservation.finalPrice);
+      await awardMemberPoints(reservationId, reservation.userId, effectivePrice);
+    }
 
     return NextResponse.json({ 
       reservation, 
