@@ -16,7 +16,7 @@ export default function PrivacyPolicyPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-[#D4AF37]">1. Informasi yang Kami Kumpulkan</h2>
           <p className="text-gray-300">
-            DRW Prime Aesthetic Clinic ("kami") mengumpulkan informasi yang Anda berikan secara langsung, termasuk:
+            DRW Prime Aesthetic Clinic (&ldquo;kami&rdquo;) mengumpulkan informasi yang Anda berikan secara langsung, termasuk:
           </p>
           <ul className="list-disc list-inside text-gray-300 space-y-1">
             <li>Nama lengkap</li>

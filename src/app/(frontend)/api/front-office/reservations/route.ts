@@ -85,7 +85,6 @@ async function awardMemberPoints(reservationId: string, userId: string, finalPri
   if (!user) return;
 
   const newLoyaltyPoints = user.loyaltyPoints + pointsEarned;
-  const newPoints = user.points + pointsEarned;
 
   await prisma.user.update({
     where: { id: userId },
