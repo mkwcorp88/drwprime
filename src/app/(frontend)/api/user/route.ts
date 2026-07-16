@@ -37,6 +37,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ user: existingUser });
     }
 
+    // NEW: Check if there's a walk-in member with matching phone/email that we can link
+    const { phone } = body; // Assuming phone is passed from sign-up
+    let walkInMember = null;
+    
+    if (phone) {
+      walkInMember = await prisma.user.findUnique({
+        where: { phone },
+        select: {
+          id: true,
+          clerkUserId: true,
+          hasAccount: true,
+          points: true,
+          totalSpending: true,
+          spendingRecords: true,
+        },
+      });
+
+      // If found and it's a walk-in (no clerkUserId yet)
+      if (walkInMember && !walkInMember.clerkUserId) {
+        console.log(`[USER-LINK] Found walk-in member with phone ${phone}, linking to Clerk user ${userId}`);
+      } else {
+        walkInMember = null; // Not a valid walk-in to link
+      }
+    }
+
     let affiliateCode: string;
     let isTeamLeader = false;
 
@@ -88,18 +113,40 @@ export async function POST(req: Request) {
     // Check if user is admin (by Clerk User ID or email)
     const isAdmin = ADMIN_USER_IDS.includes(userId) || ADMIN_EMAILS.includes(email);
 
-    // Create new user
-    const user = await prisma.user.create({
-      data: {
-        clerkUserId: userId,
-        email,
-        firstName,
-        lastName,
-        affiliateCode,
-        isTeamLeader,
-        isAdmin
-      }
-    });
+    // Create OR update user (link walk-in member)
+    let user;
+    if (walkInMember) {
+      // Update existing walk-in member record
+      user = await prisma.user.update({
+        where: { id: walkInMember.id },
+        data: {
+          clerkUserId: userId,
+          email,
+          firstName: firstName || undefined, // Keep walk-in name if not provided
+          lastName: lastName || undefined,
+          affiliateCode: affiliateCode || undefined,
+          isTeamLeader,
+          hasAccount: true, // Mark as having an account now
+          isAdmin,
+        },
+      });
+      console.log(`[USER-LINK] Successfully linked walk-in member ${walkInMember.id} to Clerk user ${userId}`);
+    } else {
+      // Create new user from scratch
+      user = await prisma.user.create({
+        data: {
+          clerkUserId: userId,
+          email,
+          firstName,
+          lastName,
+          phone,
+          affiliateCode,
+          isTeamLeader,
+          hasAccount: true,
+          isAdmin,
+        },
+      });
+    }
 
     // If claiming an unclaimed code (either pre-assigned or referral), transfer all pending reservations
     if (isTeamLeader && (preAssignedCode || referralCode)) {

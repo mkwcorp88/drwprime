@@ -2,13 +2,14 @@ import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { normalizePhone } from '@/lib/phone';
+import { Prisma } from '@prisma/client';
 
 const GENDERS = ['Pria', 'Wanita'];
 
 type ProfileUser = {
   firstName: string | null;
   lastName: string | null;
-  email: string;
+  email: string | null;
   phone: string | null;
   nik: string | null;
   gender: string | null;
@@ -146,11 +147,127 @@ export async function PUT(req: Request) {
 
     const existing = await prisma.user.findUnique({
       where: { clerkUserId: userId },
-      select: { profileCompletedAt: true },
+      select: { 
+        id: true,
+        phone: true,
+        profileCompletedAt: true 
+      },
     });
 
     if (!existing) {
       return NextResponse.json({ error: 'User not found', needsSync: true }, { status: 404 });
+    }
+
+    // IMPORTANT: Check if there's a walk-in member with this phone that we should merge
+    const isPhoneChanged = existing.phone !== phone;
+    let walkInMember: {
+      id: string;
+      clerkUserId: string | null;
+      hasAccount: boolean;
+      points: number;
+      totalSpending: Prisma.Decimal;
+      memberSince: Date;
+    } | null = null;
+
+    if (isPhoneChanged && phone) {
+      walkInMember = await prisma.user.findUnique({
+        where: { phone },
+        select: {
+          id: true,
+          clerkUserId: true,
+          hasAccount: true,
+          points: true,
+          totalSpending: true,
+          memberSince: true,
+        },
+      });
+
+      // Only merge if it's a walk-in member (no Clerk account)
+      if (walkInMember && !walkInMember.clerkUserId && walkInMember.id !== existing.id) {
+        console.log(`[PROFILE-MERGE] Found walk-in member ${walkInMember.id} with phone ${phone}, merging to user ${existing.id}`);
+        
+        const walkInId = walkInMember.id;
+        const walkInPoints = walkInMember.points;
+        const walkInSpending = Number(walkInMember.totalSpending);
+        const walkInMemberSince = walkInMember.memberSince;
+        
+        // Merge walk-in member data into current user account
+        await prisma.$transaction(async (tx) => {
+          // 1. Transfer all spending records from walk-in to current user
+          await tx.spendingRecord.updateMany({
+            where: { userId: walkInId },
+            data: { userId: existing.id },
+          });
+
+          // 2. Transfer all reservations from walk-in to current user
+          await tx.reservation.updateMany({
+            where: { userId: walkInId },
+            data: { userId: existing.id },
+          });
+
+          // 3. Transfer referrals (if walk-in was a referrer)
+          await tx.reservation.updateMany({
+            where: { referrerId: walkInId },
+            data: { referrerId: existing.id },
+          });
+
+          // 4. Transfer transactions
+          await tx.transaction.updateMany({
+            where: { userId: walkInId },
+            data: { userId: existing.id },
+          });
+
+          // 5. Transfer voucher redemptions
+          await tx.voucherRedemption.updateMany({
+            where: { userId: walkInId },
+            data: { userId: existing.id },
+          });
+
+          // 6. Transfer event registrations
+          await tx.eventRegistration.updateMany({
+            where: { userId: walkInId },
+            data: { userId: existing.id },
+          });
+
+          // 7. Transfer bank accounts
+          await tx.bankAccount.updateMany({
+            where: { userId: walkInId },
+            data: { userId: existing.id },
+          });
+
+          // 8. Transfer withdrawals
+          await tx.withdrawal.updateMany({
+            where: { userId: walkInId },
+            data: { userId: existing.id },
+          });
+
+          // 9. Update current user with merged data
+          await tx.user.update({
+            where: { id: existing.id },
+            data: {
+              points: { increment: walkInPoints },
+              totalSpending: { increment: walkInSpending },
+              // Keep the earlier memberSince date
+              memberSince: walkInMemberSince < new Date(existing.id) 
+                ? walkInMemberSince 
+                : undefined,
+            },
+          });
+
+          // 10. Delete the old walk-in member record
+          await tx.user.delete({
+            where: { id: walkInId },
+          });
+
+          console.log(`[PROFILE-MERGE] Successfully merged walk-in member ${walkInId} into ${existing.id}`);
+        });
+      } else if (walkInMember && walkInMember.clerkUserId) {
+        // Phone already belongs to another account with Clerk
+        return NextResponse.json(
+          { error: 'Nomor HP ini sudah terdaftar di akun lain', fields: { phone: 'Nomor HP sudah digunakan' } },
+          { status: 409 }
+        );
+      }
     }
 
     const user = await prisma.user.update({
@@ -168,7 +285,10 @@ export async function PUT(req: Request) {
       select: PROFILE_SELECT,
     });
 
-    return NextResponse.json({ profile: serializeProfile(user) });
+    return NextResponse.json({ 
+      profile: serializeProfile(user),
+      merged: !!walkInMember, // Tell frontend if merge happened
+    });
   } catch (error) {
     console.error('Error updating profile:', error);
     return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
