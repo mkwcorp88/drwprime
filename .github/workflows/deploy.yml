@@ -8,7 +8,7 @@ on:
 env:
   REGISTRY: ghcr.io
   # Image owner must be lowercase for GHCR.
-  DEPLOY_IMAGE: ghcr.io/mkwcorp/drwprime
+  DEPLOY_IMAGE: ghcr.io/mkwcorp88/drwprime
 
 jobs:
   build:
