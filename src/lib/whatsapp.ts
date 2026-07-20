@@ -509,9 +509,10 @@ function buildProductOrderMessage(payload: ProductOrderWhatsappPayload) {
 export async function sendProductOrderToAdminWhatsApp(
   payload: ProductOrderWhatsappPayload
 ) {
-  const { token, adminPhone, apiUrl } = getWhatsAppConfig();
+  const { accessToken: token, adminPhone } = getWhatsAppConfig();
+  const apiUrl = process.env.WHATSAPP_API_URL?.trim();
 
-  if (!token || !adminPhone) {
+  if (!token || !adminPhone || !apiUrl) {
     return;
   }
 

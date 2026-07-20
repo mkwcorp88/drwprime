@@ -112,9 +112,11 @@ export async function PUT(req: NextRequest) {
       data: {
         affiliateCode: normalizedCode,
         affiliateCodeUpdatedAt: new Date(),
-        affiliateCodeHistory: {
-          push: user.affiliateCode // Add current code to history
-        }
+        ...(user.affiliateCode ? {
+          affiliateCodeHistory: {
+            push: user.affiliateCode
+          }
+        } : {}),
       },
       select: {
         affiliateCode: true,

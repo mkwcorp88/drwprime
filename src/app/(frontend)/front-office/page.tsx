@@ -354,6 +354,12 @@ export default function FrontOfficePage() {
                   Best Deal Manager
                 </Link>
                 <Link 
+                  href="/front-office/bulk-import"
+                  className="fo-nav-chip text-sm text-center"
+                >
+                  Bulk Import Members
+                </Link>
+                <Link 
                   href="/front-office/blog"
                   className="fo-nav-chip text-sm text-center col-span-2 sm:col-span-1"
                 >

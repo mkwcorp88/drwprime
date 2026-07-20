@@ -16,7 +16,7 @@ export async function isUserAdmin(): Promise<boolean> {
 
     if (!user) return false;
 
-    return user.isAdmin || ADMIN_EMAILS.includes(user.email);
+    return user.isAdmin || (user.email ? ADMIN_EMAILS.includes(user.email) : false);
   } catch (error) {
     console.error('Error checking admin status:', error);
     return false;

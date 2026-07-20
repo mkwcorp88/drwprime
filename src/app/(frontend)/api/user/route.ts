@@ -266,7 +266,7 @@ export async function GET() {
     }
 
     // Recalculate admin status from hardcoded list (in case DB is stale)
-    const isAdmin = user.isAdmin || ADMIN_USER_IDS.includes(userId) || ADMIN_EMAILS.includes(user.email);
+    const isAdmin = user.isAdmin || ADMIN_USER_IDS.includes(userId) || (user.email ? ADMIN_EMAILS.includes(user.email) : false);
     if (isAdmin && !user.isAdmin) {
       await prisma.user.update({
         where: { clerkUserId: userId },
