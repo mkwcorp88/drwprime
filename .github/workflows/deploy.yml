@@ -6,92 +6,33 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
-  # Coolify pulls this exact private image after registry credentials are set.
-  DEPLOY_IMAGE: ghcr.io/mkwcorp88/drwprime
-  GHCR_USERNAME: MKWcorp
   COOLIFY_API_URL: http://127.0.0.1:8000/api/v1
   COOLIFY_APP_UUID: k79t06olv0zwlwpdy3n4gpdm
 
 jobs:
-  build:
-    name: Build & push image to GHCR
-    runs-on: self-hosted
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.DEPLOY_IMAGE }}
-          tags: |
-            type=raw,value=${{ github.sha }}
-            type=raw,value=latest
-
-      # Build secrets are never persisted in the image or registry cache.
-      - name: Build & push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.DEPLOY_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.DEPLOY_IMAGE }}:buildcache,mode=max
-          build-args: |
-            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsuZHJ3cHJpbWUuY29tJA
-          secrets: |
-            database_url=${{ secrets.DATABASE_URL }}
-            database_uri=${{ secrets.DATABASE_URI }}
-            payload_secret=${{ secrets.PAYLOAD_SECRET }}
-            clerk_secret_key=${{ secrets.CLERK_SECRET_KEY }}
-
   deploy:
-    name: Deploy exact image with Coolify
+    name: Deploy via Coolify
     runs-on: self-hosted
-    needs: build
     env:
-      DOCKER_CONFIG: /root/.docker
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
-      GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
-      IMAGE_TAG: ${{ github.sha }}
     steps:
-      - name: Configure persistent GHCR credentials for Coolify
+      - name: Ensure Coolify uses dockerfile mode (builds from repo)
         run: |
-          test -n "$GHCR_PULL_TOKEN"
-          printf '%s' "$GHCR_PULL_TOKEN" | docker login "$REGISTRY" --username "$GHCR_USERNAME" --password-stdin
+          curl --fail-with-body --silent --show-error \
+            --request PATCH \
+            --header "Authorization: Bearer $COOLIFY_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data '{"build_pack":"dockerfile","docker_registry_image_name":null,"docker_registry_image_tag":null}' \
+            "$COOLIFY_API_URL/applications/$COOLIFY_APP_UUID"
 
-      - name: Verify the Coolify helper can pull the immutable image
-        run: |
-          docker run --rm \
-            -v /root/.docker/config.json:/root/.docker/config.json:ro \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            ghcr.io/coollabsio/coolify-helper:1.0.14 \
-            docker manifest inspect "$DEPLOY_IMAGE:$IMAGE_TAG" > /dev/null
-
-      - name: Deploy and verify with automatic rollback
+      - name: Deploy with automatic rollback
         run: |
           set -Eeuo pipefail
+
           application="$(curl --fail-with-body --silent --show-error \
             --header "Authorization: Bearer $COOLIFY_TOKEN" \
             "$COOLIFY_API_URL/applications/$COOLIFY_APP_UUID")"
-          previous_image="$(jq -r '.docker_registry_image_name' <<< "$application")"
-          previous_tag="$(jq -r '.docker_registry_image_tag' <<< "$application")"
+          previous_build_pack="$(echo "$application" | jq -r '.build_pack')"
 
           rollback() {
             trap - ERR
@@ -99,7 +40,7 @@ jobs:
               --request PATCH \
               --header "Authorization: Bearer $COOLIFY_TOKEN" \
               --header "Content-Type: application/json" \
-              --data "{\"docker_registry_image_name\":\"$previous_image\",\"docker_registry_image_tag\":\"$previous_tag\"}" \
+              --data "{\"build_pack\":\"$previous_build_pack\"}" \
               "$COOLIFY_API_URL/applications/$COOLIFY_APP_UUID" || true
             curl --fail-with-body --silent --show-error \
               --request GET \
@@ -107,47 +48,34 @@ jobs:
               "$COOLIFY_API_URL/deploy?uuid=$COOLIFY_APP_UUID&force=true" || true
             for attempt in $(seq 1 36); do
               container_id="$(docker ps --latest --filter "label=coolify.name=$COOLIFY_APP_UUID" --format '{{.ID}}')"
-              if [ -n "$container_id" ]; then
-                image="$(docker inspect --format '{{.Config.Image}}' "$container_id")"
-                running="$(docker inspect --format '{{.State.Running}}' "$container_id")"
-                if [ "$image" = "$previous_image:$previous_tag" ] && [ "$running" = "true" ]; then
-                  return 0
-                fi
-              fi
-              sleep 5
+              running="$(docker inspect --format '{{.State.Running}}' "$container_id" 2>/dev/null || echo false)"
+              if [ "$running" = "true" ]; then return 0; fi
+              sleep 10
             done
-            return 1
           }
           trap rollback ERR
 
-          curl --fail-with-body --silent --show-error \
-            --request PATCH \
-            --header "Authorization: Bearer $COOLIFY_TOKEN" \
-            --header "Content-Type: application/json" \
-            --data "{\"docker_registry_image_name\":\"$DEPLOY_IMAGE\",\"docker_registry_image_tag\":\"$IMAGE_TAG\"}" \
-            "$COOLIFY_API_URL/applications/$COOLIFY_APP_UUID"
           deployment="$(curl --fail-with-body --silent --show-error \
             --request GET \
             --header "Authorization: Bearer $COOLIFY_TOKEN" \
             "$COOLIFY_API_URL/deploy?uuid=$COOLIFY_APP_UUID&force=true")"
-          deployment_uuid="$(jq -r '.deployments[0].deployment_uuid' <<< "$deployment")"
+          deployment_uuid="$(echo "$deployment" | jq -r '.deployments[0].deployment_uuid')"
           test -n "$deployment_uuid"
           test "$deployment_uuid" != "null"
 
-          for attempt in $(seq 1 36); do
-            deployment_status="$(curl --fail-with-body --silent --show-error \
+          for attempt in $(seq 1 72); do
+            status="$(curl --silent --show-error \
               --header "Authorization: Bearer $COOLIFY_TOKEN" \
               "$COOLIFY_API_URL/deployments/$deployment_uuid" | jq -r '.status')"
-            test "$deployment_status" != "failed"
-            container_id="$(docker ps --latest --filter "label=coolify.name=$COOLIFY_APP_UUID" --format '{{.ID}}')"
-            if [ -n "$container_id" ]; then
-              image="$(docker inspect --format '{{.Config.Image}}' "$container_id")"
-              revision="$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$container_id")"
+            test "$status" != "failed"
+            if [ "$status" = "finished" ]; then
+              container_id="$(docker ps --latest --filter "label=coolify.name=$COOLIFY_APP_UUID" --format '{{.ID}}')"
               running="$(docker inspect --format '{{.State.Running}}' "$container_id")"
-              if [ "$image" = "$DEPLOY_IMAGE:$IMAGE_TAG" ] && [ "$revision" = "$GITHUB_SHA" ] && [ "$running" = "true" ]; then
-                docker exec "$container_id" node -e "fetch('http://127.0.0.1:3000/').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+              if [ "$running" = "true" ]; then
+                docker exec "$container_id" node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
                 exit $?
               fi
+              exit 1
             fi
             sleep 10
           done
