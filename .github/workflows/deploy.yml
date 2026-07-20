@@ -8,7 +8,7 @@ on:
 env:
   REGISTRY: ghcr.io
   DEPLOY_IMAGE: ghcr.io/mkwcorp88/drwprime
-  LOCAL_IMAGE: drw-registry:5000/drwprime
+  LOCAL_IMAGE: 127.0.0.1:5555/drwprime
   COOLIFY_API_URL: http://127.0.0.1:8000/api/v1
   COOLIFY_APP_UUID: k79t06olv0zwlwpdy3n4gpdm
   REGISTRY_HOST_PORT: 127.0.0.1:5555
