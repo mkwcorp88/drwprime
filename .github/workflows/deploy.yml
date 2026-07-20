@@ -7,8 +7,10 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # Image owner must be lowercase for GHCR.
+  # Coolify deploys an exact private image that this runner pulls first.
   DEPLOY_IMAGE: ghcr.io/mkwcorp88/drwprime
+  COOLIFY_API_URL: http://127.0.0.1:8000/api/v1
+  COOLIFY_APP_UUID: k79t06olv0zwlwpdy3n4gpdm
 
 jobs:
   build:
@@ -37,13 +39,10 @@ jobs:
         with:
           images: ${{ env.DEPLOY_IMAGE }}
           tags: |
-            type=sha,prefix=
+            type=raw,value=${{ github.sha }}
             type=raw,value=latest
 
-      # Builds run on GitHub-hosted runners (the VPS only pulls the finished
-      # image). DB/Payload secrets are passed as BuildKit secrets so they never
-      # land in an image layer or the registry cache. Layer cache is persisted
-      # in the registry for incremental builds.
+      # Build secrets are never persisted in the image or registry cache.
       - name: Build & push
         uses: docker/build-push-action@v6
         with:
@@ -62,13 +61,55 @@ jobs:
             clerk_secret_key=${{ secrets.CLERK_SECRET_KEY }}
 
   deploy:
-    name: Trigger Coolify redeploy
+    name: Deploy exact image with Coolify
     runs-on: self-hosted
     needs: build
+    permissions:
+      contents: read
+      packages: read
+    env:
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      IMAGE_TAG: ${{ github.sha }}
     steps:
-      - name: Tell Coolify to pull & redeploy
+      - name: Login to GHCR for the rollout
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull the immutable image onto the Coolify host
+        run: docker pull "$DEPLOY_IMAGE:$IMAGE_TAG"
+
+      - name: Point Coolify to the immutable image tag
         run: |
-          curl -fsS -X GET \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
-            "http://127.0.0.1:8000/api/v1/deploy?uuid=k79t06olv0zwlwpdy3n4gpdm&force=true" \
-            && echo "Coolify deploy triggered."
+          curl --fail-with-body --silent --show-error \
+            --request PATCH \
+            --header "Authorization: Bearer $COOLIFY_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data "{\"docker_registry_image_name\":\"$DEPLOY_IMAGE\",\"docker_registry_image_tag\":\"$IMAGE_TAG\",\"health_check_enabled\":true,\"health_check_path\":\"/\",\"health_check_port\":\"3000\",\"health_check_method\":\"GET\",\"health_check_return_code\":200,\"health_check_timeout\":10,\"health_check_retries\":12,\"health_check_start_period\":30}" \
+            "$COOLIFY_API_URL/applications/$COOLIFY_APP_UUID"
+
+      - name: Tell Coolify to pull and redeploy
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --request GET \
+            --header "Authorization: Bearer $COOLIFY_TOKEN" \
+            "$COOLIFY_API_URL/deploy?uuid=$COOLIFY_APP_UUID&force=true"
+
+      - name: Verify the active container revision
+        run: |
+          for attempt in $(seq 1 36); do
+            container_id="$(docker ps --latest --filter "label=coolify.name=$COOLIFY_APP_UUID" --format '{{.ID}}')"
+            if [ -n "$container_id" ]; then
+              image="$(docker inspect --format '{{.Config.Image}}' "$container_id")"
+              revision="$(docker inspect --format '{{ index .Config.Labels \"org.opencontainers.image.revision\" }}' "$container_id")"
+              running="$(docker inspect --format '{{.State.Running}}' "$container_id")"
+              if [ "$image" = "$DEPLOY_IMAGE:$IMAGE_TAG" ] && [ "$revision" = "$GITHUB_SHA" ] && [ "$running" = "true" ]; then
+                docker exec "$container_id" node -e "fetch('http://127.0.0.1:3000/').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+                exit $?
+              fi
+            fi
+            sleep 10
+          done
+          exit 1
