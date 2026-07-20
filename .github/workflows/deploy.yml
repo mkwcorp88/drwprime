@@ -8,6 +8,7 @@ on:
 env:
   REGISTRY: ghcr.io
   DEPLOY_IMAGE: ghcr.io/mkwcorp88/drwprime
+  LOCAL_IMAGE: drw-registry:5000/drwprime
   COOLIFY_API_URL: http://127.0.0.1:8000/api/v1
   COOLIFY_APP_UUID: k79t06olv0zwlwpdy3n4gpdm
 
@@ -57,20 +58,25 @@ jobs:
     needs: build
     env:
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
-      GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
       IMAGE_TAG: ${{ github.sha }}
     steps:
-      - name: Login to GHCR
-        run: printf '%s' "$GHCR_PULL_TOKEN" | docker login "$REGISTRY" --username MKWcorp --password-stdin
+      - name: Mirror to local registry
+        run: |
+          printf '%s' "${{ github.token }}" | docker login "$REGISTRY" --username "${{ github.actor }}" --password-stdin
+          docker pull "$DEPLOY_IMAGE:$IMAGE_TAG"
+          docker tag "$DEPLOY_IMAGE:$IMAGE_TAG" "$LOCAL_IMAGE:latest"
+          docker tag "$DEPLOY_IMAGE:$IMAGE_TAG" "$LOCAL_IMAGE:$IMAGE_TAG"
+          docker push "$LOCAL_IMAGE:latest"
+          docker push "$LOCAL_IMAGE:$IMAGE_TAG"
 
-      - name: Update Coolify config & deploy
+      - name: Update Coolify & deploy
         run: |
           set -euo pipefail
           curl --fail-with-body --silent --show-error \
             --request PATCH \
             --header "Authorization: Bearer $COOLIFY_TOKEN" \
             --header "Content-Type: application/json" \
-            --data "{\"docker_registry_image_name\":\"$DEPLOY_IMAGE\",\"docker_registry_image_tag\":\"$IMAGE_TAG\"}" \
+            --data "{\"docker_registry_image_name\":\"$LOCAL_IMAGE\",\"docker_registry_image_tag\":\"$IMAGE_TAG\"}" \
             "$COOLIFY_API_URL/applications/$COOLIFY_APP_UUID"
 
           curl --fail-with-body --silent --show-error \
@@ -85,7 +91,7 @@ jobs:
             if [ -n "$cid" ]; then
               tag="$(docker inspect --format '{{.Config.Image}}' "$cid")"
               running="$(docker inspect --format '{{.State.Running}}' "$cid")"
-              if [ "$tag" = "$DEPLOY_IMAGE:$IMAGE_TAG" ] && [ "$running" = "true" ]; then
+              if [ "$tag" = "$LOCAL_IMAGE:$IMAGE_TAG" ] && [ "$running" = "true" ]; then
                 docker exec "$cid" node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
                 exit $?
               fi
