@@ -1,14 +1,11 @@
 # syntax=docker/dockerfile:1.4
-# Coolify builds this image directly from the GitHub repo (no registry).
 
-# ── Stage 1: dependencies ────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS deps
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --ignore-scripts
 
-# ── Stage 2: builder ─────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS builder
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
@@ -28,20 +25,17 @@ ENV NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL="/admin"
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Build-time secrets passed as build args by Coolify (or via secret mounts on CI).
-ARG DATABASE_URL
-ARG DATABASE_URI
-ARG PAYLOAD_SECRET
-ARG CLERK_SECRET_KEY
+RUN --mount=type=secret,id=database_url \
+    --mount=type=secret,id=database_uri \
+    --mount=type=secret,id=payload_secret \
+    --mount=type=secret,id=clerk_secret_key \
+    --mount=type=cache,target=/app/.next/cache \
+    DATABASE_URL="$(cat /run/secrets/database_url)" \
+    DATABASE_URI="$(cat /run/secrets/database_uri)" \
+    PAYLOAD_SECRET="$(cat /run/secrets/payload_secret)" \
+    CLERK_SECRET_KEY="$(cat /run/secrets/clerk_secret_key)" \
+    npm run build
 
-ENV DATABASE_URL=${DATABASE_URL}
-ENV DATABASE_URI=${DATABASE_URI}
-ENV PAYLOAD_SECRET=${PAYLOAD_SECRET}
-ENV CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
-
-RUN npm run build
-
-# ── Stage 3: runner ──────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS runner
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
