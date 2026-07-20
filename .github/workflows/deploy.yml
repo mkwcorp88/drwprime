@@ -61,7 +61,7 @@ jobs:
       IMAGE_TAG: ${{ github.sha }}
     steps:
       - name: Login to GHCR
-        run: printf '%s' "$GHCR_PULL_TOKEN" | docker login "$REGISTRY" --username mkwcorp88 --password-stdin
+        run: printf '%s' "$GHCR_PULL_TOKEN" | docker login "$REGISTRY" --username MKWcorp --password-stdin
 
       - name: Update Coolify config & deploy
         run: |
