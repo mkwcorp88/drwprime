@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # Coolify deploys an exact private image that this runner pulls first.
+  # Coolify pulls this package directly from GHCR.
   DEPLOY_IMAGE: ghcr.io/mkwcorp88/drwprime
   COOLIFY_API_URL: http://127.0.0.1:8000/api/v1
   COOLIFY_APP_UUID: k79t06olv0zwlwpdy3n4gpdm
@@ -60,50 +60,89 @@ jobs:
             payload_secret=${{ secrets.PAYLOAD_SECRET }}
             clerk_secret_key=${{ secrets.CLERK_SECRET_KEY }}
 
+      - name: Keep the GHCR package public for Coolify
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            --method PATCH \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "/orgs/mkwcorp88/packages/container/drwprime" \
+            -f visibility=public
+
   deploy:
     name: Deploy exact image with Coolify
     runs-on: self-hosted
     needs: build
-    permissions:
-      contents: read
-      packages: read
     env:
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
       IMAGE_TAG: ${{ github.sha }}
     steps:
-      - name: Login to GHCR for the rollout
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull the immutable image onto the Coolify host
-        run: docker pull "$DEPLOY_IMAGE:$IMAGE_TAG"
-
-      - name: Point Coolify to the immutable image tag
+      - name: Verify Coolify can pull the immutable image
         run: |
+          export DOCKER_CONFIG="$(mktemp -d)"
+          trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+          docker manifest inspect "$DEPLOY_IMAGE:$IMAGE_TAG" > /dev/null
+
+      - name: Deploy and verify with automatic rollback
+        run: |
+          set -Eeuo pipefail
+          application="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $COOLIFY_TOKEN" \
+            "$COOLIFY_API_URL/applications/$COOLIFY_APP_UUID")"
+          previous_image="$(jq -r '.docker_registry_image_name' <<< "$application")"
+          previous_tag="$(jq -r '.docker_registry_image_tag' <<< "$application")"
+
+          rollback() {
+            trap - ERR
+            curl --fail-with-body --silent --show-error \
+              --request PATCH \
+              --header "Authorization: Bearer $COOLIFY_TOKEN" \
+              --header "Content-Type: application/json" \
+              --data "{\"docker_registry_image_name\":\"$previous_image\",\"docker_registry_image_tag\":\"$previous_tag\"}" \
+              "$COOLIFY_API_URL/applications/$COOLIFY_APP_UUID" || true
+            curl --fail-with-body --silent --show-error \
+              --request GET \
+              --header "Authorization: Bearer $COOLIFY_TOKEN" \
+              "$COOLIFY_API_URL/deploy?uuid=$COOLIFY_APP_UUID&force=true" || true
+            for attempt in $(seq 1 36); do
+              container_id="$(docker ps --latest --filter "label=coolify.name=$COOLIFY_APP_UUID" --format '{{.ID}}')"
+              if [ -n "$container_id" ]; then
+                image="$(docker inspect --format '{{.Config.Image}}' "$container_id")"
+                running="$(docker inspect --format '{{.State.Running}}' "$container_id")"
+                if [ "$image" = "$previous_image:$previous_tag" ] && [ "$running" = "true" ]; then
+                  return 0
+                fi
+              fi
+              sleep 5
+            done
+            return 1
+          }
+          trap rollback ERR
+
           curl --fail-with-body --silent --show-error \
             --request PATCH \
             --header "Authorization: Bearer $COOLIFY_TOKEN" \
             --header "Content-Type: application/json" \
-            --data "{\"docker_registry_image_name\":\"$DEPLOY_IMAGE\",\"docker_registry_image_tag\":\"$IMAGE_TAG\",\"health_check_enabled\":true,\"health_check_path\":\"/\",\"health_check_port\":\"3000\",\"health_check_method\":\"GET\",\"health_check_return_code\":200,\"health_check_timeout\":10,\"health_check_retries\":12,\"health_check_start_period\":30}" \
+            --data "{\"docker_registry_image_name\":\"$DEPLOY_IMAGE\",\"docker_registry_image_tag\":\"$IMAGE_TAG\"}" \
             "$COOLIFY_API_URL/applications/$COOLIFY_APP_UUID"
-
-      - name: Tell Coolify to pull and redeploy
-        run: |
-          curl --fail-with-body --silent --show-error \
+          deployment="$(curl --fail-with-body --silent --show-error \
             --request GET \
             --header "Authorization: Bearer $COOLIFY_TOKEN" \
-            "$COOLIFY_API_URL/deploy?uuid=$COOLIFY_APP_UUID&force=true"
+            "$COOLIFY_API_URL/deploy?uuid=$COOLIFY_APP_UUID&force=true")"
+          deployment_uuid="$(jq -r '.deployments[0].deployment_uuid' <<< "$deployment")"
+          test -n "$deployment_uuid"
+          test "$deployment_uuid" != "null"
 
-      - name: Verify the active container revision
-        run: |
           for attempt in $(seq 1 36); do
+            deployment_status="$(curl --fail-with-body --silent --show-error \
+              --header "Authorization: Bearer $COOLIFY_TOKEN" \
+              "$COOLIFY_API_URL/deployments/$deployment_uuid" | jq -r '.status')"
+            test "$deployment_status" != "failed"
             container_id="$(docker ps --latest --filter "label=coolify.name=$COOLIFY_APP_UUID" --format '{{.ID}}')"
             if [ -n "$container_id" ]; then
               image="$(docker inspect --format '{{.Config.Image}}' "$container_id")"
-              revision="$(docker inspect --format '{{ index .Config.Labels \"org.opencontainers.image.revision\" }}' "$container_id")"
+              revision="$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$container_id")"
               running="$(docker inspect --format '{{.State.Running}}' "$container_id")"
               if [ "$image" = "$DEPLOY_IMAGE:$IMAGE_TAG" ] && [ "$revision" = "$GITHUB_SHA" ] && [ "$running" = "true" ]; then
                 docker exec "$container_id" node -e "fetch('http://127.0.0.1:3000/').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
