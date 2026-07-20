@@ -7,8 +7,9 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # Coolify pulls this package directly from GHCR.
+  # Coolify pulls this exact private image after registry credentials are set.
   DEPLOY_IMAGE: ghcr.io/mkwcorp88/drwprime
+  GHCR_USERNAME: MKWcorp
   COOLIFY_API_URL: http://127.0.0.1:8000/api/v1
   COOLIFY_APP_UUID: k79t06olv0zwlwpdy3n4gpdm
 
@@ -60,29 +61,28 @@ jobs:
             payload_secret=${{ secrets.PAYLOAD_SECRET }}
             clerk_secret_key=${{ secrets.CLERK_SECRET_KEY }}
 
-      - name: Keep the GHCR package public for Coolify
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api \
-            --method PATCH \
-            --header "X-GitHub-Api-Version: 2022-11-28" \
-            "/orgs/mkwcorp88/packages/container/drwprime" \
-            -f visibility=public
-
   deploy:
     name: Deploy exact image with Coolify
     runs-on: self-hosted
     needs: build
     env:
+      DOCKER_CONFIG: /root/.docker
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
       IMAGE_TAG: ${{ github.sha }}
     steps:
-      - name: Verify Coolify can pull the immutable image
+      - name: Configure persistent GHCR credentials for Coolify
         run: |
-          export DOCKER_CONFIG="$(mktemp -d)"
-          trap 'rm -rf "$DOCKER_CONFIG"' EXIT
-          docker manifest inspect "$DEPLOY_IMAGE:$IMAGE_TAG" > /dev/null
+          test -n "$GHCR_PULL_TOKEN"
+          printf '%s' "$GHCR_PULL_TOKEN" | docker login "$REGISTRY" --username "$GHCR_USERNAME" --password-stdin
+
+      - name: Verify the Coolify helper can pull the immutable image
+        run: |
+          docker run --rm \
+            -v /root/.docker/config.json:/root/.docker/config.json:ro \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            ghcr.io/coollabsio/coolify-helper:1.0.14 \
+            docker manifest inspect "$DEPLOY_IMAGE:$IMAGE_TAG" > /dev/null
 
       - name: Deploy and verify with automatic rollback
         run: |
