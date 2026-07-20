@@ -70,5 +70,5 @@ jobs:
         run: |
           curl -fsS -X GET \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
-            "http://213.190.4.159:8000/api/v1/deploy?uuid=k79t06olv0zwlwpdy3n4gpdm&force=false" \
+            "http://127.0.0.1:8000/api/v1/deploy?uuid=k79t06olv0zwlwpdy3n4gpdm&force=false" \
             && echo "Coolify deploy triggered."
