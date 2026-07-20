@@ -11,6 +11,7 @@ env:
   LOCAL_IMAGE: drw-registry:5000/drwprime
   COOLIFY_API_URL: http://127.0.0.1:8000/api/v1
   COOLIFY_APP_UUID: k79t06olv0zwlwpdy3n4gpdm
+  REGISTRY_HOST_PORT: 127.0.0.1:5555
 
 jobs:
   build:
@@ -64,10 +65,11 @@ jobs:
         run: |
           printf '%s' "${{ github.token }}" | docker login "$REGISTRY" --username "${{ github.actor }}" --password-stdin
           docker pull "$DEPLOY_IMAGE:$IMAGE_TAG"
-          docker tag "$DEPLOY_IMAGE:$IMAGE_TAG" "$LOCAL_IMAGE:latest"
-          docker tag "$DEPLOY_IMAGE:$IMAGE_TAG" "$LOCAL_IMAGE:$IMAGE_TAG"
-          docker push "$LOCAL_IMAGE:latest"
-          docker push "$LOCAL_IMAGE:$IMAGE_TAG"
+          # Push via host port (127.0.0.1:5555), Coolify pulls via Docker network (drw-registry:5000)
+          docker tag "$DEPLOY_IMAGE:$IMAGE_TAG" "$REGISTRY_HOST_PORT/drwprime:latest"
+          docker tag "$DEPLOY_IMAGE:$IMAGE_TAG" "$REGISTRY_HOST_PORT/drwprime:$IMAGE_TAG"
+          docker push "$REGISTRY_HOST_PORT/drwprime:latest"
+          docker push "$REGISTRY_HOST_PORT/drwprime:$IMAGE_TAG"
 
       - name: Update Coolify & deploy
         run: |
