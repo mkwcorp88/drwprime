@@ -53,10 +53,27 @@ jobs:
             payload_secret=${{ secrets.PAYLOAD_SECRET }}
             clerk_secret_key=${{ secrets.CLERK_SECRET_KEY }}
 
+  migrate:
+    name: Apply database migration
+    runs-on: self-hosted
+    needs: build
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - name: Apply My Prime schema migration
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx --no-install prisma db execute --schema prisma/schema.prisma --file prisma/migrations/20260721000000_make_user_phone_optional/migration.sql
+
   deploy:
     name: Deploy
     runs-on: self-hosted
-    needs: build
+    needs: [build, migrate]
     env:
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
       IMAGE_TAG: ${{ github.sha }}
