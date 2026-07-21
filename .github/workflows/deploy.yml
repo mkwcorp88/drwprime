@@ -88,16 +88,22 @@ jobs:
 
       - name: Wait for healthy container
         run: |
-          for i in $(seq 1 72); do
-            cid="$(docker ps --latest --filter "label=coolify.name=$COOLIFY_APP_UUID" --format '{{.ID}}')"
+          last_cid=""
+          for i in $(seq 1 18); do
+            cid="$(docker ps -a --latest --filter "label=coolify.name=$COOLIFY_APP_UUID" --format '{{.ID}}')"
             if [ -n "$cid" ]; then
+              last_cid="$cid"
               tag="$(docker inspect --format '{{.Config.Image}}' "$cid")"
               running="$(docker inspect --format '{{.State.Running}}' "$cid")"
               if [ "$tag" = "$LOCAL_IMAGE:$IMAGE_TAG" ] && [ "$running" = "true" ]; then
-                docker exec "$cid" node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-                exit $?
+                if docker exec "$cid" node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+                  exit 0
+                fi
               fi
             fi
             sleep 10
           done
+          if [ -n "$last_cid" ]; then
+            docker logs --tail 200 "$last_cid" || true
+          fi
           exit 1
