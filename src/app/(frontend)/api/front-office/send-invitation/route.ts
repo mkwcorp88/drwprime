@@ -42,6 +42,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!member.phone) {
+      return NextResponse.json(
+        { error: 'Member belum memiliki nomor WhatsApp.' },
+        { status: 400 }
+      );
+    }
+
     const memberName = [member.firstName, member.lastName].filter(Boolean).join(' ') || 'Member';
     const tier = Number(member.totalSpending) >= 5_000_000
       ? 'PLATINUM'

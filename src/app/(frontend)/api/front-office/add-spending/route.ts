@@ -119,32 +119,34 @@ export async function POST(req: NextRequest) {
     // Kirim WA notification (fire-and-forget, jangan block response)
     const memberName = [member.firstName, member.lastName].filter(Boolean).join(' ') || 'Member';
 
-    // A. Notifikasi spending
-    sendSpendingNotification({
-      memberName,
-      memberPhone: member.phone,
-      isWalkIn: !member.hasAccount,
-      isFirstTransaction,
-      amount,
-      pointsEarned,
-      totalPoints: updatedUser.points,
-      totalSpending: newTotalSpending,
-      tier: newTier,
-      treatment,
-      transactionCount,
-    }).catch((err) => console.warn('[WA] Spending notification failed:', err));
-
-    // B. Notifikasi tier upgrade (jika berubah)
-    if (newTier !== oldTier && oldTier !== 'PLATINUM') {
-      sendTierUpgradeNotification({
+    if (member.phone) {
+      // A. Notifikasi spending
+      sendSpendingNotification({
         memberName,
         memberPhone: member.phone,
-        previousTier: oldTier,
-        newTier,
+        isWalkIn: !member.hasAccount,
+        isFirstTransaction,
+        amount,
+        pointsEarned,
         totalPoints: updatedUser.points,
         totalSpending: newTotalSpending,
-        benefits: getTierBenefits(newTier),
-      }).catch((err) => console.warn('[WA] Tier upgrade notification failed:', err));
+        tier: newTier,
+        treatment,
+        transactionCount,
+      }).catch((err) => console.warn('[WA] Spending notification failed:', err));
+
+      // B. Notifikasi tier upgrade (jika berubah)
+      if (newTier !== oldTier && oldTier !== 'PLATINUM') {
+        sendTierUpgradeNotification({
+          memberName,
+          memberPhone: member.phone,
+          previousTier: oldTier,
+          newTier,
+          totalPoints: updatedUser.points,
+          totalSpending: newTotalSpending,
+          benefits: getTierBenefits(newTier),
+        }).catch((err) => console.warn('[WA] Tier upgrade notification failed:', err));
+      }
     }
 
     return NextResponse.json({

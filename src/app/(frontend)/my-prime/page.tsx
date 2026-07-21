@@ -79,30 +79,33 @@ export default function MyPrimePage() {
   const [membership, setMembership] = useState<MembershipData | null>(null);
   const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const fetchMembership = useCallback(async () => {
     try {
       setLoading(true);
-      // Ensure user is synced first
-      const syncRes = await fetch('/api/user');
-      if (syncRes.ok) {
-        const syncData = await syncRes.json();
-        if (syncData.needsSync) {
-          await fetch('/api/user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: user?.emailAddresses[0]?.emailAddress,
-              firstName: user?.firstName,
-              lastName: user?.lastName,
-            }),
-          });
-        }
+      setLoadError('');
+
+      // POST is idempotent: it returns an existing account or creates its profile stub.
+      const syncRes = await fetch('/api/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user?.emailAddresses[0]?.emailAddress,
+          firstName: user?.firstName,
+          lastName: user?.lastName,
+          phone: user?.phoneNumbers[0]?.phoneNumber,
+        }),
+      });
+      if (!syncRes.ok) {
+        const data = await syncRes.json().catch(() => null);
+        throw new Error(data?.error || 'Gagal menyiapkan akun member');
       }
+
       const res = await fetch('/api/membership');
       if (!res.ok) {
-        setMembership(null);
-        return;
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || 'Gagal memuat data membership');
       }
       const data = await res.json();
       setMembership(data.membership);
@@ -112,6 +115,8 @@ export default function MyPrimePage() {
         if (profileRes.ok) {
           const profileData = await profileRes.json();
           setProfileComplete(Boolean(profileData.profile?.isComplete));
+        } else if (profileRes.status === 404) {
+          setProfileComplete(false);
         }
       } catch {
         // ignore profile fetch errors, banner just won't show
@@ -119,15 +124,19 @@ export default function MyPrimePage() {
     } catch (err) {
       console.error('Membership fetch error:', err);
       setMembership(null);
+      setLoadError('Kami belum dapat memuat My Prime. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    if (isLoaded && user) {
-      fetchMembership();
+    if (!isLoaded) return;
+    if (!user) {
+      setLoading(false);
+      return;
     }
+    fetchMembership();
   }, [isLoaded, user, fetchMembership]);
 
   const formatCurrency = (amount: number) =>
@@ -179,7 +188,15 @@ export default function MyPrimePage() {
       <MobileLayout>
         <div className="min-h-screen bg-black flex items-center justify-center">
           <div className="text-center">
-            <p className="text-white/60 text-sm">Gagal memuat data. Silakan refresh halaman.</p>
+            <p className="text-white/60 text-sm">
+              {loadError || 'Gagal memuat data. Silakan refresh halaman.'}
+            </p>
+            <button
+              onClick={fetchMembership}
+              className="mt-4 rounded-lg border border-primary/40 px-4 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+            >
+              Coba Lagi
+            </button>
           </div>
         </div>
       </MobileLayout>

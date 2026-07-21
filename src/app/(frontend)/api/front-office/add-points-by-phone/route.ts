@@ -202,32 +202,34 @@ export async function POST(req: NextRequest) {
     // Send WhatsApp notifications (fire-and-forget)
     const memberName = [updatedUser.firstName, updatedUser.lastName].filter(Boolean).join(' ') || 'Member';
 
-    // A. Spending notification
-    sendSpendingNotification({
-      memberName,
-      memberPhone: updatedUser.phone,
-      isWalkIn: !updatedUser.hasAccount,
-      isFirstTransaction,
-      amount,
-      pointsEarned,
-      totalPoints: updatedUser.points,
-      totalSpending: newTotalSpending,
-      tier: newTier,
-      treatment,
-      transactionCount,
-    }).catch((err) => console.warn('[WA] Spending notification failed:', err));
-
-    // B. Tier upgrade notification (if tier changed)
-    if (newTier !== oldTier && oldTier !== 'PLATINUM') {
-      sendTierUpgradeNotification({
+    if (updatedUser.phone) {
+      // A. Spending notification
+      sendSpendingNotification({
         memberName,
         memberPhone: updatedUser.phone,
-        previousTier: oldTier,
-        newTier,
+        isWalkIn: !updatedUser.hasAccount,
+        isFirstTransaction,
+        amount,
+        pointsEarned,
         totalPoints: updatedUser.points,
         totalSpending: newTotalSpending,
-        benefits: getTierBenefits(newTier),
-      }).catch((err) => console.warn('[WA] Tier upgrade notification failed:', err));
+        tier: newTier,
+        treatment,
+        transactionCount,
+      }).catch((err) => console.warn('[WA] Spending notification failed:', err));
+
+      // B. Tier upgrade notification (if tier changed)
+      if (newTier !== oldTier && oldTier !== 'PLATINUM') {
+        sendTierUpgradeNotification({
+          memberName,
+          memberPhone: updatedUser.phone,
+          previousTier: oldTier,
+          newTier,
+          totalPoints: updatedUser.points,
+          totalSpending: newTotalSpending,
+          benefits: getTierBenefits(newTier),
+        }).catch((err) => console.warn('[WA] Tier upgrade notification failed:', err));
+      }
     }
 
     return NextResponse.json({

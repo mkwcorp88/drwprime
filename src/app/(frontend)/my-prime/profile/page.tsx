@@ -68,19 +68,26 @@ export default function ProfilePage() {
   const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
+      setError('');
       let res = await fetch('/api/profile');
 
       if (res.status === 404) {
         // User not yet synced to DB — sync then retry
-        await fetch('/api/user', {
+        const syncRes = await fetch('/api/user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: user?.emailAddresses[0]?.emailAddress,
             firstName: user?.firstName,
             lastName: user?.lastName,
+            phone: user?.phoneNumbers[0]?.phoneNumber,
           }),
         });
+        if (!syncRes.ok) {
+          const data = await syncRes.json().catch(() => null);
+          setError(data?.error || 'Gagal menyiapkan akun member. Silakan coba lagi.');
+          return;
+        }
         res = await fetch('/api/profile');
       }
 
@@ -120,9 +127,12 @@ export default function ProfilePage() {
   }, [user]);
 
   useEffect(() => {
-    if (isLoaded && user) {
-      loadProfile();
+    if (!isLoaded) return;
+    if (!user) {
+      setLoading(false);
+      return;
     }
+    loadProfile();
   }, [isLoaded, user, loadProfile]);
 
   const handlePhoneChange = (value: string) => {

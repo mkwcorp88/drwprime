@@ -19,7 +19,7 @@ model User {
   lastName          String?        @map("last_name")
 
   // Personal info (member profile completion)
-  phone             String         @unique // PRIMARY IDENTIFIER - required for all members
+  phone             String?        @unique // Collected when the member completes their profile
   nik               String?        @unique // Nomor Induk Kependudukan (KTP)
   gender            String?        // "Pria" | "Wanita"
   dateOfBirth       DateTime?      @map("date_of_birth") @db.Date

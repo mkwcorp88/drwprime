@@ -26,7 +26,19 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { email, firstName, lastName, referralCode } = body;
+    const email = typeof body.email === 'string' && body.email.trim() ? body.email.trim() : null;
+    const providedFirstName = typeof body.firstName === 'string' ? body.firstName.trim() : '';
+    const firstName = providedFirstName || email?.split('@')[0] || 'Member';
+    const lastName = typeof body.lastName === 'string' && body.lastName.trim() ? body.lastName.trim() : null;
+    const referralCode = typeof body.referralCode === 'string' && body.referralCode.trim()
+      ? body.referralCode.trim()
+      : null;
+    const rawPhone = typeof body.phone === 'string' && body.phone.trim() ? body.phone.trim() : null;
+    const normalizedPhone = rawPhone ? normalizePhone(rawPhone) : null;
+
+    if (normalizedPhone && !/^62\d{8,13}$/.test(normalizedPhone)) {
+      return NextResponse.json({ error: 'Format nomor HP tidak valid' }, { status: 400 });
+    }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -37,9 +49,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ user: existingUser });
     }
 
-    // NEW: Check if there's a walk-in member with matching phone/email that we can link
-    const { phone } = body; // Assuming phone is passed from sign-up
-    const normalizedPhone = phone ? normalizePhone(phone) : null;
+    // Check if a walk-in member has the same normalized phone number.
     let walkInMember = null;
     
     if (normalizedPhone) {
@@ -57,9 +67,12 @@ export async function POST(req: Request) {
 
       // If found and it's a walk-in (no clerkUserId yet)
       if (walkInMember && !walkInMember.clerkUserId) {
-        console.log(`[USER-LINK] Found walk-in member with phone ${phone}, linking to Clerk user ${userId}`);
+        console.log(`[USER-LINK] Found walk-in member with phone ${normalizedPhone}, linking to Clerk user ${userId}`);
       } else {
-        walkInMember = null; // Not a valid walk-in to link
+        return NextResponse.json(
+          { error: 'Nomor HP ini sudah terdaftar di akun lain' },
+          { status: 409 }
+        );
       }
     }
 
@@ -67,12 +80,14 @@ export async function POST(req: Request) {
     let isTeamLeader = false;
 
     // Check if there's a pre-assigned code for this email
-    const preAssignedCode = await prisma.preClaimAffiliateCode.findFirst({
-      where: {
-        assignedEmail: email,
-        status: 'unclaimed'
-      }
-    });
+    const preAssignedCode = email
+      ? await prisma.preClaimAffiliateCode.findFirst({
+          where: {
+            assignedEmail: email,
+            status: 'unclaimed',
+          },
+        })
+      : null;
 
     if (preAssignedCode) {
       // Auto-claim the pre-assigned code
@@ -99,7 +114,7 @@ export async function POST(req: Request) {
     } else {
       // Generate unique affiliate code for new team leader
       affiliateCode = await ensureUniqueAffiliateCode(
-        firstName || '',
+        firstName,
         lastName || '',
         async (code) => {
           const exists = await prisma.user.findFirst({
@@ -112,7 +127,7 @@ export async function POST(req: Request) {
     }
 
     // Check if user is admin (by Clerk User ID or email)
-    const isAdmin = ADMIN_USER_IDS.includes(userId) || ADMIN_EMAILS.includes(email);
+    const isAdmin = ADMIN_USER_IDS.includes(userId) || (email ? ADMIN_EMAILS.includes(email) : false);
 
     // Create OR update user (link walk-in member)
     let user;
@@ -123,7 +138,7 @@ export async function POST(req: Request) {
         data: {
           clerkUserId: userId,
           email,
-          firstName: firstName || undefined, // Keep walk-in name if not provided
+          firstName: providedFirstName || undefined, // Keep walk-in name if not provided
           lastName: lastName || undefined,
           affiliateCode: affiliateCode || undefined,
           isTeamLeader,
@@ -140,7 +155,7 @@ export async function POST(req: Request) {
           email,
           firstName,
           lastName,
-          phone: phone || undefined,
+          phone: normalizedPhone,
           affiliateCode,
           isTeamLeader,
           hasAccount: true,
