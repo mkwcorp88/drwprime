@@ -3,39 +3,24 @@
 import Link from "next/link";
 
 const skinIssues = [
-  { title: "Jerawat", icon: "●", href: "/treatments?category=facial-basic" },
-  { title: "Flek Hitam", icon: "◉", href: "/treatments?category=facial-basic" },
-  { title: "Kulit Kusam", icon: "◎", href: "/treatments?category=facial-basic" },
-  { title: "Penuaan Dini", icon: "◈", href: "/treatments?category=facial-basic" },
+  { title: "Jerawat", href: "/treatments?category=facial-basic" },
+  { title: "Flek Hitam", href: "/treatments?category=facial-basic" },
+  { title: "Kulit Kusam", href: "/treatments?category=facial-basic" },
+  { title: "Penuaan Dini", href: "/treatments?category=facial-basic" },
 ];
 
 const services = [
   {
     title: "Treatment Wajah",
     href: "/treatments?category=facial-basic",
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
   },
   {
     title: "Treatment Tubuh",
     href: "/treatments?category=body-treatment",
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-      </svg>
-    ),
   },
   {
     title: "Home Treatment",
     href: "/home-treatment",
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-      </svg>
-    ),
   },
 ];
 
@@ -90,7 +75,7 @@ export default function TreatmentCards() {
 
           <Link
             href="#contact"
-            className="inline-block bg-primary text-dark font-semibold text-sm px-6 py-2.5 rounded-full hover:bg-primary-light transition-colors active:scale-95"
+            className="inline-block rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-dark transition-colors hover:bg-primary-light active:scale-95"
           >
             Konsultasi Gratis
           </Link>
@@ -111,12 +96,10 @@ export default function TreatmentCards() {
             <Link
               key={issue.title}
               href={issue.href}
-              className="flex items-center gap-2.5 bg-[#111] rounded-xl px-3.5 py-3 border border-white/[0.06] hover:border-primary/40 active:scale-[0.98] transition-all"
+              className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#111] px-3.5 py-3 transition-all hover:border-primary/40 active:scale-[0.98]"
             >
-              <span className="w-6 h-6 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-xs">
-                {issue.icon}
-              </span>
-              <span className="text-xs font-medium text-white/80">
+              <span aria-hidden="true" className="h-5 w-px bg-primary/80" />
+              <span className="text-xs font-medium tracking-[0.01em] text-white/80">
                 {issue.title}
               </span>
             </Link>
@@ -134,12 +117,10 @@ export default function TreatmentCards() {
             <Link
               key={svc.title}
               href={svc.href}
-              className="flex items-center gap-3 bg-[#111] rounded-xl px-4 py-3 border border-white/[0.06] hover:border-primary/40 active:scale-[0.98] transition-all"
+              className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#111] px-4 py-3 transition-all hover:border-primary/40 active:scale-[0.98]"
             >
-              <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-                {svc.icon}
-              </div>
-              <span className="text-sm font-medium text-white/80 flex-1">
+              <span aria-hidden="true" className="h-7 w-px bg-primary/80" />
+              <span className="flex-1 text-sm font-medium tracking-[0.01em] text-white/80">
                 {svc.title}
               </span>
               <svg className="w-4 h-4 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
