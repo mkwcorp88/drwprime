@@ -51,6 +51,8 @@ const TIER_CONFIG = {
     badge: 'bg-white/[0.07] text-slate-200 border-white/15',
     progress: 'bg-gradient-to-r from-slate-400 to-slate-300',
     marker: 'bg-slate-300',
+    emblem: 'border-slate-300/55 bg-gradient-to-br from-slate-100/25 via-slate-500/10 to-black text-slate-200 shadow-[0_0_12px_rgba(203,213,225,0.18)]',
+    divider: 'bg-slate-300/25',
   },
   GOLD: {
     label: 'Gold',
@@ -59,6 +61,8 @@ const TIER_CONFIG = {
     badge: 'bg-primary/10 text-primary border-primary/30',
     progress: 'bg-gradient-to-r from-amber-500 to-primary',
     marker: 'bg-primary',
+    emblem: 'border-primary/60 bg-gradient-to-br from-[#ffe9a4]/30 via-primary/15 to-black text-[#f4d36f] shadow-[0_0_14px_rgba(212,175,55,0.28)]',
+    divider: 'bg-primary/30',
   },
   PLATINUM: {
     label: 'Platinum',
@@ -67,8 +71,65 @@ const TIER_CONFIG = {
     badge: 'bg-[#f8e9bd]/10 text-[#f8e9bd] border-[#f8e9bd]/30',
     progress: 'bg-gradient-to-r from-primary to-[#fff0bd]',
     marker: 'bg-[#fff0bd]',
+    emblem: 'border-[#fff0bd]/65 bg-gradient-to-br from-white/35 via-[#f8e9bd]/15 to-black text-[#fff5d5] shadow-[0_0_16px_rgba(255,240,189,0.3)]',
+    divider: 'bg-[#fff0bd]/35',
   },
 };
+
+type MembershipTier = keyof typeof TIER_CONFIG;
+
+function TierBadge({ tier }: { tier: MembershipTier }) {
+  const config = TIER_CONFIG[tier];
+
+  return (
+    <span className={`relative isolate flex flex-shrink-0 items-center overflow-hidden rounded-full border py-1 pl-1 pr-3 ${config.badge}`}>
+      <span className={`relative flex h-7 w-7 items-center justify-center rounded-full border ${config.emblem}`}>
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 32 32" aria-hidden="true">
+          <circle cx="16" cy="16" r="12.25" stroke="currentColor" strokeWidth="0.75" opacity="0.48" />
+          <circle cx="16" cy="16" r="10.25" stroke="currentColor" strokeWidth="0.45" opacity="0.28" />
+
+          {tier === 'GOLD' && (
+            <path
+              d="M16 5v4M16 23v4M5 16h4M23 16h4M8.2 8.2l2.8 2.8M21 21l2.8 2.8M23.8 8.2L21 11M11 21l-2.8 2.8"
+              stroke="currentColor"
+              strokeWidth="0.55"
+              opacity="0.28"
+            />
+          )}
+
+          {tier === 'PLATINUM' && (
+            <g fill="currentColor" opacity="0.09">
+              <path d="M6 10l5-3 2.5 5-5.5 4z" />
+              <path d="M11 7l5-2 1 7-3.5 0z" />
+              <path d="M16 5l6 2-3 6-2-1z" />
+              <path d="M22 7l4 4-6 4-1-2z" />
+              <path d="M8 16l5.5-4 2.5 5-5 5z" />
+              <path d="M16 17l4-2 4 5-8 7z" />
+            </g>
+          )}
+
+          <path
+            d="M18.4 6.2c-2.9 2.3-4.45 5.3-4.05 8.05.17 1.16.83 1.97 1.9 2.48l-1.75 1.42 1.8.83-.72 1.45 1.72.62c-.05 2.08.52 3.62 1.75 4.75"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.15"
+          />
+          <path
+            d="M15.95 16.68c1.2-.02 2.08-.48 2.72-1.42"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="0.8"
+            opacity="0.72"
+          />
+        </svg>
+      </span>
+      <span aria-hidden="true" className={`mx-2 h-4 w-px ${config.divider}`} />
+      <span className="text-[9px] font-semibold uppercase tracking-[0.18em]">{config.label}</span>
+      <span aria-hidden="true" className="absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+    </span>
+  );
+}
 
 export default function MyPrimePage() {
   const { user, isLoaded } = useUser();
@@ -327,10 +388,7 @@ export default function MyPrimePage() {
                       </div>
                       <p className="text-xs font-medium tracking-wide text-white/65">Beauty & Wellness Membership</p>
                     </div>
-                    <span className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${tier.badge}`}>
-                      <span className={`h-1.5 w-1.5 rounded-full ${tier.marker} shadow-[0_0_8px_currentColor]`} />
-                      {tier.label}
-                    </span>
+                    <TierBadge tier={membership.tier} />
                   </div>
 
                   <div className="mb-7 flex items-center gap-4">
