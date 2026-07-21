@@ -9,7 +9,7 @@ import Navbar from '@/components/Navbar';
 import MobileLayout from '@/components/MobileLayout';
 import InstallPrompt from '@/components/InstallPrompt';
 import MemberQrCard from '@/components/MemberQrCard';
-import LoadingScreen from '@/components/LoadingScreen';
+import LoadingScreen, { Hourglass } from '@/components/LoadingScreen';
 
 interface MemberReservation {
   id: string;
@@ -78,6 +78,8 @@ export default function MyPrimePage() {
   const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
 
   const fetchMembership = useCallback(async () => {
     try {
@@ -157,6 +159,33 @@ export default function MyPrimePage() {
       month: 'short',
       day: 'numeric',
     });
+
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('File harus berupa gambar.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError('Ukuran foto maksimal 5MB.');
+      return;
+    }
+
+    setAvatarBusy(true);
+    setAvatarError('');
+    try {
+      await user.setProfileImage({ file });
+      await user.reload();
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      setAvatarError('Gagal mengunggah foto. Silakan coba lagi.');
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
 
   if (!isLoaded || loading) {
     return (
@@ -248,6 +277,12 @@ export default function MyPrimePage() {
   const tier = TIER_CONFIG[membership.tier];
   const displayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Member';
   const phone = user.phoneNumbers?.[0]?.phoneNumber || '-';
+  const initials = [user.firstName, user.lastName]
+    .filter(Boolean)
+    .map((name) => name?.charAt(0))
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'MP';
 
   return (
     <MobileLayout>
@@ -299,16 +334,41 @@ export default function MyPrimePage() {
                   </div>
 
                   <div className="mb-7 flex items-center gap-4">
-                    <div className="relative h-[60px] w-[60px] flex-shrink-0 rounded-full border border-primary/55 bg-black p-[3px] shadow-[0_0_0_4px_rgba(212,175,55,0.07),0_12px_30px_rgba(0,0,0,0.55)]">
-                      <div className="relative h-full w-full overflow-hidden rounded-full border border-primary/20 bg-[#090909]">
-                        <Image
-                          src="/apple-touch-icon.png"
-                          alt="Emblem DRW Prime"
-                          fill
-                          sizes="60px"
-                          className="scale-[1.04] object-cover"
-                        />
+                    <div className="relative h-[62px] w-[62px] flex-shrink-0 rounded-full border border-primary/55 bg-black p-[3px] shadow-[0_0_0_4px_rgba(212,175,55,0.07),0_12px_30px_rgba(0,0,0,0.55)]">
+                      <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border border-primary/20 bg-[#151515]">
+                        {user.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={user.imageUrl}
+                            alt={`Foto profil ${displayName}`}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-sm font-semibold tracking-[0.08em] text-primary">{initials}</span>
+                        )}
+                        {avatarBusy && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                            <Hourglass size={20} />
+                          </div>
+                        )}
                       </div>
+                      <label
+                        title="Ganti foto profil"
+                        aria-label="Ganti foto profil"
+                        className="absolute -bottom-1 -right-1 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-primary/50 bg-[#15130d] text-primary shadow-[0_4px_12px_rgba(0,0,0,0.55)] transition-colors hover:bg-primary hover:text-black"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleAvatarChange}
+                          disabled={avatarBusy}
+                        />
+                      </label>
                     </div>
                     <div className="min-w-0">
                       <p className="mb-1 text-[9px] font-medium uppercase tracking-[0.2em] text-white/35">Member</p>
@@ -332,6 +392,9 @@ export default function MyPrimePage() {
                   </div>
                 </div>
               </div>
+              {avatarError && (
+                <p role="alert" className="mt-2 text-[11px] text-red-400">{avatarError}</p>
+              )}
             </div>
 
             {/* Poin Saya */}
