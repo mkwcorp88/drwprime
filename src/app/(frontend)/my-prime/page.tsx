@@ -264,20 +264,24 @@ export default function MyPrimePage() {
 
             {/* Membership Card */}
             <div className="mb-5">
-              <div className={`relative overflow-hidden rounded-[22px] border ${tier.border} bg-[#0d0d0e] shadow-[0_24px_70px_rgba(0,0,0,0.42)]`}>
+              <div className={`prime-membership-card relative overflow-hidden rounded-[22px] border ${tier.border} bg-[#0d0d0e] shadow-[0_24px_70px_rgba(0,0,0,0.42)]`}>
                 <div className={`absolute inset-0 bg-gradient-to-br ${tier.gradient}`} />
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/75 to-transparent" />
                 <div className="absolute -right-16 -bottom-20 h-64 w-64 opacity-[0.045]">
                   <Image
-                    src="/drwprime-icon.png"
+                    src="/apple-touch-icon.png"
                     alt=""
                     fill
-                    className="object-contain"
+                    className="object-contain mix-blend-screen"
                     aria-hidden="true"
                   />
                 </div>
                 <div className="absolute right-5 top-[5.25rem] h-24 w-24 rounded-full border border-primary/[0.06]" />
                 <div className="absolute right-9 top-[6.25rem] h-16 w-16 rounded-full border border-primary/[0.05]" />
+                <div className="prime-card-sheen absolute inset-y-0 -left-1/2 w-1/3" aria-hidden="true" />
+                <span className="prime-card-sparkle absolute right-[19%] top-8" aria-hidden="true" />
+                <span className="prime-card-sparkle absolute right-8 top-[48%] [animation-delay:1.6s]" aria-hidden="true" />
+                <span className="prime-card-sparkle prime-card-sparkle-small absolute left-[42%] bottom-7 [animation-delay:3.1s]" aria-hidden="true" />
 
                 <div className="relative z-10 p-5 sm:p-6">
                   <div className="mb-6 flex items-start justify-between gap-4">
@@ -295,14 +299,14 @@ export default function MyPrimePage() {
                   </div>
 
                   <div className="mb-7 flex items-center gap-4">
-                    <div className="relative h-[58px] w-[58px] flex-shrink-0 rounded-full border border-primary/50 bg-black p-2 shadow-[0_0_0_4px_rgba(212,175,55,0.07),0_12px_30px_rgba(0,0,0,0.55)]">
-                      <div className="relative h-full w-full overflow-hidden rounded-full border border-primary/20 bg-[#090909] p-1">
+                    <div className="relative h-[60px] w-[60px] flex-shrink-0 rounded-full border border-primary/55 bg-black p-[3px] shadow-[0_0_0_4px_rgba(212,175,55,0.07),0_12px_30px_rgba(0,0,0,0.55)]">
+                      <div className="relative h-full w-full overflow-hidden rounded-full border border-primary/20 bg-[#090909]">
                         <Image
-                          src="/drwprime-icon.png"
+                          src="/apple-touch-icon.png"
                           alt="Emblem DRW Prime"
                           fill
-                          sizes="58px"
-                          className="object-contain p-1"
+                          sizes="60px"
+                          className="scale-[1.04] object-cover"
                         />
                       </div>
                     </div>
