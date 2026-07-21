@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import MobileLayout from '@/components/MobileLayout';
 import InstallPrompt from '@/components/InstallPrompt';
@@ -45,30 +46,27 @@ interface PointHistoryItem {
 const TIER_CONFIG = {
   SILVER: {
     label: 'Silver',
-    gradient: 'from-slate-300/20 via-slate-400/10 to-slate-500/5',
-    border: 'border-slate-400/40',
-    badge: 'bg-slate-400/20 text-slate-300 border-slate-400/40',
+    gradient: 'from-white/[0.09] via-white/[0.04] to-primary/[0.04]',
+    border: 'border-white/20',
+    badge: 'bg-white/[0.07] text-slate-200 border-white/15',
     progress: 'bg-gradient-to-r from-slate-400 to-slate-300',
-    avatarRing: 'border-slate-300 shadow-[0_0_12px_rgba(203,213,225,0.5)]',
-    icon: '🥈',
+    marker: 'bg-slate-300',
   },
   GOLD: {
     label: 'Gold',
-    gradient: 'from-primary/25 via-amber-500/15 to-amber-600/5',
+    gradient: 'from-primary/20 via-[#17140b] to-black',
     border: 'border-primary/50',
-    badge: 'bg-primary/20 text-primary border-primary/40',
+    badge: 'bg-primary/10 text-primary border-primary/30',
     progress: 'bg-gradient-to-r from-amber-500 to-primary',
-    avatarRing: 'border-primary shadow-[0_0_14px_rgba(212,175,55,0.6)]',
-    icon: '🥇',
+    marker: 'bg-primary',
   },
   PLATINUM: {
     label: 'Platinum',
-    gradient: 'from-violet-500/25 via-purple-600/15 to-fuchsia-700/5',
-    border: 'border-violet-400/50',
-    badge: 'bg-violet-500/20 text-violet-300 border-violet-400/40',
-    progress: 'bg-gradient-to-r from-violet-500 to-fuchsia-400',
-    avatarRing: 'border-violet-400 shadow-[0_0_14px_rgba(167,139,250,0.6)]',
-    icon: '💎',
+    gradient: 'from-[#f8e9bd]/20 via-[#191711] to-black',
+    border: 'border-[#f8e9bd]/45',
+    badge: 'bg-[#f8e9bd]/10 text-[#f8e9bd] border-[#f8e9bd]/30',
+    progress: 'bg-gradient-to-r from-primary to-[#fff0bd]',
+    marker: 'bg-[#fff0bd]',
   },
 };
 
@@ -266,53 +264,66 @@ export default function MyPrimePage() {
 
             {/* Membership Card */}
             <div className="mb-5">
-              <div className={`relative rounded-2xl overflow-hidden border ${tier.border} bg-gradient-to-br ${tier.gradient} p-5`}>
-                {/* Background decoration */}
-                <div className="absolute inset-0 opacity-5">
-                  <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full bg-white"></div>
-                  <div className="absolute -bottom-12 -left-8 w-64 h-64 rounded-full bg-white"></div>
+              <div className={`relative overflow-hidden rounded-[22px] border ${tier.border} bg-[#0d0d0e] shadow-[0_24px_70px_rgba(0,0,0,0.42)]`}>
+                <div className={`absolute inset-0 bg-gradient-to-br ${tier.gradient}`} />
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/75 to-transparent" />
+                <div className="absolute -right-16 -bottom-20 h-64 w-64 opacity-[0.045]">
+                  <Image
+                    src="/drwprime-icon.png"
+                    alt=""
+                    fill
+                    className="object-contain"
+                    aria-hidden="true"
+                  />
                 </div>
+                <div className="absolute right-5 top-[5.25rem] h-24 w-24 rounded-full border border-primary/[0.06]" />
+                <div className="absolute right-9 top-[6.25rem] h-16 w-16 rounded-full border border-primary/[0.05]" />
 
-                <div className="relative z-10">
-                  {/* Card header */}
-                  <div className="flex items-center justify-between mb-4">
+                <div className="relative z-10 p-5 sm:p-6">
+                  <div className="mb-6 flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-white/50 text-[10px] uppercase tracking-widest">DRW Prime</p>
-                      <p className="text-white/80 text-xs mt-0.5">Beauty & Wellness Membership</p>
+                      <div className="mb-1.5 flex items-center gap-2">
+                        <span className="h-px w-5 bg-primary" />
+                        <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-primary">DRW Prime</p>
+                      </div>
+                      <p className="text-xs font-medium tracking-wide text-white/65">Beauty & Wellness Membership</p>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${tier.badge} flex items-center gap-1`}>
-                      <span>{tier.icon}</span>
-                      <span>{tier.label}</span>
+                    <span className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${tier.badge}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${tier.marker} shadow-[0_0_8px_currentColor]`} />
+                      {tier.label}
                     </span>
                   </div>
 
-                  {/* Member info */}
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-full overflow-hidden border-2 ${tier.avatarRing} bg-white/10 flex items-center justify-center flex-shrink-0`}>
-                      {user.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={user.imageUrl} alt="Foto profil" className="w-full h-full object-cover" />
-                      ) : (
-                        <svg className="w-6 h-6 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      )}
+                  <div className="mb-7 flex items-center gap-4">
+                    <div className="relative h-[58px] w-[58px] flex-shrink-0 rounded-full border border-primary/50 bg-black p-2 shadow-[0_0_0_4px_rgba(212,175,55,0.07),0_12px_30px_rgba(0,0,0,0.55)]">
+                      <div className="relative h-full w-full overflow-hidden rounded-full border border-primary/20 bg-[#090909] p-1">
+                        <Image
+                          src="/drwprime-icon.png"
+                          alt="Emblem DRW Prime"
+                          fill
+                          sizes="58px"
+                          className="object-contain p-1"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white font-bold text-lg leading-tight">{displayName}</p>
-                      <p className="text-white/60 text-xs mt-0.5">{phone}</p>
+                    <div className="min-w-0">
+                      <p className="mb-1 text-[9px] font-medium uppercase tracking-[0.2em] text-white/35">Member</p>
+                      <p className="truncate text-lg font-bold tracking-[0.01em] text-white">{displayName}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="h-px w-7 bg-primary/65" />
+                        <p className="truncate text-[10px] tracking-wide text-white/40">{phone}</p>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Card bottom */}
-                  <div className="flex items-end justify-between">
+                  <div className="grid grid-cols-2 border-t border-white/[0.08] pt-4">
                     <div>
-                      <p className="text-white/40 text-[9px] uppercase tracking-wider">Member Since</p>
-                      <p className="text-white/80 text-xs font-semibold">{formatDate(membership.memberSince)}</p>
+                      <p className="mb-1 text-[8px] font-medium uppercase tracking-[0.17em] text-white/35">Member Since</p>
+                      <p className="text-xs font-semibold text-white/80">{formatDate(membership.memberSince)}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-white/40 text-[9px] uppercase tracking-wider">Total Spending</p>
-                      <p className="text-white/80 text-xs font-semibold">{formatCurrency(membership.totalSpending)}</p>
+                    <div className="border-l border-white/[0.08] pl-4 text-right">
+                      <p className="mb-1 text-[8px] font-medium uppercase tracking-[0.17em] text-white/35">Total Spending</p>
+                      <p className="text-xs font-semibold text-primary">{formatCurrency(membership.totalSpending)}</p>
                     </div>
                   </div>
                 </div>
@@ -373,7 +384,7 @@ export default function MyPrimePage() {
                     ></div>
                   </div>
                   <p className="text-white/40 text-[10px] mt-1.5">
-                    Tambah {formatCurrency(membership.amountToNextTier!)} untuk naik ke {TIER_CONFIG[membership.nextTier].label} {TIER_CONFIG[membership.nextTier].icon}
+                    Tambah {formatCurrency(membership.amountToNextTier!)} untuk naik ke {TIER_CONFIG[membership.nextTier].label}
                   </p>
                 </div>
               </div>
@@ -382,8 +393,8 @@ export default function MyPrimePage() {
             {/* Benefits */}
             <div className="mb-5">
               <div className={`bg-gradient-to-br ${tier.gradient} border ${tier.border} rounded-xl p-4`}>
-                <h3 className="font-bold text-sm text-white mb-3 flex items-center gap-2">
-                  <span>{tier.icon}</span>
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-white">
+                  <span className={`h-1.5 w-1.5 rounded-full ${tier.marker}`} />
                   <span>Benefit Member {tier.label}</span>
                 </h3>
                 <ul className="space-y-2">
