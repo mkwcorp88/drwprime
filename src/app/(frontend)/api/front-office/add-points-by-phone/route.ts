@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { isUserAdmin } from '@/lib/admin';
+import { normalizePhone } from '@/lib/phone';
 import { randomUUID } from 'crypto';
 import {
   sendSpendingNotification,
@@ -41,27 +42,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Clean & normalize phone number
-    let cleanPhone = phone.trim().replace(/\D/g, ''); // Remove non-digits
-    
-    // Auto-convert: 08xxx → 62xxx
-    if (cleanPhone.startsWith('08')) {
-      cleanPhone = '62' + cleanPhone.substring(1);
-    }
-    // Auto-convert: 8xxx → 628xxx (if user forgot leading zero)
-    else if (cleanPhone.startsWith('8') && !cleanPhone.startsWith('62')) {
-      cleanPhone = '62' + cleanPhone;
-    }
-    // Auto-convert: +62xxx → 62xxx
-    else if (cleanPhone.startsWith('62')) {
-      // Already correct, just remove the +
-      cleanPhone = cleanPhone;
-    }
+    // Clean & normalize phone number via canonical utility
+    const cleanPhone = normalizePhone(phone.trim());
     
     // Validate phone format (62xxx with 9-13 digits after 62)
-    if (!cleanPhone.match(/^62\d{9,13}$/)) {
+    if (!cleanPhone.startsWith('62')) {
       return NextResponse.json(
-        { error: `Format nomor WhatsApp tidak valid. Harus 62xxxxxxxxx (hasil normalize: ${cleanPhone})` },
+        { error: `Format nomor WhatsApp tidak valid. Harus 62xxxxxxxxx (input: ${phone})` },
         { status: 400 }
       );
     }

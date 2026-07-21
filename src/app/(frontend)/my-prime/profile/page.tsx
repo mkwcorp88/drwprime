@@ -125,10 +125,30 @@ export default function ProfilePage() {
     }
   }, [isLoaded, user, loadProfile]);
 
+  const handlePhoneChange = (value: string) => {
+    let cleaned = value.replace(/\D/g, '');
+    if (cleaned.startsWith('08')) {
+      cleaned = '62' + cleaned.substring(1);
+    } else if (cleaned.startsWith('8') && !cleaned.startsWith('62')) {
+      cleaned = '62' + cleaned;
+    }
+    setForm((prev) => ({ ...prev, phone: cleaned }));
+    setFieldErrors((prev) => {
+      if (!prev.phone) return prev;
+      const next = { ...prev };
+      delete next.phone;
+      return next;
+    });
+  };
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
+    if (name === 'phone') {
+      handlePhoneChange(value);
+      return;
+    }
     setForm((prev) => ({
       ...prev,
       [name]: value,
@@ -341,8 +361,17 @@ export default function ProfilePage() {
                     value={form.phone}
                     onChange={handleChange}
                     placeholder="08123456789"
+                    maxLength={15}
                     className={inputClass}
                   />
+                  <p className="mt-1 text-white/40 text-[11px]">
+                    Ketik 08xxx akan otomatis jadi 62xxx
+                  </p>
+                  {form.phone && (
+                    <p className="mt-0.5 text-primary text-[11px] font-medium">
+                      Format tersimpan: {form.phone}
+                    </p>
+                  )}
                   {renderError('phone')}
                 </div>
 

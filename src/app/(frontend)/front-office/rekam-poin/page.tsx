@@ -134,15 +134,14 @@ function ManualInputMode() {
   const [submitting, setSubmitting] = useState(false);
   const [memberInfo, setMemberInfo] = useState<MemberResult | null>(null);
 
-  // Auto-format phone number: 08xxx → 62xxx
+  // Auto-format phone number: 08xxx / 8xxx → 62xxx (+62 stripped by \D)
   const handlePhoneChange = (value: string) => {
-    let cleaned = value.replace(/\D/g, ''); // Remove non-digits
-    
-    // Auto-convert 08xxx to 62xxx
+    let cleaned = value.replace(/\D/g, '');
     if (cleaned.startsWith('08')) {
       cleaned = '62' + cleaned.substring(1);
+    } else if (cleaned.startsWith('8') && !cleaned.startsWith('62')) {
+      cleaned = '62' + cleaned;
     }
-    
     setPhone(cleaned);
   };
 

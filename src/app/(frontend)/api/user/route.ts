@@ -39,11 +39,12 @@ export async function POST(req: Request) {
 
     // NEW: Check if there's a walk-in member with matching phone/email that we can link
     const { phone } = body; // Assuming phone is passed from sign-up
+    const normalizedPhone = phone ? normalizePhone(phone) : null;
     let walkInMember = null;
     
-    if (phone) {
+    if (normalizedPhone) {
       walkInMember = await prisma.user.findUnique({
-        where: { phone },
+        where: { phone: normalizedPhone },
         select: {
           id: true,
           clerkUserId: true,
@@ -139,7 +140,7 @@ export async function POST(req: Request) {
           email,
           firstName,
           lastName,
-          phone,
+          phone: phone || undefined,
           affiliateCode,
           isTeamLeader,
           hasAccount: true,

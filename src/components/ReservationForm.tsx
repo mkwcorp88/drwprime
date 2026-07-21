@@ -72,9 +72,20 @@ export default function ReservationForm({
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
+    const { name, value } = e.target;
+    if (name === 'phone') {
+      let cleaned = value.replace(/\D/g, '');
+      if (cleaned.startsWith('08')) {
+        cleaned = '62' + cleaned.substring(1);
+      } else if (cleaned.startsWith('8') && !cleaned.startsWith('62')) {
+        cleaned = '62' + cleaned;
+      }
+      setFormData((prev) => ({ ...prev, phone: cleaned }));
+      return;
+    }
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
   };
 
@@ -191,9 +202,13 @@ export default function ReservationForm({
               value={formData.phone}
               onChange={handleChange}
               required
+              maxLength={15}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-[#d4af37] focus:border-transparent"
               placeholder="08123456789"
             />
+            <p className="mt-1 text-xs text-gray-500">
+              Ketik 08xxx akan otomatis jadi 62xxx
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

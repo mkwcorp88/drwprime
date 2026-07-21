@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { isUserAdmin } from '@/lib/admin';
+import { normalizePhone } from '@/lib/phone';
 import { randomUUID } from 'crypto';
 import ExcelJS from 'exceljs';
 
@@ -51,13 +52,9 @@ function parseCellValue(value: unknown): string {
 }
 
 function normalizePhoneForImport(phone: string): string {
-  let cleaned = phone.trim().replace(/[\s\-\(\)\.\+\/]/g, '');
-  cleaned = cleaned.replace(/\D/g, '');
-  if (cleaned.startsWith('62') && cleaned.length >= 10) return cleaned;
-  if (cleaned.startsWith('0')) cleaned = '62' + cleaned.substring(1);
-  else if (cleaned.startsWith('8')) cleaned = '62' + cleaned;
-  if (!cleaned.match(/^62\d{9,13}$/)) return '';
-  return cleaned;
+  const normalized = normalizePhone(phone);
+  if (!normalized.startsWith('62')) return '';
+  return normalized;
 }
 
 function parseCSVLine(line: string): string[] {

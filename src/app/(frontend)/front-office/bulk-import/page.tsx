@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import Link from 'next/link';
 import ExcelJS from 'exceljs';
 import { Hourglass } from '@/components/LoadingScreen';
+import { normalizePhone } from '@/lib/phone';
 
 type PreviewRow = {
   row: number;
@@ -55,13 +56,9 @@ function parseCSVLine(line: string): string[] {
 }
 
 function normalizePhoneForPreview(phone: string): string {
-  let cleaned = phone.trim().replace(/[\s\-\(\)\.\+\/]/g, '');
-  cleaned = cleaned.replace(/\D/g, '');
-  if (cleaned.startsWith('62') && cleaned.length >= 10) return cleaned;
-  if (cleaned.startsWith('0')) cleaned = '62' + cleaned.substring(1);
-  else if (cleaned.startsWith('8')) cleaned = '62' + cleaned;
-  if (!cleaned.match(/^62\d{9,13}$/)) return '';
-  return cleaned;
+  const normalized = normalizePhone(phone);
+  if (!normalized.startsWith('62')) return '';
+  return normalized;
 }
 
 function normalizeHeader(value: unknown): string {
