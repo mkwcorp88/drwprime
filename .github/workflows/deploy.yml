@@ -94,9 +94,9 @@ jobs:
             if [ -n "$cid" ]; then
               last_cid="$cid"
               tag="$(docker inspect --format '{{.Config.Image}}' "$cid")"
-              running="$(docker inspect --format '{{.State.Running}}' "$cid")"
+              state="$(docker inspect --format '{{.State.Status}}' "$cid")"
               if [ "$tag" = "$LOCAL_IMAGE:$IMAGE_TAG" ]; then
-                if [ "$running" != "true" ]; then
+                if [ "$state" != "running" ]; then
                   docker logs --tail 200 "$cid" || true
                   exit 1
                 fi
