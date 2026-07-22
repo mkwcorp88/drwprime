@@ -14,6 +14,15 @@ const navItems = [
     ),
   },
   {
+    name: "Performa",
+    href: "/front-office/performance",
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 19V5m0 14h16M7 15l4-5 3 3 5-7" />
+      </svg>
+    ),
+  },
+  {
     name: "Kode",
     href: "/front-office/codes",
     icon: (
@@ -62,7 +71,7 @@ export default function MobileBottomNavFO() {
   return (
     <nav className="lg:hidden fixed bottom-2 left-0 right-0 z-[60] px-3 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
       <div className="mx-auto max-w-md rounded-[1.9rem] border border-white/15 bg-[linear-gradient(180deg,rgba(28,34,46,0.55),rgba(10,14,22,0.42))] shadow-[0_10px_34px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-2xl backdrop-saturate-150">
-        <div className="grid grid-cols-5 gap-1 px-2 pt-2 pb-1.5">
+        <div className="grid grid-cols-6 gap-1 px-2 pt-2 pb-1.5">
           {navItems.map((item) => {
             const active = isActive(item.href);
 

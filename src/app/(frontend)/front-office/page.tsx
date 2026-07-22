@@ -313,13 +313,19 @@ export default function FrontOfficePage() {
               <h1 className="font-playfair text-3xl sm:text-4xl md:text-5xl font-bold text-primary mb-2 leading-tight">
                 Front Office Dashboard
               </h1>
-              <p className="text-white/70 text-base sm:text-lg">
-                Manage reservations and appointments
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2.5 mt-4">
-                <Link 
-                  href="/front-office/codes"
-                  className="fo-nav-chip text-sm text-center"
+               <p className="text-white/70 text-base sm:text-lg">
+                 Manage reservations and appointments
+               </p>
+               <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2.5 mt-4">
+                 <Link
+                   href="/front-office/performance"
+                   className="fo-nav-chip text-sm text-center"
+                 >
+                   Performance
+                 </Link>
+                 <Link 
+                   href="/front-office/codes"
+                   className="fo-nav-chip text-sm text-center"
                 >
                   Manage Affiliate Codes
                 </Link>

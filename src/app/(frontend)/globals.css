@@ -104,6 +104,14 @@
       #050305;
   }
 
+  .fo-theme-performance {
+    background:
+      radial-gradient(circle at 10% 12%, rgba(34, 211, 238, 0.16), transparent 34%),
+      radial-gradient(circle at 88% 18%, rgba(212, 175, 55, 0.14), transparent 32%),
+      radial-gradient(circle at 72% 84%, rgba(52, 211, 153, 0.1), transparent 38%),
+      linear-gradient(180deg, #02080b 0%, #030607 58%, #020303 100%);
+  }
+
   .mp-theme-bright {
     background:
       radial-gradient(circle at 8% 12%, rgba(212, 175, 55, 0.28), transparent 44%),
