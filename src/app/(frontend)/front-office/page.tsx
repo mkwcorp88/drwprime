@@ -61,6 +61,63 @@ interface EditFormData {
   affiliateCode: string;
 }
 
+const QUICK_ACTIONS = [
+  {
+    href: '/front-office/performance',
+    label: 'Performance',
+    description: 'Visit & Omzet',
+    icon: '/front-office-icons/performance.webp',
+  },
+  {
+    href: '/front-office/codes',
+    label: 'Kode Affiliate',
+    description: 'Kelola Kode',
+    icon: '/front-office-icons/affiliate.webp',
+  },
+  {
+    href: '/front-office/report',
+    label: 'Report Affiliate',
+    description: 'Komisi',
+    icon: '/front-office-icons/report.webp',
+  },
+  {
+    href: '/front-office/completed-profiles',
+    label: 'Membership',
+    description: 'Profil Lengkap',
+    icon: '/front-office-icons/membership.webp',
+  },
+  {
+    href: '/front-office/spending-scan',
+    label: 'Scan Spending',
+    description: 'Input Transaksi',
+    icon: '/front-office-icons/scan.webp',
+  },
+  {
+    href: '/front-office/report-spending-daily',
+    label: 'Report Spending',
+    description: 'Rekap Harian',
+    icon: '/front-office-icons/spending.webp',
+  },
+  {
+    href: '/front-office/best-deals',
+    label: 'Best Deal',
+    description: 'Kelola Promo',
+    icon: '/front-office-icons/promo.webp',
+  },
+  {
+    href: '/front-office/bulk-import',
+    label: 'Import Member',
+    description: 'Bulk Upload',
+    icon: '/front-office-icons/import.webp',
+  },
+  {
+    href: '/front-office/blog',
+    label: 'Blog',
+    description: 'Konten Edukasi',
+    icon: '/front-office-icons/blog.webp',
+  },
+] as const;
+
 const getAffiliateFullName = (referrer?: Reservation['referrer']) => {
   if (!referrer) return '';
   return `${referrer.firstName} ${referrer.lastName}`.trim();
@@ -332,78 +389,34 @@ export default function FrontOfficePage() {
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
             Menu Cepat
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            <Link href="/front-office/performance" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
-              <Image src="/front-office-icons/performance.webp" alt="" width={56} height={56} className="h-12 w-12 rounded-xl object-cover ring-1 ring-primary/20 shadow-[0_0_18px_rgba(212,175,55,0.08)] transition-transform duration-300 group-hover:scale-105" />
-              <div>
-                <p className="text-xs font-semibold text-white/80">Performance</p>
-                <p className="mt-0.5 text-[10px] text-white/35">Visit &amp; Omzet</p>
-              </div>
-            </Link>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            {QUICK_ACTIONS.map((action, index) => {
+              const isLastMobileItem = index === QUICK_ACTIONS.length - 1;
 
-            <Link href="/front-office/codes" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
-              <Image src="/front-office-icons/affiliate.webp" alt="" width={56} height={56} className="h-12 w-12 rounded-xl object-cover ring-1 ring-primary/20 shadow-[0_0_18px_rgba(212,175,55,0.08)] transition-transform duration-300 group-hover:scale-105" />
-              <div>
-                <p className="text-xs font-semibold text-white/80">Affiliate</p>
-                <p className="mt-0.5 text-[10px] text-white/35">Kode &amp; Komisi</p>
-              </div>
-            </Link>
-
-            <Link href="/front-office/report" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
-              <Image src="/front-office-icons/report.webp" alt="" width={56} height={56} className="h-12 w-12 rounded-xl object-cover ring-1 ring-primary/20 shadow-[0_0_18px_rgba(212,175,55,0.08)] transition-transform duration-300 group-hover:scale-105" />
-              <div>
-                <p className="text-xs font-semibold text-white/80">Report</p>
-                <p className="mt-0.5 text-[10px] text-white/35">Affiliator</p>
-              </div>
-            </Link>
-
-            <Link href="/front-office/completed-profiles" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
-              <Image src="/front-office-icons/membership.webp" alt="" width={56} height={56} className="h-12 w-12 rounded-xl object-cover ring-1 ring-primary/20 shadow-[0_0_18px_rgba(212,175,55,0.08)] transition-transform duration-300 group-hover:scale-105" />
-              <div>
-                <p className="text-xs font-semibold text-white/80">Membership</p>
-                <p className="mt-0.5 text-[10px] text-white/35">Profil Lengkap</p>
-              </div>
-            </Link>
-
-            <Link href="/front-office/spending-scan" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
-              <Image src="/front-office-icons/scan.webp" alt="" width={56} height={56} className="h-12 w-12 rounded-xl object-cover ring-1 ring-primary/20 shadow-[0_0_18px_rgba(212,175,55,0.08)] transition-transform duration-300 group-hover:scale-105" />
-              <div>
-                <p className="text-xs font-semibold text-white/80">Scan</p>
-                <p className="mt-0.5 text-[10px] text-white/35">Catat Spending</p>
-              </div>
-            </Link>
-
-            <Link href="/front-office/report-spending-daily" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
-              <Image src="/front-office-icons/spending.webp" alt="" width={56} height={56} className="h-12 w-12 rounded-xl object-cover ring-1 ring-primary/20 shadow-[0_0_18px_rgba(212,175,55,0.08)] transition-transform duration-300 group-hover:scale-105" />
-              <div>
-                <p className="text-xs font-semibold text-white/80">Spending</p>
-                <p className="mt-0.5 text-[10px] text-white/35">Report Harian</p>
-              </div>
-            </Link>
-
-            <Link href="/front-office/best-deals" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
-              <Image src="/front-office-icons/promo.webp" alt="" width={56} height={56} className="h-12 w-12 rounded-xl object-cover ring-1 ring-primary/20 shadow-[0_0_18px_rgba(212,175,55,0.08)] transition-transform duration-300 group-hover:scale-105" />
-              <div>
-                <p className="text-xs font-semibold text-white/80">Promo</p>
-                <p className="mt-0.5 text-[10px] text-white/35">Best Deal</p>
-              </div>
-            </Link>
-
-            <Link href="/front-office/bulk-import" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
-              <Image src="/front-office-icons/import.webp" alt="" width={56} height={56} className="h-12 w-12 rounded-xl object-cover ring-1 ring-primary/20 shadow-[0_0_18px_rgba(212,175,55,0.08)] transition-transform duration-300 group-hover:scale-105" />
-              <div>
-                <p className="text-xs font-semibold text-white/80">Import</p>
-                <p className="mt-0.5 text-[10px] text-white/35">Bulk Members</p>
-              </div>
-            </Link>
-
-            <Link href="/front-office/blog" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
-              <Image src="/front-office-icons/blog.webp" alt="" width={56} height={56} className="h-12 w-12 rounded-xl object-cover ring-1 ring-primary/20 shadow-[0_0_18px_rgba(212,175,55,0.08)] transition-transform duration-300 group-hover:scale-105" />
-              <div>
-                <p className="text-xs font-semibold text-white/80">Blog</p>
-                <p className="mt-0.5 text-[10px] text-white/35">Konten Edukasi</p>
-              </div>
-            </Link>
+              return (
+                <Link
+                  key={action.href}
+                  href={action.href}
+                  className={`group fo-glass-card-soft flex flex-col items-center gap-2 rounded-xl p-4 text-center transition-all hover:border-primary/25 hover:bg-primary/[0.04] active:scale-[0.98] ${
+                    isLastMobileItem
+                      ? 'col-span-2 w-[calc(50%_-_0.375rem)] justify-self-center sm:col-span-1 sm:w-full'
+                      : ''
+                  }`}
+                >
+                  <Image
+                    src={action.icon}
+                    alt=""
+                    width={56}
+                    height={56}
+                    className="h-12 w-12 rounded-xl object-cover ring-1 ring-primary/20 shadow-[0_0_18px_rgba(212,175,55,0.08)] transition-transform duration-300 group-hover:scale-105"
+                  />
+                  <div>
+                    <p className="text-xs font-semibold text-white/80">{action.label}</p>
+                    <p className="mt-0.5 text-[10px] text-white/35">{action.description}</p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </section>
 
