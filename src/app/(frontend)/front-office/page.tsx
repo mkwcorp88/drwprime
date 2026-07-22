@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import InstallPrompt from '@/components/InstallPrompt';
-import LoadingScreen, { Hourglass } from '@/components/LoadingScreen';
+import { Hourglass } from '@/components/LoadingScreen';
 
 interface Reservation {
   id: string;
@@ -307,81 +307,123 @@ export default function FrontOfficePage() {
     <div className="min-h-screen fo-glass-page fo-theme-dashboard">
       <div className="max-w-7xl mx-auto px-5 py-10">
         {/* Header */}
-        <div className="mb-10 fo-fade-up">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <div className="flex-1">
-              <h1 className="font-playfair text-3xl sm:text-4xl md:text-5xl font-bold text-primary mb-2 leading-tight">
+        <div className="mb-8 fo-fade-up">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="font-playfair text-3xl sm:text-4xl md:text-5xl font-bold text-primary leading-tight">
                 Front Office Dashboard
               </h1>
-               <p className="text-white/70 text-base sm:text-lg">
-                 Manage reservations and appointments
-               </p>
-               <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2.5 mt-4">
-                 <Link
-                   href="/front-office/performance"
-                   className="fo-nav-chip text-sm text-center"
-                 >
-                   Performance
-                 </Link>
-                 <Link 
-                   href="/front-office/codes"
-                   className="fo-nav-chip text-sm text-center"
-                >
-                  Manage Affiliate Codes
-                </Link>
-                <Link 
-                  href="/front-office/report"
-                  className="fo-nav-chip text-sm text-center"
-                >
-                  Report Affiliator
-                </Link>
-                <Link 
-                  href="/front-office/completed-profiles"
-                  className="fo-nav-chip text-sm text-center"
-                >
-                  Membership Profil
-                </Link>
-                <Link 
-                  href="/front-office/spending-scan"
-                  className="fo-nav-chip text-sm text-center"
-                >
-                  Catat Spending (Scan)
-                </Link>
-                <Link 
-                  href="/front-office/report-spending-daily"
-                  className="fo-nav-chip text-sm text-center"
-                >
-                  Report Spending Daily
-                </Link>
-                <Link 
-                  href="/front-office/best-deals"
-                  className="fo-nav-chip text-sm text-center"
-                >
-                  Best Deal Manager
-                </Link>
-                <Link 
-                  href="/front-office/bulk-import"
-                  className="fo-nav-chip text-sm text-center"
-                >
-                  Bulk Import Members
-                </Link>
-                <Link 
-                  href="/front-office/blog"
-                  className="fo-nav-chip text-sm text-center col-span-2 sm:col-span-1"
-                >
-                  Blog Manager
-                </Link>
-              </div>
+              <p className="mt-2 text-sm text-white/50 sm:text-base">
+                Kelola reservasi, membership, dan operasional klinik
+              </p>
             </div>
-            <Image 
-              src="/drwprime-logo.png" 
-              alt="DRW Prime" 
+            <Image
+              src="/drwprime-logo.png"
+              alt="DRW Prime"
               width={120}
               height={40}
               className="h-9 w-auto sm:h-10 shrink-0"
             />
           </div>
         </div>
+
+        {/* Menu Cepat */}
+        <section className="mb-8 fo-fade-up fo-stagger-1">
+          <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
+            Menu Cepat
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <Link href="/front-office/performance" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary group-hover:border-primary/40 group-hover:bg-primary/15 transition-colors">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 19V5m0 14h16M7 15l4-5 3 3 5-7"/></svg>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white/80">Performance</p>
+                <p className="mt-0.5 text-[10px] text-white/35">Visit &amp; Omzet</p>
+              </div>
+            </Link>
+
+            <Link href="/front-office/codes" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-400/25 bg-sky-400/10 text-sky-300 group-hover:border-sky-400/40 group-hover:bg-sky-400/15 transition-colors">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white/80">Affiliate</p>
+                <p className="mt-0.5 text-[10px] text-white/35">Kode &amp; Komisi</p>
+              </div>
+            </Link>
+
+            <Link href="/front-office/report" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/25 bg-emerald-400/10 text-emerald-300 group-hover:border-emerald-400/40 group-hover:bg-emerald-400/15 transition-colors">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white/80">Report</p>
+                <p className="mt-0.5 text-[10px] text-white/35">Affiliator</p>
+              </div>
+            </Link>
+
+            <Link href="/front-office/completed-profiles" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-violet-400/25 bg-violet-400/10 text-violet-300 group-hover:border-violet-400/40 group-hover:bg-violet-400/15 transition-colors">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white/80">Membership</p>
+                <p className="mt-0.5 text-[10px] text-white/35">Profil Lengkap</p>
+              </div>
+            </Link>
+
+            <Link href="/front-office/spending-scan" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/25 bg-amber-400/10 text-amber-300 group-hover:border-amber-400/40 group-hover:bg-amber-400/15 transition-colors">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2m-10 0H5a2 2 0 01-2-2v-2m4-6h10M12 7v10"/></svg>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white/80">Scan</p>
+                <p className="mt-0.5 text-[10px] text-white/35">Catat Spending</p>
+              </div>
+            </Link>
+
+            <Link href="/front-office/report-spending-daily" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-400/25 bg-rose-400/10 text-rose-300 group-hover:border-rose-400/40 group-hover:bg-rose-400/15 transition-colors">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white/80">Spending</p>
+                <p className="mt-0.5 text-[10px] text-white/35">Report Harian</p>
+              </div>
+            </Link>
+
+            <Link href="/front-office/best-deals" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-orange-400/25 bg-orange-400/10 text-orange-300 group-hover:border-orange-400/40 group-hover:bg-orange-400/15 transition-colors">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4H5z"/></svg>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white/80">Promo</p>
+                <p className="mt-0.5 text-[10px] text-white/35">Best Deal</p>
+              </div>
+            </Link>
+
+            <Link href="/front-office/bulk-import" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-400/25 bg-blue-400/10 text-blue-300 group-hover:border-blue-400/40 group-hover:bg-blue-400/15 transition-colors">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white/80">Import</p>
+                <p className="mt-0.5 text-[10px] text-white/35">Bulk Members</p>
+              </div>
+            </Link>
+
+            <Link href="/front-office/blog" className="group fo-glass-card-soft rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all active:scale-[0.98] flex flex-col items-center text-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-400/25 bg-indigo-400/10 text-indigo-300 group-hover:border-indigo-400/40 group-hover:bg-indigo-400/15 transition-colors">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h3M7 8h8v5H7V8z"/></svg>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white/80">Blog</p>
+                <p className="mt-0.5 text-[10px] text-white/35">Konten Edukasi</p>
+              </div>
+            </Link>
+          </div>
+        </section>
 
         {/* Install App (mobile, untuk FO) */}
         <InstallPrompt />
