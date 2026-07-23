@@ -389,34 +389,26 @@ export default function FrontOfficePage() {
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
             Menu Cepat
           </p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-            {QUICK_ACTIONS.map((action, index) => {
-              const isLastMobileItem = index === QUICK_ACTIONS.length - 1;
-
-              return (
-                <Link
-                  key={action.href}
-                  href={action.href}
-                  className={`group fo-glass-card-soft flex flex-col items-center gap-2 rounded-xl p-4 text-center transition-all hover:border-primary/25 hover:bg-primary/[0.04] active:scale-[0.98] ${
-                    isLastMobileItem
-                      ? 'col-span-2 w-[calc(50%_-_0.375rem)] justify-self-center sm:col-span-1 sm:w-full'
-                      : ''
-                  }`}
-                >
-                  <Image
-                    src={action.icon}
-                    alt=""
-                    width={56}
-                    height={56}
-                    className="h-12 w-12 rounded-xl object-cover ring-1 ring-primary/20 shadow-[0_0_18px_rgba(212,175,55,0.08)] transition-transform duration-300 group-hover:scale-105"
-                  />
-                  <div>
-                    <p className="text-xs font-semibold text-white/80">{action.label}</p>
-                    <p className="mt-0.5 text-[10px] text-white/35">{action.description}</p>
-                  </div>
-                </Link>
-              );
-            })}
+          <div className="flex flex-wrap justify-center gap-3">
+            {QUICK_ACTIONS.map((action) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className="group fo-glass-card-soft flex min-h-[124px] w-[calc((100%-0.75rem)/2)] flex-none flex-col items-center justify-center gap-2 rounded-xl p-4 text-center transition-all hover:border-primary/25 hover:bg-primary/[0.04] active:scale-[0.98] sm:w-[calc((100%-1.5rem)/3)] xl:w-[calc((100%-3rem)/5)]"
+              >
+                <Image
+                  src={action.icon}
+                  alt=""
+                  width={56}
+                  height={56}
+                  className="h-12 w-12 rounded-xl object-cover ring-1 ring-primary/20 shadow-[0_0_18px_rgba(212,175,55,0.08)] transition-transform duration-300 group-hover:scale-105"
+                />
+                <div className="min-h-8">
+                  <p className="text-xs font-semibold leading-4 text-white/80">{action.label}</p>
+                  <p className="mt-0.5 text-[10px] leading-3.5 text-white/35">{action.description}</p>
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
 
