@@ -123,66 +123,6 @@ const getAffiliateFullName = (referrer?: Reservation['referrer']) => {
   return `${referrer.firstName} ${referrer.lastName}`.trim();
 };
 
-type OperationalStatus = 'pending' | 'confirmed' | 'completed';
-
-const STATUS_MEDALLION = {
-  pending: {
-    accent: 'text-amber-300',
-    gem: 'bg-amber-300',
-    glow: 'shadow-[0_0_22px_rgba(245,158,11,0.14),inset_0_1px_0_rgba(255,255,255,0.08)]',
-  },
-  confirmed: {
-    accent: 'text-blue-300',
-    gem: 'bg-blue-400',
-    glow: 'shadow-[0_0_22px_rgba(59,130,246,0.14),inset_0_1px_0_rgba(255,255,255,0.08)]',
-  },
-  completed: {
-    accent: 'text-emerald-300',
-    gem: 'bg-emerald-400',
-    glow: 'shadow-[0_0_22px_rgba(34,197,94,0.14),inset_0_1px_0_rgba(255,255,255,0.08)]',
-  },
-} as const;
-
-function StatusMedallion({ status }: { status: OperationalStatus }) {
-  const config = STATUS_MEDALLION[status];
-
-  return (
-    <div className={`relative mb-2 flex h-14 w-14 items-center justify-center rounded-full border border-primary/55 bg-[radial-gradient(circle_at_35%_25%,rgba(255,255,255,0.08),rgba(8,8,7,0.96)_58%)] sm:h-16 sm:w-16 ${config.glow}`}>
-      <span className="pointer-events-none absolute inset-[4px] rounded-full border border-primary/25" aria-hidden="true" />
-      <span className="pointer-events-none absolute inset-[8px] rounded-full border border-white/[0.06]" aria-hidden="true" />
-      <span className={`pointer-events-none absolute top-[3px] left-1/2 h-1.5 w-1.5 -translate-x-1/2 rotate-45 border border-black/60 ${config.gem}`} aria-hidden="true" />
-      <span className="pointer-events-none absolute left-1/2 top-0 h-px w-5 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#fff1bc] to-transparent" aria-hidden="true" />
-
-      <svg className={`relative z-10 h-9 w-9 sm:h-10 sm:w-10 ${config.accent}`} fill="none" viewBox="0 0 48 48" aria-hidden="true">
-        <circle cx="24" cy="24" r="17.5" stroke="#d4af37" strokeWidth="0.75" opacity="0.45" />
-        <path d="M24 5.5v3M24 39.5v3M5.5 24h3M39.5 24h3M10.9 10.9l2.1 2.1M35 35l2.1 2.1M37.1 10.9L35 13M13 35l-2.1 2.1" stroke="#d4af37" strokeLinecap="round" strokeWidth="0.75" opacity="0.55" />
-
-        {status === 'pending' && (
-          <>
-            <path d="M24 12.5v10l6.5 4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-            <path d="M18.5 31h11M20 31c0 3.6 8 3.6 8 7M28 31c0 3.6-8 3.6-8 7M18.5 38h11" stroke="#d4af37" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.25" />
-          </>
-        )}
-
-        {status === 'confirmed' && (
-          <>
-            <path d="M14.5 24.5l6.2 6.2 13-14" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" />
-            <path d="M34.5 25a11 11 0 01-18.8 7.8 11 11 0 010-15.6A10.96 10.96 0 0124 14" stroke="#d4af37" strokeLinecap="round" strokeWidth="1" opacity="0.7" />
-          </>
-        )}
-
-        {status === 'completed' && (
-          <>
-            <path d="M11.5 24.5l5.2 5.2 10.5-11.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
-            <path d="M22 28.5l4.2 4.2L37 21" stroke="#d4af37" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
-            <path d="M35.2 25a11.5 11.5 0 01-19.7 8.1" stroke="currentColor" strokeLinecap="round" strokeWidth="0.9" opacity="0.55" />
-          </>
-        )}
-      </svg>
-    </div>
-  );
-}
-
 export default function FrontOfficePage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -488,7 +428,13 @@ export default function FrontOfficePage() {
           <div className="flex items-stretch gap-0">
             {/* Pending */}
             <div className="flex flex-col items-center flex-1 relative">
-              <StatusMedallion status="pending" />
+              <Image
+                src="/front-office-icons/status-pending.webp"
+                alt=""
+                width={64}
+                height={64}
+                className="mb-2 h-14 w-14 object-contain sm:h-16 sm:w-16"
+              />
               <span className="text-yellow-400 font-bold text-xl sm:text-2xl">{reservations.filter(r => r.status === 'pending').length}</span>
               <div className="absolute top-7 sm:top-8 left-[calc(50%+2rem)] right-0 h-px bg-gradient-to-r from-yellow-400/25 via-white/5 to-transparent mt-0.5" />
               <span className="text-yellow-400/80 text-[10px] sm:text-xs font-semibold tracking-wider uppercase mt-0.5">Pending</span>
@@ -496,7 +442,13 @@ export default function FrontOfficePage() {
 
             {/* Confirmed */}
             <div className="flex flex-col items-center flex-1 relative">
-              <StatusMedallion status="confirmed" />
+              <Image
+                src="/front-office-icons/status-confirmed.webp"
+                alt=""
+                width={64}
+                height={64}
+                className="mb-2 h-14 w-14 object-contain sm:h-16 sm:w-16"
+              />
               <span className="text-blue-400 font-bold text-xl sm:text-2xl">{reservations.filter(r => r.status === 'confirmed').length}</span>
               <div className="absolute top-7 sm:top-8 left-[calc(50%+2rem)] right-0 h-px bg-gradient-to-r from-blue-400/25 via-white/5 to-transparent mt-0.5" />
               <span className="text-blue-400/80 text-[10px] sm:text-xs font-semibold tracking-wider uppercase mt-0.5">Confirmed</span>
@@ -504,7 +456,13 @@ export default function FrontOfficePage() {
 
             {/* Completed */}
             <div className="flex flex-col items-center flex-1 relative">
-              <StatusMedallion status="completed" />
+              <Image
+                src="/front-office-icons/status-completed.webp"
+                alt=""
+                width={64}
+                height={64}
+                className="mb-2 h-14 w-14 object-contain sm:h-16 sm:w-16"
+              />
               <span className="text-green-400 font-bold text-xl sm:text-2xl">{reservations.filter(r => r.status === 'completed').length}</span>
               <span className="text-green-400/80 text-[10px] sm:text-xs font-semibold tracking-wider uppercase mt-0.5">Selesai</span>
             </div>
