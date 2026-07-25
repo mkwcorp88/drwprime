@@ -38,10 +38,10 @@ export default function CompletedProfilesPage() {
 
   const fetchProfiles = async () => {
     try {
-      const response = await fetch('/api/front-office/completed-profiles');
-      if (!response.ok) throw new Error('Failed to fetch completed profiles');
+      const response = await fetch('/api/front-office/members');
+      if (!response.ok) throw new Error('Failed to fetch members');
       const data = await response.json();
-      setProfiles(data.profiles || []);
+      setProfiles(data.members || []);
     } catch (error) {
       console.error('Error fetching completed profiles:', error);
     } finally {

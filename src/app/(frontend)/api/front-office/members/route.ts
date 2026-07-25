@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
         memberSince: true,
       },
       orderBy,
-      take: 200, // limit untuk performance
+      // take: 200, // limit untuk performance - Dihapus untuk menampilkan semua
     });
 
     // Compute tier for each member
