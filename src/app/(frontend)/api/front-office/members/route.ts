@@ -22,6 +22,10 @@ export async function GET(req: NextRequest) {
     const filterType = searchParams.get('filter'); // 'all' | 'with_account' | 'walk_in'
     const sortBy = searchParams.get('sort') || 'lastTransactionAt'; // lastTransactionAt | totalSpending | points
 
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const skip = (page - 1) * limit;
+
     const where: Prisma.UserWhereInput = {};
 
     if (search) {
@@ -77,7 +81,11 @@ export async function GET(req: NextRequest) {
       },
       orderBy,
       // take: 200, // limit untuk performance - Dihapus untuk menampilkan semua
+      take: limit,
+      skip: skip,
     });
+
+    const totalMembers = await prisma.user.count({ where });
 
     // Ambil aktivitas terakhir untuk setiap member
     const memberIds = members.map(m => m.id);
@@ -112,7 +120,13 @@ export async function GET(req: NextRequest) {
       lastReservation: lastRes ? { date: lastRes.reservationDate.toISOString(), treatment: lastRes.treatment.name, status: lastRes.status } : null,
     }});
 
-    return NextResponse.json({ success: true, members: membersWithDetails, total: await prisma.user.count({ where }) });
+    return NextResponse.json({ 
+      success: true, 
+      members: membersWithDetails, 
+      total: totalMembers,
+      page,
+      limit,
+    });
   } catch (error) {
     console.error('[MEMBERS] Error fetching members:', error);
     return NextResponse.json({ error: 'Gagal memuat daftar member' }, { status: 500 });

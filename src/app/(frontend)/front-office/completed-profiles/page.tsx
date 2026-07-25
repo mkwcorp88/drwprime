@@ -31,23 +31,41 @@ export default function CompletedProfilesPage() {
   const [profiles, setProfiles] = useState<CompletedProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState<CompletedProfile | null>(null);
+  const [totalMembers, setTotalMembers] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    fetchProfiles();
-  }, []);
+    fetchProfiles(currentPage, searchQuery);
+  }, [currentPage, searchQuery]);
 
-  const fetchProfiles = async () => {
+  const fetchProfiles = async (page: number, search: string) => {
+    setLoading(true);
     try {
-      const response = await fetch('/api/front-office/members');
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        search: search,
+      });
+      const response = await fetch(`/api/front-office/members?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch members');
       const data = await response.json();
       setProfiles(data.members || []);
+      setTotalMembers(data.total || 0);
     } catch (error) {
-      console.error('Error fetching completed profiles:', error);
+      console.error('Error fetching members:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1); // Reset to first page on new search
+  };
+
+  const totalPages = Math.ceil(totalMembers / limit);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
@@ -196,12 +214,25 @@ export default function CompletedProfilesPage() {
             </div>
           </div>
 
-          {/* Total Count Card */}
-          <div className="fo-glass-card fo-fade-up fo-stagger-1 rounded-xl p-6 mb-6 border-primary/40">
-            <div className="text-center">
-              <p className="text-white/70 text-sm mb-2">Total Membership Profil</p>
-              <p className="font-playfair text-5xl font-bold text-primary mb-1">{profiles.length}</p>
-              <p className="text-white/50 text-xs">orang</p>
+          {/* Total Count Card & Search */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="fo-glass-card fo-fade-up fo-stagger-1 rounded-xl p-6 border-primary/40">
+              <div className="text-center">
+                <p className="text-white/70 text-sm mb-2">Total Semua Member</p>
+                <p className="font-playfair text-5xl font-bold text-primary mb-1">{totalMembers.toLocaleString('id-ID')}</p>
+                <p className="text-white/50 text-xs">orang</p>
+              </div>
+            </div>
+            <div className="md:col-span-2 fo-glass-card fo-fade-up fo-stagger-2 rounded-xl p-6 flex flex-col justify-center">
+              <label htmlFor="search" className="text-white/70 text-sm mb-2 font-semibold">Cari Member</label>
+              <input
+                id="search"
+                type="text"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                placeholder="Ketik nama atau nomor HP..."
+                className="w-full bg-black/20 text-white border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
             </div>
           </div>
 
@@ -260,6 +291,31 @@ export default function CompletedProfilesPage() {
                   </tbody>
                 </table>
               </div>
+            )}
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+            <div className="fo-glass-card-soft border-t border-primary/30 p-4 flex items-center justify-between">
+              <span className="text-sm text-white/60">
+                Halaman {currentPage} dari {totalPages} ({totalMembers} member)
+              </span>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm rounded-md bg-black/20 hover:bg-black/40 disabled:opacity-50"
+                >
+                  Sebelumnya
+                </button>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm rounded-md bg-black/20 hover:bg-black/40 disabled:opacity-50"
+                >
+                  Selanjutnya
+                </button>
+              </div>
+            </div>
             )}
           </div>
         </div>
