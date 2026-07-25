@@ -33,6 +33,8 @@ export default function CompletedProfilesPage() {
   const [selectedProfile, setSelectedProfile] = useState<CompletedProfile | null>(null);
   const [activeTab, setActiveTab] = useState<'profil' | 'riwayat'>('profil');
   const [riwayatTindakan, setRiwayatTindakan] = useState<any[]>([]);
+  const [timeline, setTimeline] = useState<any[]>([]);
+  const [riwayatSummary, setRiwayatSummary] = useState<{ medicalCount: number; spendingCount: number; totalSpending: number; points: number } | null>(null);
   const [loadingRiwayat, setLoadingRiwayat] = useState(false);
   const [totalMembers, setTotalMembers] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -76,7 +78,13 @@ export default function CompletedProfilesPage() {
       const res = await fetch(`/api/front-office/riwayat-tindakan?userId=${userId}`);
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
-      setRiwayatTindakan(data.records || []);
+      setTimeline(data.timeline || []);
+      setRiwayatSummary({
+        medicalCount: data.medicalCount ?? 0,
+        spendingCount: data.spendingCount ?? 0,
+        totalSpending: data.totalSpending ?? 0,
+        points: data.points ?? 0,
+      });
     } catch (error) {
       console.error('Error fetching riwayat tindakan:', error);
     } finally {
@@ -372,7 +380,7 @@ export default function CompletedProfilesPage() {
                   onClick={() => {
                     setActiveTab('riwayat');
                     const uid = (selectedProfile as any).id;
-                    if (uid && riwayatTindakan.length === 0) fetchRiwayatTindakan(uid);
+                    if (uid && timeline.length === 0) fetchRiwayatTindakan(uid);
                   }}
                   className={`font-playfair text-xl font-bold pb-1 border-b-2 transition-colors ${
                     activeTab === 'riwayat'
@@ -539,36 +547,66 @@ export default function CompletedProfilesPage() {
             </div>
             ) : (
             <div className="space-y-4">
-              <h4 className="text-primary font-bold text-sm uppercase tracking-wider">Riwayat Tindakan</h4>
+              {riwayatSummary && (
+                <div className="grid grid-cols-2 gap-3 mb-2">
+                  <div className="fo-glass-card-soft rounded-lg p-3 text-center">
+                    <p className="text-primary font-bold text-lg">{riwayatSummary.spendingCount + riwayatSummary.medicalCount}</p>
+                    <p className="text-white/50 text-xs">Total Aktivitas</p>
+                  </div>
+                  <div className="fo-glass-card-soft rounded-lg p-3 text-center">
+                    <p className="text-green-400 font-bold text-lg">Rp {riwayatSummary.totalSpending.toLocaleString('id-ID')}</p>
+                    <p className="text-white/50 text-xs">Total Spending</p>
+                  </div>
+                  <div className="fo-glass-card-soft rounded-lg p-3 text-center">
+                    <p className="text-primary font-bold text-lg">{riwayatSummary.points.toLocaleString('id-ID')}</p>
+                    <p className="text-white/50 text-xs">Poin</p>
+                  </div>
+                  <div className="fo-glass-card-soft rounded-lg p-3 text-center">
+                    <p className="text-white font-bold text-lg">{riwayatSummary.spendingCount}</p>
+                    <p className="text-white/50 text-xs">Transaksi</p>
+                  </div>
+                </div>
+              )}
+
+              <h4 className="text-primary font-bold text-sm uppercase tracking-wider">Riwayat Aktivitas</h4>
               {loadingRiwayat ? (
                 <p className="text-white/60 text-sm">Memuat...</p>
-              ) : riwayatTindakan.length === 0 ? (
+              ) : timeline.length === 0 ? (
                 <div className="fo-glass-card-soft rounded-lg p-6 text-center">
-                  <p className="text-white/50 text-sm">Belum ada riwayat tindakan.</p>
-                  <p className="text-white/30 text-xs mt-2">Data akan muncul setelah sinkronisasi dengan AIDO.</p>
+                  <p className="text-white/50 text-sm">Belum ada riwayat aktivitas.</p>
+                  <p className="text-white/30 text-xs mt-2">Data akan muncul setelah upload laporan penjualan atau sinkronisasi AIDO.</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {riwayatTindakan.map((r: any, idx: number) => (
-                    <div key={r.id || idx} className="fo-glass-card-soft rounded-lg p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="space-y-2">
+                  {timeline.map((item: any, idx: number) => (
+                    <div key={idx} className="fo-glass-card-soft rounded-lg p-3 flex items-center gap-3">
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                        item.type === 'spending' ? 'bg-green-500/20' : 'bg-blue-500/20'
+                      }`}>
+                        {item.type === 'spending' ? (
+                          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                           </svg>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-white/50 text-xs">
-                            {new Date(r.tanggalKunjungan).toLocaleDateString('id-ID', {
-                              weekday: 'long',
-                              day: '2-digit',
-                              month: 'long',
-                              year: 'numeric'
-                            })}
-                          </p>
-                          <p className="text-white text-sm mt-1">{r.deskripsiTindakan || '-'}</p>
-                        </div>
+                        )}
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm truncate">{item.description}</p>
+                        <p className="text-white/40 text-xs mt-0.5">
+                          {new Date(item.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      {item.type === 'spending' && item.amount != null && (
+                        <span className="text-green-400 font-semibold text-sm whitespace-nowrap">
+                          Rp {item.amount.toLocaleString('id-ID')}
+                        </span>
+                      )}
+                      {item.type === 'tindakan' && (
+                        <span className="bg-blue-500/20 text-blue-300 text-[10px] px-2 py-0.5 rounded-full font-semibold">Tindakan</span>
+                      )}
                     </div>
                   ))}
                 </div>
