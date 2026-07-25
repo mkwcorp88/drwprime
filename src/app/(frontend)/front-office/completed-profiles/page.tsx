@@ -242,7 +242,7 @@ export default function CompletedProfilesPage() {
                         </td>
                         <td className="px-4 py-3 text-sm text-white/80 whitespace-nowrap">{p.phone || '-'}</td>
                         <td className="px-4 py-3 text-sm text-primary font-semibold whitespace-nowrap">
-                          {p.points.toLocaleString('id-ID')}
+                          {(p.points || 0).toLocaleString('id-ID')}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getLevelColor(p.loyaltyLevel)}`}>
@@ -365,19 +365,19 @@ export default function CompletedProfilesPage() {
                   </div>
                   <div>
                     <p className="text-white/40 text-xs mb-0.5">Poin</p>
-                    <p className="text-primary font-semibold">{selectedProfile.points.toLocaleString('id-ID')}</p>
+                    <p className="text-primary font-semibold">{(selectedProfile.points || 0).toLocaleString('id-ID')}</p>
                   </div>
                   <div>
                     <p className="text-white/40 text-xs mb-0.5">Loyalty Poin</p>
-                    <p className="text-white">{selectedProfile.loyaltyPoints.toLocaleString('id-ID')}</p>
+                    <p className="text-white">{(selectedProfile.loyaltyPoints || 0).toLocaleString('id-ID')}</p>
                   </div>
                   <div>
                     <p className="text-white/40 text-xs mb-0.5">Pendapatan</p>
-                    <p className="text-green-400 font-semibold">{formatCurrency(selectedProfile.totalEarnings)}</p>
+                    <p className="text-green-400 font-semibold">{formatCurrency(selectedProfile.totalEarnings || 0)}</p>
                   </div>
                   <div>
                     <p className="text-white/40 text-xs mb-0.5">Total Referral</p>
-                    <p className="text-white">{selectedProfile.totalReferrals}</p>
+                    <p className="text-white">{selectedProfile.totalReferrals || 0}</p>
                   </div>
                 </div>
               </div>

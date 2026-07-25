@@ -151,12 +151,12 @@ export default function BulkImportPage() {
       const colName = getCol(['Nama', 'Name', 'First Name', 'Nama Depan', 'Nama Pasien', 'Nama Lengkap', 'FirstName']);
       const colLastName = getCol(['Nama Belakang', 'Last Name', 'LastName']);
 
-      if (!colPhone) {
+      if (colPhone === null) {
         setError('Kolom "Phone" / "Nomor HP" tidak ditemukan. Pastikan file memiliki header yang benar.');
         setLoading(false);
         return;
       }
-      if (!colName) {
+      if (colName === null) {
         setError('Kolom "Nama" / "First Name" tidak ditemukan. Pastikan file memiliki header yang benar.');
         setLoading(false);
         return;

@@ -60,19 +60,59 @@ export async function GET(req: NextRequest) {
         lastTransactionAt: true,
         hasAccount: true,
         memberSince: true,
+        // Tambahan untuk detail modal
+        nik: true,
+        gender: true,
+        dateOfBirth: true,
+        address: true,
+        city: true,
+        province: true,
+        postalCode: true,
+        profileCompletedAt: true,
+        loyaltyPoints: true,
+        loyaltyLevel: true,
+        totalEarnings: true,
+        totalReferrals: true,
+        affiliateCode: true,
       },
       orderBy,
       // take: 200, // limit untuk performance - Dihapus untuk menampilkan semua
     });
 
+    // Ambil aktivitas terakhir untuk setiap member
+    const memberIds = members.map(m => m.id);
+
+    const lastTransactions = await prisma.transaction.findMany({
+      where: { userId: { in: memberIds } },
+      orderBy: { createdAt: 'desc' },
+      distinct: ['userId'],
+      select: { userId: true, description: true, createdAt: true },
+    });
+
+    const lastReservations = await prisma.reservation.findMany({
+      where: { userId: { in: memberIds } },
+      orderBy: { reservationDate: 'desc' },
+      distinct: ['userId'],
+      select: { userId: true, treatment: { select: { name: true } }, status: true, reservationDate: true },
+    });
+
+    const lastTxMap = new Map(lastTransactions.map(t => [t.userId, t]));
+    const lastResMap = new Map(lastReservations.map(r => [r.userId, r]));
+
+
     // Compute tier for each member
-    const membersWithTier = members.map(m => ({
+    const membersWithDetails = members.map(m => {
+      const lastTx = lastTxMap.get(m.id);
+      const lastRes = lastResMap.get(m.id);
+      return {
       ...m,
       tier: computeTier(Number(m.totalSpending)),
       fullName: [m.firstName, m.lastName].filter(Boolean).join(' '),
-    }));
+      lastTransaction: lastTx ? { date: lastTx.createdAt.toISOString(), description: lastTx.description } : null,
+      lastReservation: lastRes ? { date: lastRes.reservationDate.toISOString(), treatment: lastRes.treatment.name, status: lastRes.status } : null,
+    }});
 
-    return NextResponse.json({ success: true, members: membersWithTier });
+    return NextResponse.json({ success: true, members: membersWithDetails, total: await prisma.user.count({ where }) });
   } catch (error) {
     console.error('[MEMBERS] Error fetching members:', error);
     return NextResponse.json({ error: 'Gagal memuat daftar member' }, { status: 500 });
