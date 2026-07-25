@@ -189,7 +189,40 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.totalPendapatan - a.totalPendapatan)
       .slice(0, 100);
 
-    const totals = customerSummaries.reduce(
+    // Cari member yang cocok untuk setiap customer summary
+    const customerNames = customerSummaries.map(s => s.namaPasien.trim());
+    const linkedUsers = await prisma.user.findMany({
+      where: {
+        OR: customerNames.flatMap(name => [
+          { firstName: { contains: name, mode: 'insensitive' as const } },
+          { lastName: { contains: name, mode: 'insensitive' as const } },
+        ]),
+      },
+      select: { id: true, firstName: true, lastName: true, phone: true, totalSpending: true, points: true, nomorRekamMedis: true },
+      take: 200,
+    });
+
+    const summariesWithMember = customerSummaries.map(s => {
+      const nameLower = s.namaPasien.toLowerCase();
+      const linked = linkedUsers.filter(u => {
+        const fullName = [u.firstName, u.lastName].filter(Boolean).join(' ').toLowerCase();
+        return fullName.includes(nameLower) || nameLower.includes(fullName);
+      });
+      return {
+        ...s,
+        linkedMember: linked.length === 1 ? {
+          id: linked[0].id,
+          firstName: linked[0].firstName,
+          lastName: linked[0].lastName,
+          phone: linked[0].phone,
+          totalSpending: Number(linked[0].totalSpending),
+          points: linked[0].points,
+          nomorRekamMedis: linked[0].nomorRekamMedis,
+        } : linked.length > 1 ? { multiple: true, count: linked.length } : null,
+      };
+    });
+
+    const totals = summariesWithMember.reduce(
       (acc, item) => {
         acc.totalPendapatan += item.totalPendapatan;
         acc.totalKeuntungan += item.totalKeuntungan;
@@ -211,7 +244,7 @@ export async function GET(req: NextRequest) {
         uploadedByClerkId: u.uploadedByClerkId,
         entryCount: u._count.entries,
       })),
-      customerSummaries,
+      customerSummaries: summariesWithMember,
       totals,
       scanRecords,
       selectedDate: dateParam,
@@ -322,6 +355,95 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // --- MEMBER MATCHING ---
+    // Collect all unique patient names
+    const uniqueNames = [...new Set(parsedRows.map(r => r.namaPasien.trim()))];
+    
+    // Find matching members by name (case-insensitive)
+    const matchedMembers: Map<string, { id: string; firstName: string; lastName: string; phone: string | null }[]> = new Map();
+    
+    for (const name of uniqueNames) {
+      const nameLower = name.toLowerCase();
+      const users = await prisma.user.findMany({
+        where: {
+          OR: [
+            { firstName: { contains: name, mode: 'insensitive' } },
+            { lastName: { contains: name, mode: 'insensitive' } },
+          ],
+        },
+        select: { id: true, firstName: true, lastName: true, phone: true },
+        take: 20,
+      });
+      
+      // Filter: must match full name (both first+last combined)
+      const matched = users.filter(u => {
+        const fullName = [u.firstName, u.lastName].filter(Boolean).join(' ').toLowerCase();
+        return fullName.includes(nameLower) || nameLower.includes(fullName);
+      });
+      
+      if (matched.length > 0) {
+        matchedMembers.set(name, matched);
+      }
+    }
+
+    // Create SpendingRecords for matched members & update totalSpending + points
+    let linkedCount = 0;
+    let needsConfirmation: { name: string; candidates: { id: string; firstName: string; lastName: string }[] }[] = [];
+    let unmatchedCount = 0;
+    const processedInvoices = new Set<string>();
+
+    for (const row of parsedRows) {
+      const matched = matchedMembers.get(row.namaPasien.trim());
+      if (!matched || matched.length === 0) {
+        unmatchedCount++;
+        continue;
+      }
+      
+      // Skip duplicate invoice
+      const invoiceKey = `${row.nomorInvoice}_${row.namaPasien}`;
+      if (processedInvoices.has(invoiceKey)) continue;
+      processedInvoices.add(invoiceKey);
+
+      if (matched.length > 1) {
+        needsConfirmation.push({
+          name: row.namaPasien,
+          candidates: matched.map(m => ({ id: m.id, firstName: m.firstName, lastName: m.lastName })),
+        });
+        continue;
+      }
+
+      const member = matched[0]; // Single match — auto-link
+      
+      try {
+        await prisma.spendingRecord.create({
+          data: {
+            userId: member.id,
+            amount: row.totalPendapatan,
+            treatment: `Kunjungan ${row.tanggalKunjungan.toLocaleDateString('id-ID')}`,
+            spendingDate: row.tanggalKunjungan,
+            source: 'front_office',
+          },
+        });
+
+        const pointsEarned = Math.floor(row.totalPendapatan / 10000);
+        
+        await prisma.user.update({
+          where: { id: member.id },
+          data: {
+            totalSpending: { increment: row.totalPendapatan },
+            points: { increment: pointsEarned },
+            lastTransactionAt: new Date(),
+          },
+        });
+
+        linkedCount++;
+      } catch (err) {
+        console.error(`Failed to link spending for ${row.namaPasien}:`, err);
+      }
+    }
+
+    // --- END MEMBER MATCHING ---
+
     const reportDateInput = String(formData.get('reportDate') || '').trim();
     const reportDate = reportDateInput ? parseDateValue(reportDateInput) : parsedRows[0]?.tanggalKunjungan;
 
@@ -385,7 +507,7 @@ export async function POST(req: NextRequest) {
 
     const message = upload.isReplace
       ? `Data tanggal ${normalizedReportDate.toLocaleDateString('id-ID')} diganti: ${upload.totalRows} baris diproses.`
-      : `Report spending daily berhasil diupload: ${upload.totalRows} baris diproses.`;
+      : `Report penjualan berhasil diupload: ${upload.totalRows} baris diproses.`;
 
     return NextResponse.json({
       success: true,
@@ -399,6 +521,11 @@ export async function POST(req: NextRequest) {
         totalPendapatan: Number(upload.totalPendapatan),
         totalKeuntungan: Number(upload.totalKeuntungan),
         createdAt: upload.createdAt,
+      },
+      memberMatching: {
+        linked: linkedCount,
+        needsConfirmation: needsConfirmation.length > 0 ? needsConfirmation : undefined,
+        unmatched: unmatchedCount,
       },
     });
   } catch (error) {

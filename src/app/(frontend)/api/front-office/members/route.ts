@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
         lastTransactionAt: true,
         hasAccount: true,
         memberSince: true,
+        nomorRekamMedis: true,
         // Tambahan untuk detail modal
         nik: true,
         gender: true,

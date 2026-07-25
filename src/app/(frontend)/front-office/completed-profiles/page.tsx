@@ -269,6 +269,7 @@ export default function CompletedProfilesPage() {
                   <thead className="fo-glass-card-soft border-b border-white/10">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">No</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">No. RM</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">Nama</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">No. HP</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">Poin</th>
@@ -291,6 +292,7 @@ export default function CompletedProfilesPage() {
                         className="hover:bg-white/5 transition-colors cursor-pointer"
                       >
                         <td className="px-4 py-3 text-sm text-white/80">{index + 1}</td>
+                        <td className="px-4 py-3 text-sm text-white/80 font-mono">{(p as any).nomorRekamMedis || '-'}</td>
                         <td className="px-4 py-3 text-sm text-white whitespace-nowrap font-medium">
                           {p.firstName} {p.lastName}
                         </td>
@@ -430,6 +432,19 @@ export default function CompletedProfilesPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Medical Record Link */}
+              {(selectedProfile as any).nomorRekamMedis && (
+              <div className="fo-glass-card-soft rounded-lg p-4 space-y-3">
+                <h4 className="text-primary font-bold text-sm uppercase tracking-wider">Rekam Medis</h4>
+                <div className="grid grid-cols-1 gap-3 text-sm">
+                  <div>
+                    <p className="text-white/40 text-xs mb-0.5">No. RM (AIDO)</p>
+                    <p className="text-white font-mono font-bold">{(selectedProfile as any).nomorRekamMedis}</p>
+                  </div>
+                </div>
+              </div>
+              )}
 
               {/* Address */}
               <div className="fo-glass-card-soft rounded-lg p-4 space-y-3">
