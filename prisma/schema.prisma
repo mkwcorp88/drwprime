@@ -20,6 +20,7 @@ model User {
 
   // Personal info (member profile completion)
   phone             String?        @unique // Collected when the member completes their profile
+  nomorRekamMedis   String?        @unique @map("nomor_rekam_medis") // Linked to AIDO patient MR number
   nik               String?        @unique // Nomor Induk Kependudukan (KTP)
   gender            String?        // "Pria" | "Wanita"
   dateOfBirth       DateTime?      @map("date_of_birth") @db.Date
@@ -64,6 +65,7 @@ model User {
   bankAccounts      BankAccount[]
   withdrawals       Withdrawal[]
   spendingRecords   SpendingRecord[]
+  riwayatTindakan    RiwayatTindakan[]
 
   @@index([phone])
   @@index([hasAccount])
@@ -465,4 +467,21 @@ model BlogPost {
   @@index([status, publishedAt])
   @@index([createdAt])
   @@map("blog_posts")
+}
+
+// Riwayat Tindakan dari AIDO - Medical Record History
+model RiwayatTindakan {
+  id                  String    @id @default(cuid())
+  userId              String
+  tanggalKunjungan    DateTime  @map("tanggal_kunjungan")
+  deskripsiTindakan   String?   @map("deskripsi_tindakan")
+
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([tanggalKunjungan])
+  @@map("riwayat_tindakan")
 }

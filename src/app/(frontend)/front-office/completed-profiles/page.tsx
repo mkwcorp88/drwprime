@@ -31,6 +31,9 @@ export default function CompletedProfilesPage() {
   const [profiles, setProfiles] = useState<CompletedProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState<CompletedProfile | null>(null);
+  const [activeTab, setActiveTab] = useState<'profil' | 'riwayat'>('profil');
+  const [riwayatTindakan, setRiwayatTindakan] = useState<any[]>([]);
+  const [loadingRiwayat, setLoadingRiwayat] = useState(false);
   const [totalMembers, setTotalMembers] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -66,6 +69,20 @@ export default function CompletedProfilesPage() {
   };
 
   const totalPages = Math.ceil(totalMembers / limit);
+
+  const fetchRiwayatTindakan = async (userId: string) => {
+    setLoadingRiwayat(true);
+    try {
+      const res = await fetch(`/api/front-office/riwayat-tindakan?userId=${userId}`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      setRiwayatTindakan(data.records || []);
+    } catch (error) {
+      console.error('Error fetching riwayat tindakan:', error);
+    } finally {
+      setLoadingRiwayat(false);
+    }
+  };
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
@@ -264,7 +281,13 @@ export default function CompletedProfilesPage() {
                     {profiles.map((p, index) => (
                       <tr
                         key={`${p.email}-${index}`}
-                        onClick={() => setSelectedProfile(p)}
+                        onClick={() => {
+                          setSelectedProfile(p);
+                          setActiveTab('profil');
+                          // Fetch riwayat if user has id field (from members API)
+                          const uid = (p as any).id;
+                          if (uid) fetchRiwayatTindakan(uid);
+                        }}
                         className="hover:bg-white/5 transition-colors cursor-pointer"
                       >
                         <td className="px-4 py-3 text-sm text-white/80">{index + 1}</td>
@@ -331,10 +354,35 @@ export default function CompletedProfilesPage() {
             className="fo-glass-modal rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-playfair text-2xl font-bold text-white">Detail Profil</h3>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setActiveTab('profil')}
+                  className={`font-playfair text-xl font-bold pb-1 border-b-2 transition-colors ${
+                    activeTab === 'profil'
+                      ? 'text-primary border-primary'
+                      : 'text-white/50 border-transparent hover:text-white/80'
+                  }`}
+                >
+                  Detail Profil
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('riwayat');
+                    const uid = (selectedProfile as any).id;
+                    if (uid && riwayatTindakan.length === 0) fetchRiwayatTindakan(uid);
+                  }}
+                  className={`font-playfair text-xl font-bold pb-1 border-b-2 transition-colors ${
+                    activeTab === 'riwayat'
+                      ? 'text-primary border-primary'
+                      : 'text-white/50 border-transparent hover:text-white/80'
+                  }`}
+                >
+                  Riwayat Tindakan
+                </button>
+              </div>
               <button
-                onClick={() => setSelectedProfile(null)}
+                onClick={() => { setSelectedProfile(null); setActiveTab('profil'); }}
                 className="text-white/60 hover:text-white transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -343,6 +391,7 @@ export default function CompletedProfilesPage() {
               </button>
             </div>
 
+            {activeTab === 'profil' ? (
             <div className="space-y-5">
               {/* Basic Info */}
               <div className="fo-glass-card-soft rounded-lg p-4 space-y-3">
@@ -473,6 +522,44 @@ export default function CompletedProfilesPage() {
                 Profil dilengkapi: {formatDate(selectedProfile.profileCompletedAt)}
               </div>
             </div>
+            ) : (
+            <div className="space-y-4">
+              <h4 className="text-primary font-bold text-sm uppercase tracking-wider">Riwayat Tindakan</h4>
+              {loadingRiwayat ? (
+                <p className="text-white/60 text-sm">Memuat...</p>
+              ) : riwayatTindakan.length === 0 ? (
+                <div className="fo-glass-card-soft rounded-lg p-6 text-center">
+                  <p className="text-white/50 text-sm">Belum ada riwayat tindakan.</p>
+                  <p className="text-white/30 text-xs mt-2">Data akan muncul setelah sinkronisasi dengan AIDO.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {riwayatTindakan.map((r: any, idx: number) => (
+                    <div key={r.id || idx} className="fo-glass-card-soft rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                          <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white/50 text-xs">
+                            {new Date(r.tanggalKunjungan).toLocaleDateString('id-ID', {
+                              weekday: 'long',
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric'
+                            })}
+                          </p>
+                          <p className="text-white text-sm mt-1">{r.deskripsiTindakan || '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            )}
           </div>
         </div>
       )}
