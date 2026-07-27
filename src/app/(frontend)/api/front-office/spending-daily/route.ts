@@ -360,7 +360,7 @@ export async function POST(req: NextRequest) {
     const uniqueNames = [...new Set(parsedRows.map(r => r.namaPasien.trim()))];
     
     // Find matching members by name (case-insensitive)
-    const matchedMembers: Map<string, { id: string; firstName: string; lastName: string; phone: string | null }[]> = new Map();
+    const matchedMembers: Map<string, { id: string; firstName: string; lastName: string | null; phone: string | null }[]> = new Map();
     
     for (const name of uniqueNames) {
       const nameLower = name.toLowerCase();
@@ -388,7 +388,7 @@ export async function POST(req: NextRequest) {
 
     // Create SpendingRecords for matched members & update totalSpending + points
     let linkedCount = 0;
-    let needsConfirmation: { name: string; candidates: { id: string; firstName: string; lastName: string }[] }[] = [];
+    const needsConfirmation: { name: string; candidates: { id: string; firstName: string; lastName: string | null }[] }[] = [];
     let unmatchedCount = 0;
     const processedInvoices = new Set<string>();
 
