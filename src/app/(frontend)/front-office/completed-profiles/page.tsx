@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ExcelJS from 'exceljs';
 import { Hourglass } from '@/components/LoadingScreen';
 
@@ -40,10 +40,12 @@ export default function CompletedProfilesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    fetchProfiles(currentPage, searchQuery);
-  }, [currentPage, searchQuery]);
+    fetchProfiles(currentPage, debouncedSearch);
+  }, [currentPage, debouncedSearch]);
 
   const fetchProfiles = async (page: number, search: string) => {
     setLoading(true);
@@ -66,8 +68,11 @@ export default function CompletedProfilesPage() {
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-    setCurrentPage(1); // Reset to first page on new search
+    const value = e.target.value;
+    setSearchQuery(value);
+    setCurrentPage(1);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(value), 500);
   };
 
   const totalPages = Math.ceil(totalMembers / limit);
