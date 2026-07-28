@@ -21,9 +21,9 @@ interface MemberReservation {
 }
 
 interface MembershipData {
-  tier: 'SILVER' | 'GOLD' | 'PLATINUM';
+  tier: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
   benefits: string[];
-  nextTier: 'GOLD' | 'PLATINUM' | null;
+  nextTier: 'Silver' | 'Gold' | 'Platinum' | null;
   nextTierThreshold: number | null;
   progressPercent: number;
   amountToNextTier: number | null;
@@ -44,8 +44,8 @@ interface PointHistoryItem {
 }
 
 const TIER_CONFIG = {
-  SILVER: {
-    label: 'Silver',
+  Bronze: {
+    label: 'Bronze',
     gradient: 'from-white/[0.09] via-white/[0.04] to-primary/[0.04]',
     border: 'border-white/20',
     badge: 'bg-white/[0.07] text-slate-200 border-white/15',
@@ -54,8 +54,8 @@ const TIER_CONFIG = {
     emblem: 'border-slate-300/55 bg-gradient-to-br from-slate-100/25 via-slate-500/10 to-black text-slate-200 shadow-[0_0_12px_rgba(203,213,225,0.18)]',
     divider: 'bg-slate-300/25',
   },
-  GOLD: {
-    label: 'Gold',
+  Silver: {
+    label: 'Silver',
     gradient: 'from-primary/20 via-[#17140b] to-black',
     border: 'border-primary/50',
     badge: 'bg-primary/10 text-primary border-primary/30',
@@ -64,8 +64,8 @@ const TIER_CONFIG = {
     emblem: 'border-primary/60 bg-gradient-to-br from-[#ffe9a4]/30 via-primary/15 to-black text-[#f4d36f] shadow-[0_0_14px_rgba(212,175,55,0.28)]',
     divider: 'bg-primary/30',
   },
-  PLATINUM: {
-    label: 'Platinum',
+  Gold: {
+    label: 'Gold',
     gradient: 'from-[#f8e9bd]/20 via-[#191711] to-black',
     border: 'border-[#f8e9bd]/45',
     badge: 'bg-[#f8e9bd]/10 text-[#f8e9bd] border-[#f8e9bd]/30',
@@ -73,6 +73,16 @@ const TIER_CONFIG = {
     marker: 'bg-[#fff0bd]',
     emblem: 'border-[#fff0bd]/65 bg-gradient-to-br from-white/35 via-[#f8e9bd]/15 to-black text-[#fff5d5] shadow-[0_0_16px_rgba(255,240,189,0.3)]',
     divider: 'bg-[#fff0bd]/35',
+  },
+  Platinum: {
+    label: 'Platinum',
+    gradient: 'from-violet-500/20 via-[#12101a] to-black',
+    border: 'border-violet-400/45',
+    badge: 'bg-violet-400/10 text-violet-300 border-violet-400/30',
+    progress: 'bg-gradient-to-r from-purple-500 to-violet-300',
+    marker: 'bg-violet-300',
+    emblem: 'border-violet-400/60 bg-gradient-to-br from-violet-200/30 via-violet-500/15 to-black text-violet-200 shadow-[0_0_14px_rgba(167,139,250,0.3)]',
+    divider: 'bg-violet-400/35',
   },
 };
 
@@ -88,7 +98,7 @@ function TierBadge({ tier }: { tier: MembershipTier }) {
           <circle cx="16" cy="16" r="12.25" stroke="currentColor" strokeWidth="0.75" opacity="0.48" />
           <circle cx="16" cy="16" r="10.25" stroke="currentColor" strokeWidth="0.45" opacity="0.28" />
 
-          {tier === 'GOLD' && (
+          {tier === 'Silver' && (
             <path
               d="M16 5v4M16 23v4M5 16h4M23 16h4M8.2 8.2l2.8 2.8M21 21l2.8 2.8M23.8 8.2L21 11M11 21l-2.8 2.8"
               stroke="currentColor"
@@ -97,7 +107,7 @@ function TierBadge({ tier }: { tier: MembershipTier }) {
             />
           )}
 
-          {tier === 'PLATINUM' && (
+          {(tier === 'Gold' || tier === 'Platinum') && (
             <g fill="currentColor" opacity="0.09">
               <path d="M6 10l5-3 2.5 5-5.5 4z" />
               <path d="M11 7l5-2 1 7-3.5 0z" />

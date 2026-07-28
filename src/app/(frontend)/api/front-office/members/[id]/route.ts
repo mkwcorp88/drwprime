@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isUserAdmin } from '@/lib/admin';
 
-const TIER_THRESHOLDS = { GOLD: 1_000_000, PLATINUM: 5_000_000 };
+const TIER_THRESHOLDS = { SILVER: 1_000_000, GOLD: 5_000_000, PLATINUM: 10_000_000 };
 
-function computeTier(totalSpending: number): 'SILVER' | 'GOLD' | 'PLATINUM' {
-  if (totalSpending >= TIER_THRESHOLDS.PLATINUM) return 'PLATINUM';
-  if (totalSpending >= TIER_THRESHOLDS.GOLD) return 'GOLD';
-  return 'SILVER';
+function computeTier(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {
+  if (totalSpending >= TIER_THRESHOLDS.PLATINUM) return 'Platinum';
+  if (totalSpending >= TIER_THRESHOLDS.GOLD) return 'Gold';
+  if (totalSpending >= TIER_THRESHOLDS.SILVER) return 'Silver';
+  return 'Bronze';
 }
 
 export async function GET(

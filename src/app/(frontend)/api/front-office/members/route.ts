@@ -3,12 +3,13 @@ import { prisma } from '@/lib/prisma';
 import { isUserAdmin } from '@/lib/admin';
 import { Prisma } from '@prisma/client';
 
-const TIER_THRESHOLDS = { GOLD: 1_000_000, PLATINUM: 5_000_000 };
+const TIER_THRESHOLDS = { Silver: 1_000_000, Gold: 5_000_000, Platinum: 10_000_000 };
 
-function computeTier(totalSpending: number): 'SILVER' | 'GOLD' | 'PLATINUM' {
-  if (totalSpending >= TIER_THRESHOLDS.PLATINUM) return 'PLATINUM';
-  if (totalSpending >= TIER_THRESHOLDS.GOLD) return 'GOLD';
-  return 'SILVER';
+function computeTier(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {
+  if (totalSpending >= TIER_THRESHOLDS.Platinum) return 'Platinum';
+  if (totalSpending >= TIER_THRESHOLDS.Gold) return 'Gold';
+  if (totalSpending >= TIER_THRESHOLDS.Silver) return 'Silver';
+  return 'Bronze';
 }
 
 export async function GET(req: NextRequest) {
@@ -109,17 +110,39 @@ export async function GET(req: NextRequest) {
     const lastResMap = new Map(lastReservations.map(r => [r.userId, r]));
 
 
-    // Compute tier for each member
+    // Compute tier & auto-sync loyalty level
     const membersWithDetails = members.map(m => {
+      const computedTier = computeTier(Number(m.totalSpending));
       const lastTx = lastTxMap.get(m.id);
       const lastRes = lastResMap.get(m.id);
       return {
       ...m,
-      tier: computeTier(Number(m.totalSpending)),
+      loyaltyLevel: computedTier, // overwrite with computed tier as source of truth
+      tier: computedTier,
       fullName: [m.firstName, m.lastName].filter(Boolean).join(' '),
       lastTransaction: lastTx ? { date: lastTx.createdAt.toISOString(), description: lastTx.description } : null,
       lastReservation: lastRes ? { date: lastRes.reservationDate.toISOString(), treatment: lastRes.treatment.name, status: lastRes.status } : null,
     }});
+
+    // Auto-sync DB: update any stale loyalty_level
+    const staleUpdates = membersWithDetails
+      .filter(m => m.loyaltyLevel !== m.tier || m.loyaltyLevel !== m.loyaltyLevel) // filter actual mismatches
+      .filter(m => {
+        // Check if stored level differs from computed
+        const stored = members.find(x => x.id === m.id);
+        return stored && stored.loyaltyLevel !== m.tier;
+      });
+    
+    if (staleUpdates.length > 0) {
+      await Promise.all(
+        staleUpdates.map(m =>
+          prisma.user.update({
+            where: { id: m.id },
+            data: { loyaltyLevel: m.tier as any },
+          })
+        )
+      );
+    }
 
     return NextResponse.json({ 
       success: true, 

@@ -122,35 +122,44 @@ function formatDateId(date: Date) {
 }
 
 function tierLabel(tier: string): string {
-  return tier === 'PLATINUM' ? 'Platinum' : tier === 'GOLD' ? 'Gold' : 'Silver';
+  return tier === 'Platinum' ? 'Platinum' : tier === 'Gold' ? 'Gold' : tier === 'Silver' ? 'Silver' : 'Bronze';
 }
 
 /**
  * Compute member tier from totalSpending.
  */
-export function computeMemberTier(totalSpending: number): 'SILVER' | 'GOLD' | 'PLATINUM' {
-  if (totalSpending >= 5_000_000) return 'PLATINUM';
-  if (totalSpending >= 1_000_000) return 'GOLD';
-  return 'SILVER';
+export function computeMemberTier(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {
+  if (totalSpending >= 10_000_000) return 'Platinum';
+  if (totalSpending >= 5_000_000) return 'Gold';
+  if (totalSpending >= 1_000_000) return 'Silver';
+  return 'Bronze';
 }
 
 /**
  * Cek apakah member sudah > 60% menuju tier berikutnya.
  */
 function getNearTierText(totalSpending: number): string | null {
-  if (totalSpending >= 5_000_000) return null;
+  if (totalSpending >= 10_000_000) return null;
+  if (totalSpending >= 5_000_000) {
+    const remaining = 10_000_000 - totalSpending;
+    const pct = Math.round((totalSpending / 10_000_000) * 100);
+    if (pct >= 60 && totalSpending > 0) {
+      return `Tinggal ${formatRupiah(remaining)} lagi ke tier Platinum.`;
+    }
+    return null;
+  }
   if (totalSpending >= 1_000_000) {
     const remaining = 5_000_000 - totalSpending;
     const pct = Math.round((totalSpending / 5_000_000) * 100);
     if (pct >= 60 && totalSpending > 0) {
-      return `Tinggal ${formatRupiah(remaining)} lagi ke tier Platinum.`;
+      return `Tinggal ${formatRupiah(remaining)} lagi ke tier Gold.`;
     }
     return null;
   }
   const remaining = 1_000_000 - totalSpending;
   const pct = Math.round((totalSpending / 1_000_000) * 100);
   if (pct >= 60 && totalSpending > 0) {
-    return `Tinggal ${formatRupiah(remaining)} lagi ke tier Gold.`;
+    return `Tinggal ${formatRupiah(remaining)} lagi ke tier Silver.`;
   }
   return null;
 }

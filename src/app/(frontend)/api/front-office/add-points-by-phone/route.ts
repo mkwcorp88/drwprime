@@ -219,7 +219,7 @@ export async function POST(req: NextRequest) {
       }).catch((err) => console.warn('[WA] Spending notification failed:', err));
 
       // B. Tier upgrade notification (if tier changed)
-      if (newTier !== oldTier && oldTier !== 'PLATINUM') {
+      if (newTier !== oldTier && oldTier !== 'Platinum') {
         sendTierUpgradeNotification({
           memberName,
           memberPhone: updatedUser.phone,
@@ -285,7 +285,7 @@ export async function POST(req: NextRequest) {
 }
 
 function getTierBenefits(tier: string): string[] {
-  if (tier === 'PLATINUM') {
+  if (tier === 'Platinum') {
     return [
       'Konsultan kecantikan pribadi',
       'Diskon 20% semua treatment',
@@ -293,16 +293,22 @@ function getTierBenefits(tier: string): string[] {
       'Priority queue',
     ];
   }
-  if (tier === 'GOLD') {
+  if (tier === 'Gold') {
     return [
       'Skin check gratis tiap bulan',
       'Diskon 15% semua treatment',
       'Akses early promo',
     ];
   }
+  if (tier === 'Silver') {
+    return [
+      'Priority booking',
+      'Diskon 10% di hari ulang tahun',
+      'Akses promo eksklusif',
+    ];
+  }
   return [
     'Priority booking',
-    'Diskon 10% di hari ulang tahun',
     'Akses promo eksklusif',
   ];
 }

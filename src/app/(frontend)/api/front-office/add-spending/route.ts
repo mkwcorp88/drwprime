@@ -111,6 +111,14 @@ export async function POST(req: NextRequest) {
     const newTotalSpending = Number(updatedUser.totalSpending);
     const newTier = computeMemberTier(newTotalSpending);
 
+    // Auto-sync loyalty_level to DB
+    if (newTier !== oldTier) {
+      await prisma.user.update({
+        where: { id: member.id },
+        data: { loyaltyLevel: newTier },
+      });
+    }
+
     // Count spending records (after insert)
     const transactionCount = await prisma.spendingRecord.count({
       where: { userId: member.id },
@@ -136,7 +144,7 @@ export async function POST(req: NextRequest) {
       }).catch((err) => console.warn('[WA] Spending notification failed:', err));
 
       // B. Notifikasi tier upgrade (jika berubah)
-      if (newTier !== oldTier && oldTier !== 'PLATINUM') {
+      if (newTier !== oldTier && oldTier !== 'Platinum') {
         sendTierUpgradeNotification({
           memberName,
           memberPhone: member.phone,
@@ -171,7 +179,7 @@ export async function POST(req: NextRequest) {
 }
 
 function getTierBenefits(tier: string): string[] {
-  if (tier === 'PLATINUM') {
+  if (tier === 'Platinum') {
     return [
       'Konsultan kecantikan pribadi',
       'Diskon 20% semua treatment',
@@ -179,7 +187,7 @@ function getTierBenefits(tier: string): string[] {
       'Priority queue',
     ];
   }
-  if (tier === 'GOLD') {
+  if (tier === 'Gold') {
     return [
       'Skin check gratis tiap bulan',
       'Diskon 15% semua treatment',

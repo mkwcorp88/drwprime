@@ -77,10 +77,11 @@ export default function MemberDetailModal({
   }
 
   const tierColor = {
-    SILVER: 'bg-gray-100 text-gray-700',
-    GOLD: 'bg-yellow-100 text-yellow-700',
-    PLATINUM: 'bg-purple-100 text-purple-700',
-  }[member.tier] || 'bg-gray-100 text-gray-700';
+    Bronze: 'bg-amber-100 text-amber-700',
+    Silver: 'bg-gray-100 text-gray-700',
+    Gold: 'bg-yellow-100 text-yellow-700',
+    Platinum: 'bg-purple-100 text-purple-700',
+  }[member.tier] || 'bg-amber-100 text-amber-700';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>

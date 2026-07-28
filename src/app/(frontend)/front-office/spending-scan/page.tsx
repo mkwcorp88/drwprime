@@ -10,13 +10,14 @@ interface MemberInfo {
   email: string;
   phone: string;
   totalSpending: number;
-  tier: 'SILVER' | 'GOLD' | 'PLATINUM';
+  tier: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
 }
 
 const TIER_LABEL: Record<string, string> = {
-  SILVER: '🥈 Silver',
-  GOLD: '🥇 Gold',
-  PLATINUM: '💎 Platinum',
+  Bronze: '🥉 Bronze',
+  Silver: '🥈 Silver',
+  Gold: '🥇 Gold',
+  Platinum: '💎 Platinum',
 };
 
 export default function SpendingScanPage() {
