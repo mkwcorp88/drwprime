@@ -42,19 +42,23 @@ export default function CompletedProfilesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const [tierFilter, setTierFilter] = useState('');
+  const [sortBy, setSortBy] = useState('rm');
 
   useEffect(() => {
-    fetchProfiles(currentPage, debouncedSearch);
-  }, [currentPage, debouncedSearch]);
+    fetchProfiles(currentPage, debouncedSearch, tierFilter, sortBy);
+  }, [currentPage, debouncedSearch, tierFilter, sortBy]);
 
-  const fetchProfiles = async (page: number, search: string) => {
+  const fetchProfiles = async (page: number, search: string, tier: string, sort: string) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
         page: String(page),
         limit: String(limit),
         search: search,
+        sort: sort,
       });
+      if (tier) params.set('tier', tier);
       const response = await fetch(`/api/front-office/members?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch members');
       const data = await response.json();
@@ -253,16 +257,48 @@ export default function CompletedProfilesPage() {
                 <p className="text-white/50 text-xs">orang</p>
               </div>
             </div>
-            <div className="md:col-span-2 fo-glass-card fo-fade-up fo-stagger-2 rounded-xl p-6 flex flex-col justify-center">
-              <label htmlFor="search" className="text-white/70 text-sm mb-2 font-semibold">Cari Member</label>
-              <input
-                id="search"
-                type="text"
-                value={searchQuery}
-                onChange={handleSearchChange}
-                placeholder="Ketik nama atau nomor HP..."
-                className="w-full bg-black/20 text-white border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
+            <div className="md:col-span-2 fo-glass-card fo-fade-up fo-stagger-2 rounded-xl p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <label htmlFor="search" className="text-white/70 text-sm mb-2 block font-semibold">Cari Member</label>
+                  <input
+                    id="search"
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    placeholder="Ketik nama atau nomor HP..."
+                    className="w-full bg-black/20 text-white border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-white/40 text-xs mr-1">Tier:</span>
+                {['', 'Bronze', 'Silver', 'Gold', 'Platinum'].map(tier => (
+                  <button
+                    key={tier}
+                    onClick={() => { setTierFilter(tier); setCurrentPage(1); }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                      tierFilter === tier
+                        ? tier === '' 
+                          ? 'bg-white/15 text-white border-white/30'
+                          : `${getLevelColor(tier)}`
+                        : 'bg-transparent text-white/40 border-white/10 hover:border-white/25 hover:text-white/70'
+                    }`}
+                  >
+                    {tier || 'Semua'}
+                  </button>
+                ))}
+                <span className="w-px h-5 bg-white/10 mx-2" />
+                <button
+                  onClick={() => setSortBy(sortBy === 'rm' ? 'totalSpending' : 'rm')}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold border border-white/10 text-white/60 hover:border-white/25 hover:text-white/90 transition-all flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                  </svg>
+                  Urut: {sortBy === 'rm' ? 'No. RM' : 'Spending'}
+                </button>
+              </div>
             </div>
           </div>
 

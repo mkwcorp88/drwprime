@@ -19,9 +19,10 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = req.nextUrl;
-    const search = searchParams.get('search'); // cari by nama/phone
-    const filterType = searchParams.get('filter'); // 'all' | 'with_account' | 'walk_in'
-    const sortBy = searchParams.get('sort') || 'lastTransactionAt'; // lastTransactionAt | totalSpending | points
+    const search = searchParams.get('search');
+    const filterType = searchParams.get('filter');
+    const tierFilter = searchParams.get('tier');
+    const sortBy = searchParams.get('sort') || 'rm';
 
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
@@ -43,11 +44,17 @@ export async function GET(req: NextRequest) {
       where.hasAccount = false;
     }
 
+    if (tierFilter && ['Bronze', 'Silver', 'Gold', 'Platinum'].includes(tierFilter)) {
+      where.loyaltyLevel = tierFilter;
+    }
+
     const orderBy: Prisma.UserOrderByWithRelationInput = {};
     if (sortBy === 'totalSpending') {
       orderBy.totalSpending = 'desc';
     } else if (sortBy === 'points') {
       orderBy.points = 'desc';
+    } else if (sortBy === 'rm') {
+      orderBy.nomorRekamMedis = 'asc';
     } else {
       orderBy.lastTransactionAt = 'desc';
     }
