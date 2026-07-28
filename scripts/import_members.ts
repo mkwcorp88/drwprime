@@ -22,7 +22,7 @@ function parseCSVLine(line: string): string[] {
     if (char === '"') {
       if (inQuotes && i + 1 < line.length && line[i + 1] === '"') { current += '"'; i++; }
       else inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
+    } else if (char === ';' && !inQuotes) { result.push(current.trim()); current = ''; }
     else current += char;
   }
   result.push(current.trim());
@@ -34,17 +34,20 @@ type MemberRow = { phone: string; firstName: string; lastName: string | null };
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
-  const csvPath = args.find(a => !a.startsWith('--')) || '/mnt/c/Users/DRW/Downloads/pasien_drw_prime_cleaned.csv';
+  const csvPath = '/home/drw/drwprime/pasien_drw_prime.csv';
 
   console.log(`Reading: ${csvPath}`);
   const text = fs.readFileSync(csvPath, 'utf-8');
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  let lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines[0].startsWith('sep=')) {
+    lines.shift();
+  }
   if (lines.length < 2) { console.log('File must have header + data'); process.exit(1); }
 
-  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, ''));
-  const colPhone = headers.indexOf('phone');
-  const colFirst = headers.findIndex(h => h === 'firstname' || h === 'first_name');
-  const colLast = headers.findIndex(h => h === 'lastname' || h === 'last_name');
+  const headers = lines[0].split(';').map(h => h.replace(/"/g, '').trim().toLowerCase());
+  const colPhone = headers.indexOf('whatsapp');
+  const colFirst = headers.indexOf('nama');
+  const colLast = -1; // No last name column in the provided CSV
 
   if (colPhone < 0 || colFirst < 0) { console.log('Columns not found. Headers:', headers); process.exit(1); }
 

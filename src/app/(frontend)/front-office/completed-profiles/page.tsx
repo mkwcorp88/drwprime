@@ -276,48 +276,37 @@ export default function CompletedProfilesPage() {
                 <table className="w-full">
                   <thead className="fo-glass-card-soft border-b border-white/10">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">No</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">No. RM</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">Nama</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">No. HP</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">Poin</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">Level</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">Aktivitas Terakhir</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">Tanggal</th>
+                      <th className="px-5 py-3.5 text-left text-[11px] font-semibold text-white/50 uppercase tracking-wider">No. RM</th>
+                      <th className="px-5 py-3.5 text-left text-[11px] font-semibold text-white/50 uppercase tracking-wider">Nama</th>
+                      <th className="px-5 py-3.5 text-left text-[11px] font-semibold text-white/50 uppercase tracking-wider">No. HP</th>
+                      <th className="px-5 py-3.5 text-left text-[11px] font-semibold text-white/50 uppercase tracking-wider">Level</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/10">
+                  <tbody className="divide-y divide-white/5">
                     {profiles.map((p, index) => (
                       <tr
                         key={`${p.email}-${index}`}
                         onClick={() => {
                           setSelectedProfile(p);
                           setActiveTab('profil');
-                          // Fetch riwayat if user has id field (from members API)
                           const uid = (p as any).id;
                           if (uid) fetchRiwayatTindakan(uid);
                         }}
-                        className="hover:bg-white/5 transition-colors cursor-pointer"
+                        className="hover:bg-white/[0.03] transition-colors cursor-pointer group"
                       >
-                        <td className="px-4 py-3 text-sm text-white/80">{index + 1}</td>
-                        <td className="px-4 py-3 text-sm text-white/80 font-mono">{(p as any).nomorRekamMedis || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-white whitespace-nowrap font-medium">
+                        <td className="px-5 py-3.5 text-sm text-white/60 font-mono group-hover:text-white/90 transition-colors">
+                          {(p as any).nomorRekamMedis || '-'}
+                        </td>
+                        <td className="px-5 py-3.5 text-sm text-white font-medium whitespace-nowrap">
                           {p.firstName} {p.lastName}
                         </td>
-                        <td className="px-4 py-3 text-sm text-white/80 whitespace-nowrap">{p.phone || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-primary font-semibold whitespace-nowrap">
-                          {(p.points || 0).toLocaleString('id-ID')}
+                        <td className="px-5 py-3.5 text-sm text-white/60 whitespace-nowrap font-mono">
+                          {p.phone || '-'}
                         </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getLevelColor(p.loyaltyLevel)}`}>
+                        <td className="px-5 py-3.5">
+                          <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border ${getLevelColor(p.loyaltyLevel)}`}>
                             {p.loyaltyLevel}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-white/70 max-w-[200px] truncate">
-                          {getLastActivity(p)}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-white/60 whitespace-nowrap">
-                          {getLastActivityDate(p)}
                         </td>
                       </tr>
                     ))}
@@ -354,27 +343,25 @@ export default function CompletedProfilesPage() {
         </div>
       </div>
 
-      {/* Detail Modal */}
+      {/* Floating Detail Panel */}
       {selectedProfile && (
-        <div
-          className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setSelectedProfile(null)}
-        >
+        <>
           <div
-            className="fo-glass-modal rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => { setSelectedProfile(null); setActiveTab('profil'); }}
+          />
+          <div className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#0a0a0f] border-l border-white/10 shadow-2xl z-50 overflow-y-auto animate-slide-left">
+            <div className="sticky top-0 bg-[#0a0a0f]/95 backdrop-blur-xl border-b border-white/10 px-6 py-4 flex items-center justify-between z-10">
               <div className="flex gap-4">
                 <button
                   onClick={() => setActiveTab('profil')}
-                  className={`font-playfair text-xl font-bold pb-1 border-b-2 transition-colors ${
+                  className={`text-sm font-bold pb-1.5 border-b-2 transition-colors ${
                     activeTab === 'profil'
                       ? 'text-primary border-primary'
-                      : 'text-white/50 border-transparent hover:text-white/80'
+                      : 'text-white/40 border-transparent hover:text-white/70'
                   }`}
                 >
-                  Detail Profil
+                  Profil
                 </button>
                 <button
                   onClick={() => {
@@ -382,230 +369,182 @@ export default function CompletedProfilesPage() {
                     const uid = (selectedProfile as any).id;
                     if (uid && timeline.length === 0) fetchRiwayatTindakan(uid);
                   }}
-                  className={`font-playfair text-xl font-bold pb-1 border-b-2 transition-colors ${
+                  className={`text-sm font-bold pb-1.5 border-b-2 transition-colors ${
                     activeTab === 'riwayat'
                       ? 'text-primary border-primary'
-                      : 'text-white/50 border-transparent hover:text-white/80'
+                      : 'text-white/40 border-transparent hover:text-white/70'
                   }`}
                 >
-                  Riwayat Tindakan
+                  Riwayat
                 </button>
               </div>
               <button
                 onClick={() => { setSelectedProfile(null); setActiveTab('profil'); }}
-                className="text-white/60 hover:text-white transition-colors"
+                className="text-white/40 hover:text-white transition-colors p-1"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
+            <div className="p-6">
             {activeTab === 'profil' ? (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {/* Basic Info */}
-              <div className="fo-glass-card-soft rounded-lg p-4 space-y-3">
-                <h4 className="text-primary font-bold text-sm uppercase tracking-wider">Informasi Dasar</h4>
+              <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-4 space-y-3">
+                <h4 className="text-primary font-bold text-[11px] uppercase tracking-widest">Informasi Dasar</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p className="text-white/40 text-xs mb-0.5">Nama Lengkap</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider mb-1">Nama</p>
                     <p className="text-white font-semibold">{selectedProfile.firstName} {selectedProfile.lastName}</p>
                   </div>
                   <div>
-                    <p className="text-white/40 text-xs mb-0.5">Jenis Kelamin</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider mb-1">Gender</p>
                     <p className="text-white">{selectedProfile.gender || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-white/40 text-xs mb-0.5">Tanggal Lahir</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider mb-1">Tgl Lahir</p>
                     <p className="text-white">{formatDate(selectedProfile.dateOfBirth)}</p>
                   </div>
                   <div>
-                    <p className="text-white/40 text-xs mb-0.5">NIK</p>
-                    <p className="text-white font-mono">{selectedProfile.nik || '-'}</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider mb-1">NIK</p>
+                    <p className="text-white font-mono text-xs">{selectedProfile.nik || '-'}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Contact Info */}
-              <div className="fo-glass-card-soft rounded-lg p-4 space-y-3">
-                <h4 className="text-primary font-bold text-sm uppercase tracking-wider">Kontak</h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">Email</p>
-                    <p className="text-white break-all">{selectedProfile.email}</p>
+              {/* Contact */}
+              <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-4 space-y-3">
+                <h4 className="text-primary font-bold text-[11px] uppercase tracking-widest">Kontak</h4>
+                <div className="space-y-2.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/30 text-[10px] uppercase tracking-wider">Email</span>
+                    <span className="text-white text-xs break-all max-w-[60%] text-right">{selectedProfile.email}</span>
                   </div>
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">No. HP</p>
-                    <p className="text-white">{selectedProfile.phone || '-'}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/30 text-[10px] uppercase tracking-wider">No. HP</span>
+                    <span className="text-white font-mono">{selectedProfile.phone || '-'}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Medical Record Link */}
+              {/* Medical Record */}
               {(selectedProfile as any).nomorRekamMedis && (
-              <div className="fo-glass-card-soft rounded-lg p-4 space-y-3">
-                <h4 className="text-primary font-bold text-sm uppercase tracking-wider">Rekam Medis</h4>
-                <div className="grid grid-cols-1 gap-3 text-sm">
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">No. RM (AIDO)</p>
-                    <p className="text-white font-mono font-bold">{(selectedProfile as any).nomorRekamMedis}</p>
-                  </div>
+              <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-4 space-y-3">
+                <h4 className="text-primary font-bold text-[11px] uppercase tracking-widest">Rekam Medis</h4>
+                <div>
+                  <p className="text-white/30 text-[10px] uppercase tracking-wider mb-1">No. RM</p>
+                  <p className="text-white font-mono font-bold text-lg">{(selectedProfile as any).nomorRekamMedis}</p>
                 </div>
               </div>
               )}
 
               {/* Address */}
-              <div className="fo-glass-card-soft rounded-lg p-4 space-y-3">
-                <h4 className="text-primary font-bold text-sm uppercase tracking-wider">Alamat</h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="col-span-2">
-                    <p className="text-white/40 text-xs mb-0.5">Alamat</p>
-                    <p className="text-white">{selectedProfile.address || '-'}</p>
-                  </div>
+              <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-4 space-y-3">
+                <h4 className="text-primary font-bold text-[11px] uppercase tracking-widest">Alamat</h4>
+                <div className="space-y-2.5 text-sm">
                   <div>
-                    <p className="text-white/40 text-xs mb-0.5">Kota</p>
-                    <p className="text-white">{selectedProfile.city || '-'}</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider mb-0.5">Alamat</p>
+                    <p className="text-white text-xs leading-relaxed">{selectedProfile.address || '-'}</p>
                   </div>
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">Provinsi</p>
-                    <p className="text-white">{selectedProfile.province || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">Kode Pos</p>
-                    <p className="text-white">{selectedProfile.postalCode || '-'}</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <p className="text-white/30 text-[10px] uppercase tracking-wider mb-0.5">Kota</p>
+                      <p className="text-white text-xs">{selectedProfile.city || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-white/30 text-[10px] uppercase tracking-wider mb-0.5">Provinsi</p>
+                      <p className="text-white text-xs">{selectedProfile.province || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-white/30 text-[10px] uppercase tracking-wider mb-0.5">Kode Pos</p>
+                      <p className="text-white text-xs">{selectedProfile.postalCode || '-'}</p>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Membership Info */}
-              <div className="fo-glass-card-soft rounded-lg p-4 space-y-3">
-                <h4 className="text-primary font-bold text-sm uppercase tracking-wider">Membership</h4>
+              {/* Membership */}
+              <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-4 space-y-3">
+                <h4 className="text-primary font-bold text-[11px] uppercase tracking-widest">Membership</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p className="text-white/40 text-xs mb-0.5">Kode Afiliasi</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider mb-1">Kode Afiliasi</p>
                     <p className="text-white font-mono font-bold">{selectedProfile.affiliateCode}</p>
                   </div>
                   <div>
-                    <p className="text-white/40 text-xs mb-0.5">Level</p>
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${getLevelColor(selectedProfile.loyaltyLevel)}`}>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider mb-1">Level</p>
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${getLevelColor(selectedProfile.loyaltyLevel)}`}>
                       {selectedProfile.loyaltyLevel}
                     </span>
                   </div>
                   <div>
-                    <p className="text-white/40 text-xs mb-0.5">Poin</p>
-                    <p className="text-primary font-semibold">{(selectedProfile.points || 0).toLocaleString('id-ID')}</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider mb-1">Poin</p>
+                    <p className="text-primary font-bold">{(selectedProfile.points || 0).toLocaleString('id-ID')}</p>
                   </div>
                   <div>
-                    <p className="text-white/40 text-xs mb-0.5">Loyalty Poin</p>
-                    <p className="text-white">{(selectedProfile.loyaltyPoints || 0).toLocaleString('id-ID')}</p>
-                  </div>
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">Pendapatan</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider mb-1">Pendapatan</p>
                     <p className="text-green-400 font-semibold">{formatCurrency(selectedProfile.totalEarnings || 0)}</p>
                   </div>
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">Total Referral</p>
-                    <p className="text-white">{selectedProfile.totalReferrals || 0}</p>
-                  </div>
                 </div>
               </div>
 
-              {/* Last Activity */}
-              <div className="fo-glass-card-soft rounded-lg p-4 space-y-3">
-                <h4 className="text-primary font-bold text-sm uppercase tracking-wider">Aktivitas Terakhir</h4>
-                <div className="space-y-2 text-sm">
-                  {selectedProfile.lastTransaction && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-green-400 mt-0.5">&#9679;</span>
-                      <div>
-                        <p className="text-white">{selectedProfile.lastTransaction.description}</p>
-                        <p className="text-white/50 text-xs">{formatDateTime(selectedProfile.lastTransaction.date)}</p>
-                      </div>
-                    </div>
-                  )}
-                  {selectedProfile.lastReservation && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-400 mt-0.5">&#9679;</span>
-                      <div>
-                        <p className="text-white">Reservasi: {selectedProfile.lastReservation.treatment}</p>
-                        <p className="text-white/50 text-xs">
-                          {formatDateTime(selectedProfile.lastReservation.date)} &middot;{' '}
-                          <span className="capitalize">{selectedProfile.lastReservation.status}</span>
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {!selectedProfile.lastTransaction && !selectedProfile.lastReservation && (
-                    <p className="text-white/50 text-sm">Belum ada aktivitas</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="text-center text-white/40 text-xs pt-1">
-                Profil dilengkapi: {formatDate(selectedProfile.profileCompletedAt)}
+              <div className="text-center text-white/20 text-[10px] pt-1">
+                Profil dilengkapi {formatDate(selectedProfile.profileCompletedAt)}
               </div>
             </div>
             ) : (
             <div className="space-y-4">
               {riwayatSummary && (
                 <div className="grid grid-cols-2 gap-3 mb-2">
-                  <div className="fo-glass-card-soft rounded-lg p-3 text-center">
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-3 text-center">
                     <p className="text-primary font-bold text-lg">{riwayatSummary.spendingCount + riwayatSummary.medicalCount}</p>
-                    <p className="text-white/50 text-xs">Total Aktivitas</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider">Aktivitas</p>
                   </div>
-                  <div className="fo-glass-card-soft rounded-lg p-3 text-center">
-                    <p className="text-green-400 font-bold text-lg">Rp {riwayatSummary.totalSpending.toLocaleString('id-ID')}</p>
-                    <p className="text-white/50 text-xs">Total Spending</p>
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-3 text-center">
+                    <p className="text-green-400 font-bold text-sm">Rp {riwayatSummary.totalSpending.toLocaleString('id-ID')}</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider">Spending</p>
                   </div>
-                  <div className="fo-glass-card-soft rounded-lg p-3 text-center">
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-3 text-center">
                     <p className="text-primary font-bold text-lg">{riwayatSummary.points.toLocaleString('id-ID')}</p>
-                    <p className="text-white/50 text-xs">Poin</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider">Poin</p>
                   </div>
-                  <div className="fo-glass-card-soft rounded-lg p-3 text-center">
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-3 text-center">
                     <p className="text-white font-bold text-lg">{riwayatSummary.spendingCount}</p>
-                    <p className="text-white/50 text-xs">Transaksi</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wider">Transaksi</p>
                   </div>
                 </div>
               )}
 
-              <h4 className="text-primary font-bold text-sm uppercase tracking-wider">Riwayat Aktivitas</h4>
+              <h4 className="text-primary font-bold text-[11px] uppercase tracking-widest">Riwayat Aktivitas</h4>
               {loadingRiwayat ? (
-                <p className="text-white/60 text-sm">Memuat...</p>
+                <p className="text-white/40 text-sm">Memuat...</p>
               ) : timeline.length === 0 ? (
-                <div className="fo-glass-card-soft rounded-lg p-6 text-center">
-                  <p className="text-white/50 text-sm">Belum ada riwayat aktivitas.</p>
-                  <p className="text-white/30 text-xs mt-2">Data akan muncul setelah upload laporan penjualan atau sinkronisasi AIDO.</p>
+                <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-6 text-center">
+                  <p className="text-white/40 text-sm">Belum ada riwayat</p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {timeline.map((item: any, idx: number) => (
-                    <div key={idx} className="fo-glass-card-soft rounded-lg p-3 flex items-center gap-3">
-                      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                        item.type === 'spending' ? 'bg-green-500/20' : 'bg-blue-500/20'
+                    <div key={idx} className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-3 flex items-center gap-3">
+                      <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
+                        item.type === 'spending' ? 'bg-green-500/15' : 'bg-blue-500/15'
                       }`}>
-                        {item.type === 'spending' ? (
-                          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        ) : (
-                          <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                          </svg>
-                        )}
+                        <svg className={`w-3.5 h-3.5 ${item.type === 'spending' ? 'text-green-400' : 'text-blue-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.type === 'spending' ? 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' : 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'} />
+                        </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm truncate">{item.description}</p>
-                        <p className="text-white/40 text-xs mt-0.5">
+                        <p className="text-white text-xs truncate">{item.description}</p>
+                        <p className="text-white/30 text-[10px] mt-0.5">
                           {new Date(item.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </p>
                       </div>
                       {item.type === 'spending' && item.amount != null && (
-                        <span className="text-green-400 font-semibold text-sm whitespace-nowrap">
+                        <span className="text-green-400 font-semibold text-xs whitespace-nowrap">
                           Rp {item.amount.toLocaleString('id-ID')}
                         </span>
-                      )}
-                      {item.type === 'tindakan' && (
-                        <span className="bg-blue-500/20 text-blue-300 text-[10px] px-2 py-0.5 rounded-full font-semibold">Tindakan</span>
                       )}
                     </div>
                   ))}
@@ -613,8 +552,9 @@ export default function CompletedProfilesPage() {
               )}
             </div>
             )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
