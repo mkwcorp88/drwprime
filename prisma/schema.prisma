@@ -446,6 +446,57 @@ model MarketingComment {
 }
 
 // Blog posts for treatment education content
+// Product Daily Order - tracks product purchases via DOKU checkout
+model ProductOrder {
+  id                String    @id @default(cuid())
+  invoiceNumber     String    @unique @map("invoice_number")
+  customerName      String    @map("customer_name")
+  customerPhone     String    @map("customer_phone")
+  customerEmail     String?   @map("customer_email")
+  notes             String?
+  shippingAddress   String?   @map("shipping_address")
+  shippingCity      String?   @map("shipping_city")
+  shippingProvince  String?   @map("shipping_province")
+  shippingPostal    String?   @map("shipping_postal")
+  totalAmount       Decimal   @db.Decimal(12, 2) @map("total_amount")
+  paymentStatus     String    @default("pending") @map("payment_status") // pending, paid, failed, expired, cancelled, refunded
+  orderStatus       String    @default("pending") @map("order_status") // pending, processing, completed, cancelled, refunded
+  paymentUrl        String?   @map("payment_url")
+  dokuTokenId       String?   @map("doku_token_id")
+  paymentType       String?   @map("payment_type")
+  paidAt            DateTime? @map("paid_at")
+  metadata          Json?     // DOKU notification data
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  items             ProductOrderItem[]
+
+  @@index([invoiceNumber])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@map("product_orders")
+}
+
+model ProductOrderItem {
+  id            String       @id @default(cuid())
+  orderId       String       @map("order_id")
+  productId     String       @map("product_id")
+  productName   String       @map("product_name")
+  productPrice  Decimal      @db.Decimal(12, 2) @map("product_price")
+  productSize   String?      @map("product_size")
+  productImage  String?      @map("product_image")
+  quantity      Int          @default(1)
+  subtotal      Decimal      @db.Decimal(12, 2)
+
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  order         ProductOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("product_order_items")
+}
+
 model BlogPost {
   id                    String    @id @default(cuid())
   title                 String

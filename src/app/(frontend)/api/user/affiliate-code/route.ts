@@ -54,6 +54,13 @@ export async function PUT(req: NextRequest) {
       );
     }
 
+    if (!user.affiliateCode) {
+      return NextResponse.json(
+        { error: 'Anda belum memiliki kode affiliate' },
+        { status: 400 }
+      );
+    }
+
     // Normalize code to uppercase
     const normalizedCode = newAffiliateCode.toUpperCase().trim();
 
