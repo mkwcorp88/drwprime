@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { isUserAdmin } from '@/lib/admin';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { randomUUID } from 'crypto';
 
 export async function POST(req: NextRequest) {
   try {
-    if (!(await isUserAdmin())) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const body = await req.json();
     const { phone, firstName, lastName } = body;
@@ -107,6 +105,9 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[MEMBER-UPSERT] Error:', error);
     return NextResponse.json(
       { error: 'Gagal memproses member' },

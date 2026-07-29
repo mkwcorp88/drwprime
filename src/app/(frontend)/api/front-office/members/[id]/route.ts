@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { isUserAdmin } from '@/lib/admin';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 const TIER_THRESHOLDS = { SILVER: 1_000_000, GOLD: 5_000_000, PLATINUM: 10_000_000 };
 
@@ -16,9 +16,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!(await isUserAdmin())) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const { id } = await params;
 
@@ -76,6 +74,9 @@ export async function GET(
       },
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[MEMBER-DETAIL] Error:', error);
     return NextResponse.json({ error: 'Gagal memuat detail member' }, { status: 500 });
   }

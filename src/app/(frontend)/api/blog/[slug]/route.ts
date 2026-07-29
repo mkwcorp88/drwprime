@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { isUserAdmin } from '@/lib/admin';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { normalizeStatus, normalizeStringArray, slugifyTitle, summarizeContent } from '@/lib/blog';
 
 function resolvePublishedAt(input: unknown): Date | null {
@@ -50,8 +50,7 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    const admin = userId ? await isUserAdmin() : false;
+    await requireAdmin();
     const { slug } = await params;
 
     const post = await prisma.blogPost.findUnique({
@@ -62,14 +61,11 @@ export async function GET(
       return NextResponse.json({ error: 'Blog post not found' }, { status: 404 });
     }
 
-    const isPublished = post.status === 'published' && (!post.publishedAt || post.publishedAt <= new Date());
-
-    if (!admin && !isPublished) {
-      return NextResponse.json({ error: 'Blog post not found' }, { status: 404 });
-    }
-
     return NextResponse.json({ post });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error fetching blog post:', error);
     return NextResponse.json(
       { error: 'Failed to fetch blog post' },
@@ -83,16 +79,8 @@ export async function PATCH(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    await requireAdmin();
     const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const admin = await isUserAdmin();
-    if (!admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
 
     const { slug } = await params;
 
@@ -141,6 +129,9 @@ export async function PATCH(
 
     return NextResponse.json({ post });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error updating blog post:', error);
     return NextResponse.json(
       { error: 'Failed to update blog post' },
@@ -154,16 +145,8 @@ export async function DELETE(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    await requireAdmin();
     const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const admin = await isUserAdmin();
-    if (!admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
 
     const { slug } = await params;
 
@@ -176,6 +159,9 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error deleting blog post:', error);
     return NextResponse.json(
       { error: 'Failed to delete blog post' },

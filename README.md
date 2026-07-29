@@ -61,10 +61,10 @@ Website resmi klinik kecantikan **DRW Prime** dengan sistem affiliate marketing 
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
 - **Authentication**: Clerk
-- **Database**: PostgreSQL (213.190.4.159/drwprime)
+- **Database**: PostgreSQL
 - **ORM**: Prisma 5.22.0
 - **Deployment**: Vercel
-- **Scripts**: Python 3.x (for database management)
+- **Scripts**: TypeScript / Python 3.x
 
 ## 🔐 Environment Variables
 
@@ -76,7 +76,7 @@ NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 
 # Database
-DATABASE_URL="postgresql://berkomunitas:berkomunitas688@213.190.4.159/drwprime"
+DATABASE_URL="postgresql://user:password@host/database"
 ```
 
 ## 📦 Installation

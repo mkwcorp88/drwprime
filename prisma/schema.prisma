@@ -450,6 +450,8 @@ model MarketingComment {
 model ProductOrder {
   id                String    @id @default(cuid())
   invoiceNumber     String    @unique @map("invoice_number")
+  publicToken       String    @unique @map("public_token")
+  idempotencyKey    String?   @unique @map("idempotency_key")
   customerName      String    @map("customer_name")
   customerPhone     String    @map("customer_phone")
   customerEmail     String?   @map("customer_email")
@@ -459,6 +461,10 @@ model ProductOrder {
   shippingProvince  String?   @map("shipping_province")
   shippingPostal    String?   @map("shipping_postal")
   totalAmount       Decimal   @db.Decimal(12, 2) @map("total_amount")
+  listSubtotal      Decimal   @db.Decimal(12, 2) @map("list_subtotal")
+  discountAmount    Decimal   @default(0) @db.Decimal(12, 2) @map("discount_amount")
+  currency          String    @default("IDR")
+  pricingVersion    Int       @default(1) @map("pricing_version")
   paymentStatus     String    @default("pending") @map("payment_status") // pending, paid, failed, expired, cancelled, refunded
   orderStatus       String    @default("pending") @map("order_status") // pending, processing, completed, cancelled, refunded
   paymentUrl        String?   @map("payment_url")
@@ -479,22 +485,109 @@ model ProductOrder {
 }
 
 model ProductOrderItem {
-  id            String       @id @default(cuid())
-  orderId       String       @map("order_id")
-  productId     String       @map("product_id")
-  productName   String       @map("product_name")
-  productPrice  Decimal      @db.Decimal(12, 2) @map("product_price")
-  productSize   String?      @map("product_size")
-  productImage  String?      @map("product_image")
-  quantity      Int          @default(1)
-  subtotal      Decimal      @db.Decimal(12, 2)
+  id                   String            @id @default(cuid())
+  orderId              String            @map("order_id")
+  productId            String            @map("product_id")
+  productName          String            @map("product_name")
+  productPrice         Decimal           @db.Decimal(12, 2) @map("product_price")
+  productSize          String?           @map("product_size")
+  productImage         String?           @map("product_image")
+  quantity             Int               @default(1)
+  subtotal             Decimal           @db.Decimal(12, 2)
 
-  createdAt     DateTime     @default(now()) @map("created_at")
+  catalogProductId     String?           @map("catalog_product_id")
+  originalPrice        Decimal?          @db.Decimal(12, 2) @map("original_price")
+  discountAmount       Decimal           @default(0) @db.Decimal(12, 2) @map("discount_amount")
+  appliedPromotionId   String?           @map("applied_promotion_id")
+  appliedPromotionTitle String?          @map("applied_promotion_title")
 
-  order         ProductOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdAt            DateTime          @default(now()) @map("created_at")
+
+  order                ProductOrder      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  catalogProduct       Product?          @relation(fields: [catalogProductId], references: [id], onDelete: SetNull)
+  appliedPromotion     ProductPromotion? @relation(fields: [appliedPromotionId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  @@index([catalogProductId])
+  @@index([appliedPromotionId])
   @@map("product_order_items")
+}
+
+model ProductCategory {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String?   @db.Text
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  products    Product[]
+
+  @@index([isActive, sortOrder])
+  @@map("product_categories")
+}
+
+model Product {
+  id                String             @id @default(cuid())
+  categoryId        String             @map("category_id")
+  slug              String             @unique
+  name              String
+  headline          String?
+  description       String             @db.Text
+  price             Decimal            @db.Decimal(12, 2)
+  size              String?
+
+  imageUrl          String?            @map("image_url")
+  imageKey          String?            @unique @map("image_key")
+  imageAlt          String?            @map("image_alt")
+
+  benefits          String[]           @default([])
+  usageInstructions String?            @db.Text @map("usage_instructions")
+  ctaText           String?            @map("cta_text")
+
+  sortOrder         Int                @default(0) @map("sort_order")
+  isActive          Boolean            @default(true) @map("is_active")
+
+  createdByClerkId  String?            @map("created_by_clerk_id")
+  updatedByClerkId  String?            @map("updated_by_clerk_id")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  category          ProductCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  promotions        ProductPromotion[]
+  orderItems        ProductOrderItem[]
+
+  @@index([categoryId, isActive, sortOrder])
+  @@index([isActive, sortOrder])
+  @@map("products")
+}
+
+model ProductPromotion {
+  id               String             @id @default(cuid())
+  productId        String             @map("product_id")
+  title            String
+  badgeText        String?            @map("badge_text")
+
+  finalPrice       Decimal            @db.Decimal(12, 2) @map("final_price")
+  startsAt         DateTime           @db.Timestamptz(3) @map("starts_at")
+  endsAt           DateTime           @db.Timestamptz(3) @map("ends_at")
+  isActive         Boolean            @default(true) @map("is_active")
+
+  createdByClerkId String?            @map("created_by_clerk_id")
+  updatedByClerkId String?            @map("updated_by_clerk_id")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  product          Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  orderItems       ProductOrderItem[]
+
+  @@unique([productId, startsAt])
+  @@index([productId, isActive, startsAt, endsAt])
+  @@index([isActive, startsAt, endsAt])
+  @@map("product_promotions")
 }
 
 model BlogPost {

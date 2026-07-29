@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
-import { isUserAdmin } from '@/lib/admin';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { normalizePhone } from '@/lib/phone';
 import { randomUUID } from 'crypto';
 import {
@@ -26,9 +26,7 @@ const RUPIAH_PER_POINT = 10_000; // Rp 10.000 = 1 poin
 export async function POST(req: NextRequest) {
   try {
     // Check admin authorization
-    if (!(await isUserAdmin())) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const { userId } = await auth();
     const body = await req.json();
@@ -264,6 +262,9 @@ export async function POST(req: NextRequest) {
       } : null,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[ADD-POINTS-BY-PHONE] Error:', error);
     
     // Handle unique constraint errors

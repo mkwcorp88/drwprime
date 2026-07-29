@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadPublicObject, isUploadConfigured } from '@/lib/s3-upload';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -15,6 +16,7 @@ function sanitizeFileName(name: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    await requireAdmin();
     const formData = await req.formData();
     const file = formData.get('file');
 
@@ -52,6 +54,9 @@ export async function POST(req: NextRequest) {
       message: 'Upload infografis berhasil'
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[FO BLOG UPLOAD] POST error:', error);
     const message = error instanceof Error ? error.message : 'Gagal upload infografis';
     return NextResponse.json(

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
-import { isUserAdmin } from '@/lib/admin';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { normalizePhone } from '@/lib/phone';
 import { randomUUID } from 'crypto';
 import ExcelJS from 'exceljs';
@@ -250,9 +250,7 @@ async function processImport(worksheet: ExcelJS.Worksheet, userId: string | null
 
 export async function POST(req: NextRequest) {
   try {
-    if (!(await isUserAdmin())) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const { userId } = await auth();
     const formData = await req.formData();
@@ -296,6 +294,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[BULK-IMPORT] Error:', error);
     return NextResponse.json(
       {

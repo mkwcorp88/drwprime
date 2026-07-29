@@ -1,11 +1,10 @@
-import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ensureUniqueAffiliateCode } from '@/lib/affiliate';
-import { ADMIN_USER_IDS, ADMIN_EMAILS } from '@/lib/admin';
+import { requireUser, handleAuthError } from '@/lib/auth';
+import { isHardcodedAdmin } from '@/lib/admin';
 import { normalizePhone } from '@/lib/phone';
 
-// Handle CORS preflight
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
@@ -19,17 +18,15 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const authUser = await requireUser();
+    const { clerkUserId } = authUser;
+
+    // Identity comes from Clerk — NEVER from request body.
+    const email = authUser.primaryEmail;
+    const firstName = authUser.firstName || email?.split('@')[0] || 'Member';
+    const lastName = authUser.lastName;
 
     const body = await req.json();
-    const email = typeof body.email === 'string' && body.email.trim() ? body.email.trim() : null;
-    const providedFirstName = typeof body.firstName === 'string' ? body.firstName.trim() : '';
-    const firstName = providedFirstName || email?.split('@')[0] || 'Member';
-    const lastName = typeof body.lastName === 'string' && body.lastName.trim() ? body.lastName.trim() : null;
     const referralCode = typeof body.referralCode === 'string' && body.referralCode.trim()
       ? body.referralCode.trim()
       : null;
@@ -40,18 +37,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Format nomor HP tidak valid' }, { status: 400 });
     }
 
-    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { clerkUserId: userId }
+      where: { clerkUserId },
     });
 
     if (existingUser) {
       return NextResponse.json({ user: existingUser });
     }
 
-    // Check if a walk-in member has the same normalized phone number.
     let walkInMember = null;
-    
+
     if (normalizedPhone) {
       walkInMember = await prisma.user.findUnique({
         where: { phone: normalizedPhone },
@@ -65,13 +60,12 @@ export async function POST(req: Request) {
         },
       });
 
-      // If found and it's a walk-in (no clerkUserId yet)
       if (walkInMember && !walkInMember.clerkUserId) {
-        console.log(`[USER-LINK] Found walk-in member with phone ${normalizedPhone}, linking to Clerk user ${userId}`);
-      } else {
+        console.log(`[USER-LINK] Found walk-in member with phone ${normalizedPhone}, linking to Clerk user ${clerkUserId}`);
+      } else if (walkInMember) {
         return NextResponse.json(
           { error: 'Nomor HP ini sudah terdaftar di akun lain' },
-          { status: 409 }
+          { status: 409 },
         );
       }
     }
@@ -79,79 +73,64 @@ export async function POST(req: Request) {
     let affiliateCode: string;
     let isTeamLeader = false;
 
-    // Check if there's a pre-assigned code for this email
     const preAssignedCode = email
       ? await prisma.preClaimAffiliateCode.findFirst({
-          where: {
-            assignedEmail: email,
-            status: 'unclaimed',
-          },
+          where: { assignedEmail: email, status: 'unclaimed' },
         })
       : null;
 
     if (preAssignedCode) {
-      // Auto-claim the pre-assigned code
       affiliateCode = preAssignedCode.code;
       isTeamLeader = true;
       console.log(`[AFFILIATE] Auto-claiming pre-assigned code ${affiliateCode} for email ${email}`);
     } else if (referralCode) {
-      // Check if this code already exists
       const existingCodeUser = await prisma.user.findFirst({
-        where: { affiliateCode: referralCode }
+        where: { affiliateCode: referralCode },
       });
 
       if (existingCodeUser) {
-        // Code already claimed - join as team member
         affiliateCode = referralCode;
         isTeamLeader = false;
       } else {
-        // Code not claimed yet - claim it as team leader
-        // This allows pre-generated codes to be claimed
         affiliateCode = referralCode;
         isTeamLeader = true;
         console.log(`[AFFILIATE] Claiming unclaimed code: ${referralCode}`);
       }
     } else {
-      // Generate unique affiliate code for new team leader
       affiliateCode = await ensureUniqueAffiliateCode(
         firstName,
         lastName || '',
         async (code) => {
-          const exists = await prisma.user.findFirst({
-            where: { affiliateCode: code }
-          });
+          const exists = await prisma.user.findFirst({ where: { affiliateCode: code } });
           return !exists;
-        }
+        },
       );
       isTeamLeader = true;
     }
 
-    // Check if user is admin (by Clerk User ID or email)
-    const isAdmin = ADMIN_USER_IDS.includes(userId) || (email ? ADMIN_EMAILS.includes(email) : false);
+    // isAdmin determined ONLY by hardcoded Clerk user ID list — never by email.
+    const isAdmin = isHardcodedAdmin(clerkUserId);
 
-    // Create OR update user (link walk-in member)
     let user;
     if (walkInMember) {
-      // Update existing walk-in member record
       user = await prisma.user.update({
         where: { id: walkInMember.id },
         data: {
-          clerkUserId: userId,
+          clerkUserId,
           email,
-          firstName: providedFirstName || undefined, // Keep walk-in name if not provided
+          firstName: authUser.firstName || undefined,
           lastName: lastName || undefined,
           affiliateCode: affiliateCode || undefined,
           isTeamLeader,
-          hasAccount: true, // Mark as having an account now
+          hasAccount: true,
           isAdmin,
         },
       });
-      console.log(`[USER-LINK] Successfully linked walk-in member ${walkInMember.id} to Clerk user ${userId}`);
+      console.log(`[USER-LINK] Successfully linked walk-in member ${walkInMember.id} to Clerk user ${clerkUserId}`);
     } else {
-      // Create new user from scratch
       user = await prisma.user.create({
         data: {
-          clerkUserId: userId,
+          clerkUserId,
           email,
           firstName,
           lastName,
@@ -164,43 +143,24 @@ export async function POST(req: Request) {
       });
     }
 
-    // If claiming an unclaimed code (either pre-assigned or referral), transfer all pending reservations
     if (isTeamLeader && (preAssignedCode || referralCode)) {
       const codeToUpdate = preAssignedCode?.code || referralCode;
-      
-      // Update PreClaimAffiliateCode status to claimed
+
       await prisma.preClaimAffiliateCode.updateMany({
-        where: {
-          code: codeToUpdate,
-          status: 'unclaimed'
-        },
-        data: {
-          status: 'claimed',
-          claimedBy: user.id,
-          claimedAt: new Date()
-        }
+        where: { code: codeToUpdate, status: 'unclaimed' },
+        data: { status: 'claimed', claimedBy: user.id, claimedAt: new Date() },
       });
 
       console.log(`[AFFILIATE] Updated PreClaimAffiliateCode status to claimed for: ${codeToUpdate}`);
 
-      // Find all reservations with this referral code but no referrerId
       const pendingReservations = await prisma.reservation.findMany({
-        where: {
-          referredBy: codeToUpdate,
-          referrerId: null
-        }
+        where: { referredBy: codeToUpdate, referrerId: null },
       });
 
       if (pendingReservations.length > 0) {
-        // Update all pending reservations to link to this user
         await prisma.reservation.updateMany({
-          where: {
-            referredBy: codeToUpdate,
-            referrerId: null
-          },
-          data: {
-            referrerId: user.id
-          }
+          where: { referredBy: codeToUpdate, referrerId: null },
+          data: { referrerId: user.id },
         });
 
         console.log(`[AFFILIATE] Transferred ${pendingReservations.length} pending reservations to user ${user.id}`);
@@ -209,115 +169,72 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ user });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error syncing user:', error);
-    console.error('Error details:', JSON.stringify(error, null, 2));
     return NextResponse.json(
-      { 
-        error: 'Failed to sync user',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+      { error: 'Failed to sync user', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 },
     );
   }
 }
 
 export async function GET() {
   try {
-    const { userId } = await auth();
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { clerkUserId } = await requireUser();
 
     const user = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
+      where: { clerkUserId },
       include: {
-        reservations: {
-          include: {
-            treatment: true
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        },
+        reservations: { include: { treatment: true }, orderBy: { createdAt: 'desc' } },
         referrals: {
-          where: {
-            status: 'completed'
-          },
-          include: {
-            treatment: true
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
+          where: { status: 'completed' },
+          include: { treatment: true },
+          orderBy: { createdAt: 'desc' },
         },
-        transactions: {
-          orderBy: {
-            createdAt: 'desc'
-          },
-          take: 10
-        },
-        bankAccounts: {
-          orderBy: {
-            createdAt: 'desc'
-          }
-        },
-        withdrawals: {
-          include: {
-            bankAccount: true
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        }
-      }
+        transactions: { orderBy: { createdAt: 'desc' }, take: 10 },
+        bankAccounts: { orderBy: { createdAt: 'desc' } },
+        withdrawals: { include: { bankAccount: true }, orderBy: { createdAt: 'desc' } },
+      },
     });
 
-    // If user doesn't exist, return null data (client will sync via POST)
     if (!user) {
-      return NextResponse.json({ 
-        user: null,
-        needsSync: true 
-      }, { status: 200 });
+      return NextResponse.json({ user: null, needsSync: true }, { status: 200 });
     }
 
-    // Recalculate admin status from hardcoded list (in case DB is stale)
-    const isAdmin = user.isAdmin || ADMIN_USER_IDS.includes(userId) || (user.email ? ADMIN_EMAILS.includes(user.email) : false);
+    // isAdmin from hardcoded list — never trusted from request body or email alone.
+    const isAdmin = isHardcodedAdmin(clerkUserId) || user.isAdmin;
     if (isAdmin && !user.isAdmin) {
       await prisma.user.update({
-        where: { clerkUserId: userId },
-        data: { isAdmin: true }
+        where: { clerkUserId },
+        data: { isAdmin: true },
       });
     }
 
-    // Calculate additional fields
     const totalReferrals = user.referrals.length;
     const loyaltyLevel = getLoyaltyLevel(user.loyaltyPoints);
 
-    // Get team members count (users with same affiliate code)
     const teamMembersCount = await prisma.user.count({
-      where: { 
-        affiliateCode: user.affiliateCode,
-        clerkUserId: { not: userId } // Exclude self
-      }
+      where: { affiliateCode: user.affiliateCode, clerkUserId: { not: clerkUserId } },
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       user: {
         ...user,
         phone: user.phone ? normalizePhone(user.phone) : null,
         isAdmin,
         totalReferrals,
         loyaltyLevel,
-        teamMembersCount
-      }
+        teamMembersCount,
+      },
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error fetching user:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch user' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
   }
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { normalizePhone } from '@/lib/phone';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 const TIER_THRESHOLDS = { SILVER: 1_000_000, GOLD: 5_000_000, PLATINUM: 10_000_000 };
 
@@ -13,6 +14,7 @@ function computeTier(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Pla
 
 export async function GET(req: NextRequest) {
   try {
+    await requireAdmin();
     const token = req.nextUrl.searchParams.get('token');
     const phone = req.nextUrl.searchParams.get('phone');
 
@@ -88,6 +90,9 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[MEMBER-LOOKUP] Error:', error);
     return NextResponse.json({ error: 'Gagal mencari member' }, { status: 500 });
   }

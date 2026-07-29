@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
 export async function GET() {
   try {
+    await requireAdmin();
     // Get all users who have claimed affiliate codes (have affiliateCode)
     const users = await prisma.user.findMany({
       where: {
@@ -69,6 +71,9 @@ export async function GET() {
     });
 
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error fetching affiliators:', error);
     return NextResponse.json(
       { error: 'Failed to fetch affiliators' },

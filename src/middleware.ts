@@ -37,6 +37,13 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks(.*)',
   // Clerk OAuth callbacks
   '/api/auth(.*)',
+  // Public product commerce routes
+  '/api/products',
+  '/api/products/doku/create-session',
+  '/api/products/doku/notification',
+  '/api/products/orders/(.*)',
+  '/api/payment/dummy-confirm',
+  '/payment(.*)',
   // Static files
   '/(.*\\.mp4$)',
   '/(.*\\.webm$)',

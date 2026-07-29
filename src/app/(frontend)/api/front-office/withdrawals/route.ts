@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 // GET - Get all withdrawal requests
 export async function GET(req: NextRequest) {
   try {
+    await requireAdmin();
     const { userId } = await auth();
 
     const { searchParams } = new URL(req.url);
@@ -42,6 +44,9 @@ export async function GET(req: NextRequest) {
     }, { status: 200 });
 
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[FO WITHDRAWAL] Error fetching withdrawals:', error);
     return NextResponse.json(
       { error: 'Terjadi kesalahan saat mengambil data penarikan' },
@@ -53,6 +58,7 @@ export async function GET(req: NextRequest) {
 // PATCH - Update withdrawal status
 export async function PATCH(req: NextRequest) {
   try {
+    await requireAdmin();
     const { userId } = await auth();
 
     const body = await req.json();
@@ -111,6 +117,9 @@ export async function PATCH(req: NextRequest) {
     }, { status: 200 });
 
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[FO WITHDRAWAL] Error updating withdrawal:', error);
     return NextResponse.json(
       { error: 'Terjadi kesalahan saat memperbarui status penarikan' },

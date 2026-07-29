@@ -65,10 +65,10 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --ignore-scripts
-      - name: Apply My Prime schema migration
+      - name: Apply Prisma migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: npx --no-install prisma db execute --schema prisma/schema.prisma --file prisma/migrations/20260721000000_make_user_phone_optional/migration.sql
+        run: npx --no-install prisma migrate deploy --schema prisma/schema.prisma
 
   deploy:
     name: Deploy

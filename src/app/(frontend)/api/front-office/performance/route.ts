@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isUserAdmin } from '@/lib/admin';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 const SHEET_ID = '1Bqr34hyD4xL6L5lp03UVYJYlF_c5YxNKJOMkXcyt8XE';
 const GVQ_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
@@ -132,9 +132,7 @@ function customerKey(rm: string, phone: string, name: string): string {
 
 export async function GET(req: NextRequest) {
   try {
-    if (!(await isUserAdmin())) {
-      return NextResponse.json({ error: 'Akses Front Office diperlukan.' }, { status: 403 });
-    }
+    await requireAdmin();
 
     const { searchParams } = req.nextUrl;
     const dateParam = searchParams.get('date') || getJakartaDateKey(new Date());
@@ -230,6 +228,9 @@ export async function GET(req: NextRequest) {
       }
     );
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[FO PERFORMANCE] GET error:', error);
     return NextResponse.json(
       { error: 'Terjadi kesalahan saat mengambil data performance.' },

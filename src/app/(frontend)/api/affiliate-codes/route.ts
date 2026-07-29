@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 // Generate random affiliate code
 function generateAffiliateCode(): string {
@@ -85,6 +86,7 @@ export async function GET(req: Request) {
 // POST - Generate new pre-claim code
 export async function POST(req: Request) {
   try {
+    await requireAdmin();
     const body = await req.json();
     const { customCode, notes, createdBy } = body;
 
@@ -163,6 +165,9 @@ export async function POST(req: Request) {
       message: 'Kode affiliate berhasil dibuat'
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error creating affiliate code:', error);
     return NextResponse.json(
       { error: 'Failed to create affiliate code' },
@@ -174,6 +179,7 @@ export async function POST(req: Request) {
 // DELETE - Delete a pre-claim code
 export async function DELETE(req: Request) {
   try {
+    await requireAdmin();
     const { searchParams } = new URL(req.url);
     const codeId = searchParams.get('id');
 
@@ -226,6 +232,9 @@ export async function DELETE(req: Request) {
       deletedId: codeId
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error deleting affiliate code:', error);
     return NextResponse.json(
       { error: 'Failed to delete affiliate code' },

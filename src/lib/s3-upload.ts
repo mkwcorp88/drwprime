@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 // Self-hosted MinIO (S3-compatible) on the VPS. Replaces Vercel Blob for
 // app-managed uploads (best-deals images, blog cover images). Public files are
@@ -51,4 +51,14 @@ export async function uploadPublicObject(
   );
 
   return { url: `${PUBLIC_BASE}/${key}`, pathname: key };
+}
+
+export async function deletePublicObject(key: string): Promise<void> {
+  if (!key) return;
+  await getClient().send(
+    new DeleteObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+    })
+  );
 }

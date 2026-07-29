@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { isUserAdmin } from '@/lib/admin';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { normalizeStatus, normalizeStringArray, slugifyTitle, summarizeContent } from '@/lib/blog';
 
 function resolvePublishedAt(input: unknown): Date {
@@ -48,8 +48,7 @@ async function buildUniqueSlug(baseTitle: string): Promise<string> {
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
-    const admin = userId ? await isUserAdmin() : false;
+    await requireAdmin();
 
     const { searchParams } = new URL(req.url);
     const query = (searchParams.get('q') || '').trim();
@@ -60,11 +59,14 @@ export async function GET(req: NextRequest) {
 
     const where: Prisma.BlogPostWhereInput = {};
 
-    if (!admin || requestedStatus === 'published') {
+    if (requestedStatus === 'draft') {
+      where.status = 'draft';
+    } else if (requestedStatus === 'published') {
       where.status = 'published';
       where.publishedAt = { lte: new Date() };
-    } else if (requestedStatus === 'draft') {
-      where.status = 'draft';
+    } else {
+      where.status = 'published';
+      where.publishedAt = { lte: new Date() };
     }
 
     if (query) {
@@ -111,6 +113,9 @@ export async function GET(req: NextRequest) {
       }
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error fetching blog posts:', error);
     return NextResponse.json(
       { error: 'Failed to fetch blog posts' },
@@ -121,16 +126,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    await requireAdmin();
     const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const admin = await isUserAdmin();
-    if (!admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
 
     const body = await req.json();
 
@@ -170,6 +167,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ post }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error creating blog post:', error);
     return NextResponse.json(
       { error: 'Failed to create blog post' },

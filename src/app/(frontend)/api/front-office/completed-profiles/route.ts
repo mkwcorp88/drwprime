@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { normalizePhone } from '@/lib/phone';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 export async function GET() {
   try {
+    await requireAdmin();
     const users = await prisma.user.findMany({
       where: {
         profileCompletedAt: { not: null },
@@ -79,6 +81,9 @@ export async function GET() {
       total: profiles.length,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error fetching completed profiles:', error);
     return NextResponse.json(
       { error: 'Failed to fetch completed profiles' },

@@ -3,6 +3,8 @@
  * Format: 2 letters from first name + 3 random alphanumeric
  * Example: "John Doe" -> "JO5X9"
  */
+import { calculateCommission as calcCommission, calculateCommissionPoints } from '@/lib/policies/commission';
+
 export function generateAffiliateCode(firstName: string = ''): string {
   // Get first 2 letters from first name, uppercase
   const firstPart = firstName.slice(0, 2).toUpperCase() || 'XX';
@@ -46,20 +48,22 @@ export async function ensureUniqueAffiliateCode(
  * Calculate commission based on treatment price
  * Default: 10% commission
  */
+/**
+ * @deprecated Use calculateCommission from @/lib/policies/commission instead.
+ */
 export function calculateCommission(price: number, rate: number = 0.10): number {
-  return Math.round(price * rate * 100) / 100;
+  return calcCommission(price, rate);
 }
 
 /**
- * Calculate loyalty points earned from transaction
- * Every Rp 1,000 = 1 point
+ * @deprecated Use calculateLoyaltyPoints from @/lib/policies/loyalty instead.
  */
 export function calculateLoyaltyPoints(amount: number): number {
   return Math.floor(amount / 1000);
 }
 
 /**
- * Determine loyalty level based on total points
+ * @deprecated Use getLoyaltyTier from @/lib/policies/loyalty instead.
  */
 export function getLoyaltyLevel(points: number): string {
   if (points >= 10000) return 'Platinum';

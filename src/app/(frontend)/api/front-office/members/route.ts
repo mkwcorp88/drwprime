@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { isUserAdmin } from '@/lib/admin';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { Prisma } from '@prisma/client';
 
 const TIER_THRESHOLDS = { Silver: 1_000_000, Gold: 5_000_000, Platinum: 10_000_000 };
@@ -14,9 +14,7 @@ function computeTier(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Pla
 
 export async function GET(req: NextRequest) {
   try {
-    if (!(await isUserAdmin())) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const { searchParams } = req.nextUrl;
     const search = searchParams.get('search');
@@ -159,6 +157,9 @@ export async function GET(req: NextRequest) {
       limit,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[MEMBERS] Error fetching members:', error);
     return NextResponse.json({ error: 'Gagal memuat daftar member' }, { status: 500 });
   }

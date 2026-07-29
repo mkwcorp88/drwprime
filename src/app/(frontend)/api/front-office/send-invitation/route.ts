@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { isUserAdmin } from '@/lib/admin';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { sendManualInvitation } from '@/lib/whatsapp';
 
 export async function POST(req: NextRequest) {
   try {
-    if (!(await isUserAdmin())) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const body = await req.json();
     const { memberId } = body;
@@ -77,6 +75,9 @@ export async function POST(req: NextRequest) {
       message: `Undangan berhasil dikirim ke ${memberName}`,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[SEND-INVITATION] Error:', error);
     return NextResponse.json(
       { error: 'Gagal mengirim undangan' },

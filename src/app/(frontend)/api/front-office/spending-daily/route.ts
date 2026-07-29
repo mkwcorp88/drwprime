@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import ExcelJS from 'exceljs';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 type ParsedRow = {
   nomorInvoice: string;
@@ -75,6 +76,7 @@ function startOfDay(input: Date): Date {
 
 export async function GET(req: NextRequest) {
   try {
+    await requireAdmin();
     const { searchParams } = new URL(req.url);
     const dateParam = searchParams.get('date');
 
@@ -250,6 +252,9 @@ export async function GET(req: NextRequest) {
       selectedDate: dateParam,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[FO SPENDING DAILY] GET error:', error);
     return NextResponse.json(
       { error: 'Terjadi kesalahan saat mengambil data spending harian' },
@@ -260,6 +265,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    await requireAdmin();
     const { userId } = await auth();
     const formData = await req.formData();
     const file = formData.get('file');
@@ -529,6 +535,9 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[FO SPENDING DAILY] POST error:', error);
     return NextResponse.json(
       { error: 'Terjadi kesalahan saat upload report spending daily' },
@@ -539,6 +548,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    await requireAdmin();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     const all = searchParams.get('all') === 'true';
@@ -574,6 +584,9 @@ export async function DELETE(req: NextRequest) {
       message: 'Upload berhasil dihapus.',
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[FO SPENDING DAILY] DELETE error:', error);
     return NextResponse.json(
       { error: 'Terjadi kesalahan saat menghapus data spending daily' },

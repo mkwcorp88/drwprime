@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 const TIER_THRESHOLDS = { SILVER: 1_000_000, GOLD: 5_000_000, PLATINUM: 10_000_000 };
 const RUPIAH_PER_POINT = 10_000; // Rp 10.000 = 1 poin
@@ -14,6 +15,7 @@ function computeTier(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Pla
 
 export async function POST(req: Request) {
   try {
+    await requireAdmin();
     const { userId } = await auth();
     const body = await req.json();
 
@@ -93,6 +95,9 @@ export async function POST(req: Request) {
       points: updatedUser.points,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error recording spending:', error);
     return NextResponse.json({ error: 'Gagal mencatat spending' }, { status: 500 });
   }

@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { isUserAdmin } from '@/lib/admin';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
-    if (!(await isUserAdmin())) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const { searchParams } = req.nextUrl;
     const userId = searchParams.get('userId');
@@ -74,6 +72,9 @@ export async function GET(req: NextRequest) {
       points: user?.points ?? 0,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('[RIWAYAT-TINDAKAN] Error:', error);
     return NextResponse.json({ error: 'Gagal memuat riwayat tindakan' }, { status: 500 });
   }
