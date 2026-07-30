@@ -1,6 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { isHardcodedAdmin } from '@/lib/admin';
+import { prisma } from '@/lib/prisma';
 
 export type AuthUser = {
   clerkUserId: string;
@@ -16,6 +17,19 @@ export type AuthUser = {
  * obtained exclusively from Clerk server-side — NEVER trust a request body
  * for identity or role.
  */
+async function isDbAdmin(userId: string): Promise<boolean> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { clerkUserId: userId },
+      select: { isAdmin: true },
+    });
+    return user?.isAdmin ?? false;
+  } catch (error) {
+    console.error('Error checking db admin status:', error);
+    return false;
+  }
+}
+
 export async function requireUser(): Promise<AuthUser> {
   const { userId } = await auth();
   if (!userId) {
@@ -27,9 +41,11 @@ export async function requireUser(): Promise<AuthUser> {
     throw new AuthError(401, 'Unauthorized — session invalid.');
   }
 
+  const isAdmin = isHardcodedAdmin(userId) || (await isDbAdmin(userId));
+
   return {
     clerkUserId: userId,
-    isAdmin: isHardcodedAdmin(userId),
+    isAdmin,
     primaryEmail: clerkUser.emailAddresses[0]?.emailAddress ?? null,
     firstName: clerkUser.firstName ?? null,
     lastName: clerkUser.lastName ?? null,
