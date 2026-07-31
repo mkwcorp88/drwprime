@@ -16,8 +16,17 @@ export const ADMIN_USER_IDS = [
   'user_36jTRE55RsrJHmYbYOaG2yK5MPf',
 ] as const;
 
+export const ADMIN_EMAILS = [
+  'wahyu.putri@drwcorp.com',
+] as const;
+
 export function isHardcodedAdmin(userId: string): boolean {
   return ADMIN_USER_IDS.includes(userId as (typeof ADMIN_USER_IDS)[number]);
+}
+
+export function isAdminByEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.toLowerCase() as (typeof ADMIN_EMAILS)[number]);
 }
 
 /**
@@ -29,6 +38,11 @@ export async function isUserAdmin(): Promise<boolean> {
   if (!userId) return false;
 
   if (isHardcodedAdmin(userId)) return true;
+
+  const { currentUser } = await import('@clerk/nextjs/server');
+  const clerkUser = await currentUser();
+  const clerkEmail = clerkUser?.emailAddresses[0]?.emailAddress;
+  if (isAdminByEmail(clerkEmail)) return true;
 
   try {
     const user = await prisma.user.findUnique({

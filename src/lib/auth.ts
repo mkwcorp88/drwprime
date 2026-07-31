@@ -1,6 +1,6 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import { isHardcodedAdmin } from '@/lib/admin';
+import { isHardcodedAdmin, isAdminByEmail } from '@/lib/admin';
 import { prisma } from '@/lib/prisma';
 
 export type AuthUser = {
@@ -41,12 +41,13 @@ export async function requireUser(): Promise<AuthUser> {
     throw new AuthError(401, 'Unauthorized — session invalid.');
   }
 
-  const isAdmin = isHardcodedAdmin(userId) || (await isDbAdmin(userId));
+  const primaryEmail = clerkUser.emailAddresses[0]?.emailAddress ?? null;
+  const isAdmin = isHardcodedAdmin(userId) || isAdminByEmail(primaryEmail) || (await isDbAdmin(userId));
 
   return {
     clerkUserId: userId,
     isAdmin,
-    primaryEmail: clerkUser.emailAddresses[0]?.emailAddress ?? null,
+    primaryEmail,
     firstName: clerkUser.firstName ?? null,
     lastName: clerkUser.lastName ?? null,
     primaryPhone: clerkUser.phoneNumbers[0]?.phoneNumber ?? null,
