@@ -19,6 +19,16 @@ interface Member {
   fullName: string;
 }
 
+const TIER_LABELS: Record<string, { label: string; color: string }> = {
+  Bronze: { label: 'Bronze', color: 'bg-amber-100 text-amber-700' },
+  Silver: { label: 'Silver', color: 'bg-gray-200 text-gray-700' },
+  Gold: { label: 'Gold', color: 'bg-yellow-100 text-yellow-700' },
+  Platinum: { label: 'Platinum', color: 'bg-purple-100 text-purple-700' },
+};
+
+const formatRupiah = (n: number) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
+
 export default function MembersPage() {
   const router = useRouter();
   const [members, setMembers] = useState<Member[]>([]);
@@ -96,12 +106,16 @@ export default function MembersPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Nama</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Tier</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold">Total Spending</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Terakhir Transaksi</th>
                 <th className="px-4 py-3 text-center text-sm font-semibold">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {members.map((m) => (
+              {members.map((m) => {
+                const tier = TIER_LABELS[m.tier] || TIER_LABELS.Bronze;
+                return (
                 <tr
                   key={m.id}
                   onClick={() => setSelectedMemberId(m.id)}
@@ -110,6 +124,14 @@ export default function MembersPage() {
                   <td className="px-4 py-3">
                     <div className="font-medium">{m.fullName}</div>
                     <div className="text-xs text-gray-500">{m.phone}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${tier.color}`}>
+                      {tier.label}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right text-sm font-medium">
+                    {formatRupiah(m.totalSpending)}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     {m.lastTransactionAt
@@ -123,7 +145,7 @@ export default function MembersPage() {
                   <td className="px-4 py-3 text-center">
                     {m.hasAccount ? (
                       <span className="inline-block rounded-full bg-green-100 px-2 py-1 text-xs text-green-700">
-                        ✓ Punya Akun
+                        Punya Akun
                       </span>
                     ) : (
                       <span className="inline-block rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
@@ -132,7 +154,7 @@ export default function MembersPage() {
                     )}
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
 
@@ -141,6 +163,29 @@ export default function MembersPage() {
           </div>
         </div>
       )}
+
+      {/* Tier Legend */}
+      <div className="mt-4 rounded-lg border bg-white p-4">
+        <h3 className="mb-2 text-sm font-semibold text-gray-700">Keterangan Tier Membership</h3>
+        <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 md:grid-cols-4">
+          <div className="flex items-center gap-2">
+            <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Bronze</span>
+            <span>Rp 0 - 999.999</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">Silver</span>
+            <span>Rp 1jt - 4,9jt</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">Gold</span>
+            <span>Rp 5jt - 9,9jt</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">Platinum</span>
+            <span>Rp 10jt+</span>
+          </div>
+        </div>
+      </div>
 
       {/* Modal */}
       {selectedMemberId && (
