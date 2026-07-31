@@ -54,7 +54,7 @@ export default async function ProductGalleryPage() {
   }
 
   return (
-    <MobileLayout showHeader={false} showBottomNav={false}>
+    <MobileLayout showHeader={false} showBottomNav={true}>
       <Navbar />
       <main className="pt-16 lg:pt-24">
         <ProductGalleryClient initialProducts={products} initialCategories={categories} />
