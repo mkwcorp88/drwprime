@@ -114,11 +114,6 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
             priority
             sizes="100vw"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-stone-50 via-transparent to-transparent" />
-        </div>
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-5">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-3 text-white drop-shadow-lg tracking-tight">Our Products</h1>
-          <p className="text-white/80 text-sm sm:text-base max-w-md mx-auto drop-shadow">Skincare premium diformulasikan untuk setiap jenis kulit</p>
         </div>
       </section>
 
