@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import InstallPrompt from '@/components/InstallPrompt';
 import { Hourglass } from '@/components/LoadingScreen';
 import type { Reservation, Treatment, EditFormData } from '@/types/front-office';
@@ -14,6 +15,7 @@ import EditReservationModal from '@/components/front-office/EditReservationModal
 import PaymentModal from '@/components/front-office/PaymentModal';
 import AffiliateModal from '@/components/front-office/AffiliateModal';
 import DeleteModal from '@/components/front-office/DeleteModal';
+import { products } from '@/data/products';
 
 export default function FrontOfficePage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -221,6 +223,14 @@ export default function FrontOfficePage() {
     }
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
   return (
     <div className="min-h-screen fo-glass-page fo-theme-dashboard">
       <div className="max-w-7xl mx-auto px-5 py-10">
@@ -253,6 +263,46 @@ export default function FrontOfficePage() {
 
         {/* Status Tracker */}
         <StatusTracker reservations={reservations} />
+
+        {/* Etalase Produk */}
+        <section className="fo-fade-up fo-stagger-2 mx-auto mb-8 max-w-5xl">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
+              Etalase Produk
+            </p>
+            <Link
+              href="/product-gallery"
+              className="text-[10px] font-semibold uppercase tracking-[0.12em] text-primary/60 hover:text-primary transition-colors"
+            >
+              Lihat Semua →
+            </Link>
+          </div>
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-1 -mx-1 px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {products.map((product) => (
+              <Link
+                key={product.id}
+                href={`/product-gallery?product=${product.id}`}
+                className="fo-glass-card-soft flex-shrink-0 w-[140px] sm:w-[160px] snap-start rounded-xl p-3 text-center transition-all hover:border-primary/25 hover:bg-primary/[0.04] active:scale-[0.98]"
+              >
+                <div className="relative w-full aspect-square mb-2.5 overflow-hidden rounded-lg ring-1 ring-white/10">
+                  <Image
+                    src={product.image}
+                    alt={product.name}
+                    fill
+                    className="object-cover"
+                    sizes="160px"
+                  />
+                </div>
+                <p className="text-[11px] font-semibold leading-tight text-white/80 line-clamp-2 mb-1.5">
+                  {product.name}
+                </p>
+                <p className="text-[10px] font-bold text-primary/70">
+                  {formatCurrency(product.price)}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
 
         {/* Total Today */}
         <div className="fo-fade-up fo-stagger-2 rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(212,175,55,0.06),rgba(212,175,55,0.02))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl p-5 sm:p-6 mb-10 text-center">
