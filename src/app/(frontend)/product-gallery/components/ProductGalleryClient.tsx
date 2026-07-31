@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo, useReducer, useCallback } from 'react';
-import type { CatalogProduct, CatalogCategory, CartItem, CheckoutForm, PendingOrder } from '@/features/product-commerce/types';
+import Image from 'next/image';
+import type { CatalogProduct, CatalogCategory, CheckoutForm, PendingOrder } from '@/features/product-commerce/types';
 import { cartReducer } from '@/features/product-commerce/cart-reducer';
 
 import CatalogToolbar from './CatalogToolbar';
@@ -10,7 +11,6 @@ import ProductDetailDialog from './ProductDetailDialog';
 import CartDock from './CartDock';
 import CartDrawer from './CartDrawer';
 import { GallerySkeleton, GalleryError } from './GalleryState';
-import { formatPrice } from '@/features/product-commerce/formatters';
 
 interface ProductGalleryClientProps {
   initialProducts: CatalogProduct[];
@@ -102,20 +102,27 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
   }
 
   return (
-    <div className="min-h-screen bg-[#07070A]" style={{ background: 'radial-gradient(ellipse at 50% 0%, #1a1025 0%, #07070A 60%)' }}>
+    <div className="min-h-screen bg-stone-50">
       {/* Hero */}
-      <section className="px-5 pt-6 pb-4 text-center">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 text-primary tracking-tight">Our Products</h1>
-        <p className="text-white/45 text-sm sm:text-base mb-6">Skincare premium diformulasikan untuk setiap jenis kulit</p>
-
-        <div className="flex justify-center gap-4 mb-2 flex-wrap">
-          {[{ icon: '✓', label: 'Produk Resmi' }, { icon: '🔒', label: 'Pembayaran Aman' }, { icon: '🚚', label: 'Pengiriman Nasional' }].map(b => (
-            <span key={b.label} className="text-white/30 text-[10px] sm:text-xs flex items-center gap-1">{b.icon} {b.label}</span>
-          ))}
+      <section className="relative w-full">
+        <div className="relative w-full aspect-[16/9] max-h-[420px] overflow-hidden">
+          <Image
+            src="/hero-products.webp"
+            alt="DRW Prime Products"
+            fill
+            className="object-cover"
+            priority
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-50 via-transparent to-transparent" />
+        </div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-5">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-3 text-white drop-shadow-lg tracking-tight">Our Products</h1>
+          <p className="text-white/80 text-sm sm:text-base max-w-md mx-auto drop-shadow">Skincare premium diformulasikan untuk setiap jenis kulit</p>
         </div>
       </section>
 
-      <section className="px-5 pb-5">
+      <section className="px-5 pb-6">
         <div className="max-w-7xl mx-auto">
           <CatalogToolbar
             search={search}
@@ -123,17 +130,16 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
             categories={categories}
-            totalProducts={filtered.length}
           />
         </div>
       </section>
 
       <section className="px-5 pb-32 lg:pb-20">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-white/30 font-medium">{filtered.length} produk</p>
-            <p className="text-xs text-white/30">
-              {activeCategory !== 'all' ? 'Kategori: ' + activeCategory : 'Semua Series'}
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-xs text-stone-400 font-medium">{filtered.length} produk</p>
+            <p className="text-xs text-stone-400">
+              {activeCategory !== 'all' ? activeCategory : 'Semua Series'}
             </p>
           </div>
 
@@ -146,18 +152,17 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
         </div>
       </section>
 
-      {/* Desktop Cart FAB */}
       {!cartOpen && cart.length > 0 && (
         <button
           onClick={() => setCartOpen(true)}
-          className="hidden lg:flex fixed bottom-10 right-10 w-14 h-14 rounded-2xl items-center justify-center shadow-2xl z-50 transition-transform hover:scale-105 active:scale-95"
+          className="hidden lg:flex fixed bottom-10 right-10 w-14 h-14 rounded-2xl items-center justify-center shadow-lg z-50 transition-all hover:scale-105 active:scale-95 hover:shadow-xl"
           style={{ background: '#D4AF37' }}
           aria-label="Buka keranjang"
         >
-          <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
           </svg>
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 bg-stone-800 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
             {cart.reduce((s, i) => s + i.quantity, 0)}
           </span>
         </button>

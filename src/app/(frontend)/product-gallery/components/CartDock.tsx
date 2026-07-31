@@ -18,8 +18,8 @@ export default function CartDock({ cart, onOpenCart }: CartDockProps) {
     <div className="lg:hidden fixed bottom-[calc(5rem+env(safe-area-inset-bottom,1rem))] left-3 right-3 z-50">
       <button
         onClick={onOpenCart}
-        className="w-full py-4 px-5 rounded-2xl font-bold text-base flex items-center justify-between shadow-2xl transition-all active:scale-[0.98]"
-        style={{ background: '#D4AF37', color: '#0B0B0C' }}
+        className="w-full py-4 px-5 rounded-2xl font-semibold text-base flex items-center justify-between shadow-lg transition-all active:scale-[0.98]"
+        style={{ background: '#D4AF37', color: '#fff' }}
       >
         <div className="flex items-center gap-2">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
