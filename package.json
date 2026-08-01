@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma migrate deploy && tsx prisma/seed.ts && next build",
+    "build": "tsx prisma/seed.ts && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit --incremental false",
