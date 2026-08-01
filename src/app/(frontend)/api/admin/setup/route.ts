@@ -1,17 +1,22 @@
 import { NextResponse } from 'next/server';
 import { execSync } from 'child_process';
+import path from 'path';
 
 export async function GET() {
   try {
-    const pushResult = execSync('npx prisma db push --accept-data-loss', {
+    const cwd = process.cwd();
+    const prismaBin = path.join(cwd, 'node_modules', '.bin', 'prisma');
+
+    const pushResult = execSync(`${prismaBin} db push --accept-data-loss`, {
       encoding: 'utf-8',
       timeout: 60000,
-      env: { ...process.env },
+      cwd,
     });
-    const seedResult = execSync('tsx prisma/seed.ts', {
+
+    const seedResult = execSync(`${path.join(cwd, 'node_modules', '.bin', 'tsx')} prisma/seed.ts`, {
       encoding: 'utf-8',
       timeout: 60000,
-      env: { ...process.env },
+      cwd,
     });
 
     return NextResponse.json({
