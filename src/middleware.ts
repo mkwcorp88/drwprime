@@ -44,8 +44,6 @@ const isPublicRoute = createRouteMatcher([
   '/api/products/orders/(.*)',
   '/api/payment/dummy-confirm',
   '/payment(.*)',
-  // Admin setup (temporary)
-  '/api/admin/setup',
   // Static files
   '/(.*\\.mp4$)',
   '/(.*\\.webm$)',

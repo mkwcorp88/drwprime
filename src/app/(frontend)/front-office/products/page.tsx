@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -73,14 +73,6 @@ const initialPromoForm = {
   endsAt: '',
 };
 
-const TEMP_CATEGORIES: Category[] = [
-  { id: 'facial-wash', slug: 'facial-wash', name: 'Facial Wash' },
-  { id: 'moisturizer', slug: 'moisturizer', name: 'Moisturizer' },
-  { id: 'sunscreen', slug: 'sunscreen', name: 'Sunscreen' },
-  { id: 'serum', slug: 'serum', name: 'Serum' },
-  { id: 'toner', slug: 'toner', name: 'Toner' },
-];
-
 export default function FrontOfficeProductsPage() {
   const [tab, setTab] = useState<Tab>('products');
   const [products, setProducts] = useState<Product[]>([]);
@@ -112,17 +104,6 @@ export default function FrontOfficeProductsPage() {
   const [promoSuccess, setPromoSuccess] = useState('');
 
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'product' | 'promo'; id: string; name: string } | null>(null);
-
-  const mergedCategories = useMemo(() => {
-    const allCategories = [...TEMP_CATEGORIES, ...categories];
-    const uniqueCategories = allCategories.filter(
-      (category, index, self) =>
-        index === self.findIndex((c) => (
-          c.slug === category.slug
-        ))
-    );
-    return uniqueCategories.sort((a, b) => a.name.localeCompare(b.name));
-  }, [categories]);
 
 
   const fetchProducts = useCallback(async () => {
@@ -474,7 +455,7 @@ export default function FrontOfficeProductsPage() {
             className="fo-glass-input rounded-xl px-3 py-2.5 text-sm bg-[#080808]"
           >
             <option value={CATEGORY_FILTER_ALL}>Semua Kategori</option>
-            {mergedCategories.map(c => (
+            {categories.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
@@ -768,7 +749,7 @@ export default function FrontOfficeProductsPage() {
                       <select value={productForm.categoryId} onChange={e => setProductForm(f => ({ ...f, categoryId: e.target.value }))}
                         className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full bg-[#080808]">
                         <option value="">Pilih kategori...</option>
-                        {mergedCategories.map(c => <option key={c.slug} value={c.id}>{c.name}</option>)}
+                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </div>
                     <div>
