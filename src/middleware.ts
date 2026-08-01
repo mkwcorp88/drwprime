@@ -43,6 +43,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/products/doku/notification',
   '/api/products/orders/(.*)',
   '/api/payment/dummy-confirm',
+  // Front Office API routes (own auth via requireAdmin)
+  '/api/front-office(.*)',
   '/payment(.*)',
   // Static files
   '/(.*\\.mp4$)',
