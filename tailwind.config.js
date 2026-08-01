@@ -12,6 +12,15 @@ module.exports = {
         'primary-light': '#f4d03f',
         dark: '#0a0a0a',
       },
+      keyframes: {
+        marquee: {
+          '0%': { transform: 'translateX(0%)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
+      },
+      animation: {
+        marquee: 'marquee 28s linear infinite',
+      },
       fontFamily: {
         playfair: ['Gilroy', 'Avenir Next', 'Plus Jakarta Sans', 'Inter', 'sans-serif'],
         inter: ['Gilroy', 'Avenir Next', 'Plus Jakarta Sans', 'Inter', 'sans-serif'],

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
+import AnnouncementTicker from './AnnouncementTicker';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,6 +31,7 @@ export default function Navbar() {
 
   return (
     <nav className="hidden lg:block fixed top-0 w-full bg-black/95 backdrop-blur-md z-50 border-b border-primary/20">
+      <AnnouncementTicker />
       <div className="max-w-[1440px] mx-auto px-4 xl:px-6 flex justify-between items-center gap-4 py-4">
         <Link href="/" className="shrink-0 pr-2">
           <Image 

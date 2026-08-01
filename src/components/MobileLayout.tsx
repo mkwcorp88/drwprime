@@ -22,7 +22,7 @@ export default function MobileLayout({
 
       {/* Main Content with proper padding */}
       <div className={`
-        ${showHeader ? 'lg:pt-0 pt-14' : ''} 
+        ${showHeader ? 'lg:pt-0 pt-[4.5rem]' : ''} 
         ${showBottomNav ? 'lg:pb-0 pb-20' : ''}
       `}>
         {children}

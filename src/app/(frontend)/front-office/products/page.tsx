@@ -60,6 +60,8 @@ const initialProductForm = {
   ctaText: '',
   sortOrder: '0',
   isActive: true,
+  imageUrl: '',
+  imageKey: '',
 };
 
 const initialPromoForm = {
@@ -90,6 +92,8 @@ export default function FrontOfficeProductsPage() {
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
 
   const [promoEditorOpen, setPromoEditorOpen] = useState(false);
   const [editingPromo, setEditingPromo] = useState<string | null>(null);
@@ -186,6 +190,8 @@ export default function FrontOfficeProductsPage() {
   const openAddProduct = () => {
     setEditingProduct(null);
     setProductForm(initialProductForm);
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
     setFormError('');
     setFormSuccess('');
     setEditorOpen(true);
@@ -206,10 +212,28 @@ export default function FrontOfficeProductsPage() {
       ctaText: p.ctaText || '',
       sortOrder: String(p.sortOrder),
       isActive: p.isActive,
+      imageUrl: p.imageUrl || '',
+      imageKey: p.imageKey || '',
     });
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
     setFormError('');
     setFormSuccess('');
     setEditorOpen(true);
+  };
+
+  const uploadProductImage = async (file: File): Promise<{ url: string; pathname: string }> => {
+    setUploadingImage(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/front-office/products/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload gagal');
+      return { url: data.url, pathname: data.pathname };
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleSaveProduct = async () => {
@@ -221,6 +245,15 @@ export default function FrontOfficeProductsPage() {
     }
     setSaving(true);
     try {
+      let imageUrl = productForm.imageUrl;
+      let imageKey = productForm.imageKey;
+
+      if (selectedImageFile) {
+        const uploaded = await uploadProductImage(selectedImageFile);
+        imageUrl = uploaded.url;
+        imageKey = uploaded.pathname;
+      }
+
       const payload = {
         id: editingProduct || undefined,
         name: productForm.name,
@@ -230,6 +263,8 @@ export default function FrontOfficeProductsPage() {
         price: Number(productForm.price),
         size: productForm.size || null,
         headline: productForm.headline || null,
+        imageUrl: imageUrl || null,
+        imageKey: imageKey || null,
         benefits: productForm.benefits.split('\n').filter(Boolean),
         usageInstructions: productForm.usageInstructions || null,
         ctaText: productForm.ctaText || null,
@@ -246,30 +281,14 @@ export default function FrontOfficeProductsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal menyimpan');
       setFormSuccess(data.message || 'Berhasil disimpan');
+      setSelectedImageFile(null);
+      setImagePreviewUrl(null);
       reload();
       if (!editingProduct) setEditorOpen(false);
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Gagal menyimpan');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleUploadImage = async (productId: string, file: File) => {
-    setUploadingImage(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('productId', productId);
-      const res = await fetch('/api/front-office/products/upload', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload gagal');
-      reload();
-      setFormSuccess('Gambar berhasil diupload');
-    } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Upload gagal');
-    } finally {
-      setUploadingImage(false);
     }
   };
 
@@ -595,107 +614,182 @@ export default function FrontOfficeProductsPage() {
 
         {/* Product Editor Overlay */}
         {editorOpen && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 pb-20 overflow-y-auto" onClick={() => setEditorOpen(false)}>
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 pb-20 overflow-y-auto" onClick={() => setEditorOpen(false)}>
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
             <div
-              className="relative w-full max-w-2xl mx-4 fo-glass-modal rounded-2xl p-6"
+              className="relative w-full max-w-xl mx-4 fo-glass-modal rounded-2xl p-4 sm:p-6"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-bold text-white/85">{editingProduct ? 'Edit Produk' : 'Tambah Produk'}</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-white/85">{editingProduct ? 'Edit Produk' : 'Tambah Produk Baru'}</h2>
                 <button onClick={() => setEditorOpen(false)} className="text-white/30 hover:text-white/70 text-xl">✕</button>
               </div>
 
-              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-white/50 mb-1">Nama *</label>
-                    <input type="text" value={productForm.name} onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))}
-                      className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="Nama produk" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-white/50 mb-1">Slug *</label>
-                    <input type="text" value={productForm.slug} onChange={e => setProductForm(f => ({ ...f, slug: e.target.value }))}
-                      className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="nama-produk" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-white/50 mb-1">Kategori *</label>
-                    <select value={productForm.categoryId} onChange={e => setProductForm(f => ({ ...f, categoryId: e.target.value }))}
-                      className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full bg-[#080808]">
-                      <option value="">Pilih...</option>
-                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-white/50 mb-1">Harga (Rp) *</label>
-                    <input type="number" value={productForm.price} onChange={e => setProductForm(f => ({ ...f, price: e.target.value }))}
-                      className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="95000" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-white/50 mb-1">Ukuran</label>
-                    <input type="text" value={productForm.size} onChange={e => setProductForm(f => ({ ...f, size: e.target.value }))}
-                      className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="100 ml" />
-                  </div>
-                </div>
+              <div className="space-y-5 max-h-[62vh] overflow-y-auto pr-2">
+                {/* ── Section: Gambar ── */}
                 <div>
-                  <label className="block text-xs font-semibold text-white/50 mb-1">Headline</label>
-                  <input type="text" value={productForm.headline} onChange={e => setProductForm(f => ({ ...f, headline: e.target.value }))}
-                    className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="Tagline singkat" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-white/50 mb-1">Deskripsi *</label>
-                  <textarea value={productForm.description} onChange={e => setProductForm(f => ({ ...f, description: e.target.value }))}
-                    className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" rows={3} placeholder="Deskripsi lengkap" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-white/50 mb-1">Manfaat (satu per baris)</label>
-                  <textarea value={productForm.benefits} onChange={e => setProductForm(f => ({ ...f, benefits: e.target.value }))}
-                    className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" rows={3} placeholder="Membersihkan debu&#10;Mencerahkan kulit" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-white/50 mb-1">Cara Pakai</label>
-                    <textarea value={productForm.usageInstructions} onChange={e => setProductForm(f => ({ ...f, usageInstructions: e.target.value }))}
-                      className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" rows={2} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-white/50 mb-1">CTA Teks</label>
-                    <input type="text" value={productForm.ctaText} onChange={e => setProductForm(f => ({ ...f, ctaText: e.target.value }))}
-                      className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-white/50 mb-1">Urutan</label>
-                    <input type="number" value={productForm.sortOrder} onChange={e => setProductForm(f => ({ ...f, sortOrder: e.target.value }))}
-                      className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" />
-                  </div>
-                  <div className="flex items-end pb-1">
-                    <label className="flex items-center gap-2 text-sm text-white/60 cursor-pointer">
-                      <input type="checkbox" checked={productForm.isActive} onChange={e => setProductForm(f => ({ ...f, isActive: e.target.checked }))}
-                        className="rounded" />
-                      Produk Aktif
-                    </label>
+                  <p className="text-[11px] font-semibold text-primary/70 uppercase tracking-wider mb-2">📸 Gambar Produk</p>
+                  <div className="flex items-start gap-4">
+                    <div className="shrink-0 w-24 h-32 rounded-xl flex items-center justify-center border-2 border-dashed border-white/15"
+                      style={{ background: 'rgba(255,255,255,0.04)' }}>
+                      {(imagePreviewUrl || productForm.imageUrl) ? (
+                        <Image
+                          src={imagePreviewUrl || productForm.imageUrl}
+                          alt="Preview"
+                          width={80} height={96}
+                          className="object-contain max-h-full max-w-full rounded-lg"
+                        />
+                      ) : (
+                        <div className="text-center text-white/20">
+                          <svg className="w-8 h-8 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-[9px]">Preview</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <label className="fo-ios-btn fo-ios-btn-neutral text-xs cursor-pointer inline-flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        {productForm.imageUrl || selectedImageFile ? 'Ganti Gambar' : 'Pilih Gambar'}
+                        <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                          onChange={e => {
+                            const f = e.target.files?.[0];
+                            if (f) {
+                              setSelectedImageFile(f);
+                              setImagePreviewUrl(URL.createObjectURL(f));
+                              setFormError('');
+                            }
+                          }}
+                        />
+                      </label>
+                      {(productForm.imageUrl || selectedImageFile) && (
+                        <button
+                          onClick={() => {
+                            setSelectedImageFile(null);
+                            setImagePreviewUrl(null);
+                            setProductForm(f => ({ ...f, imageUrl: '', imageKey: '' }));
+                          }}
+                          className="fo-ios-btn fo-ios-btn-danger text-xs mt-2"
+                        >
+                          Hapus Gambar
+                        </button>
+                      )}
+                      <p className="text-[10px] text-white/25 mt-1.5">JPG, PNG, WEBP • Maks 10MB</p>
+                    </div>
                   </div>
                 </div>
 
-                {editingProduct && (
-                  <div>
-                    <label className="block text-xs font-semibold text-white/50 mb-1">Gambar Produk</label>
-                    <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingImage}
-                      onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadImage(editingProduct!, f); }} />
-                    {uploadingImage && <p className="text-xs text-white/30 mt-1">Uploading...</p>}
+                {/* ── Section: Informasi Dasar ── */}
+                <div>
+                  <p className="text-[11px] font-semibold text-primary/70 uppercase tracking-wider mb-2">📋 Informasi Dasar</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-white/50 mb-1">Nama Produk *</label>
+                      <input type="text" value={productForm.name} onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))}
+                        className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="Nama produk" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-white/50 mb-1">Slug URL *</label>
+                      <input type="text" value={productForm.slug} onChange={e => setProductForm(f => ({ ...f, slug: e.target.value }))}
+                        className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="nama-produk" />
+                    </div>
                   </div>
-                )}
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-white/50 mb-1">Kategori *</label>
+                      <select value={productForm.categoryId} onChange={e => setProductForm(f => ({ ...f, categoryId: e.target.value }))}
+                        className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full bg-[#080808]">
+                        <option value="">Pilih kategori...</option>
+                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-white/50 mb-1">Harga (Rp) *</label>
+                      <input type="number" value={productForm.price} onChange={e => setProductForm(f => ({ ...f, price: e.target.value }))}
+                        className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="95000" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-white/50 mb-1">Ukuran</label>
+                      <input type="text" value={productForm.size} onChange={e => setProductForm(f => ({ ...f, size: e.target.value }))}
+                        className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="100 ml" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-white/50 mb-1">Headline / Tagline</label>
+                      <input type="text" value={productForm.headline} onChange={e => setProductForm(f => ({ ...f, headline: e.target.value }))}
+                        className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="Tagline singkat" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Section: Deskripsi ── */}
+                <div>
+                  <p className="text-[11px] font-semibold text-primary/70 uppercase tracking-wider mb-2">📝 Deskripsi & Manfaat</p>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 mb-1">Deskripsi Produk *</label>
+                    <textarea value={productForm.description} onChange={e => setProductForm(f => ({ ...f, description: e.target.value }))}
+                      className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" rows={3} placeholder="Deskripsi lengkap produk" />
+                  </div>
+                  <div className="mt-3">
+                    <label className="block text-xs font-semibold text-white/50 mb-1">Manfaat (satu per baris)</label>
+                    <textarea value={productForm.benefits} onChange={e => setProductForm(f => ({ ...f, benefits: e.target.value }))}
+                      className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" rows={3} placeholder="Membersihkan debu&#10;Mencerahkan kulit" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-white/50 mb-1">Cara Pakai</label>
+                      <textarea value={productForm.usageInstructions} onChange={e => setProductForm(f => ({ ...f, usageInstructions: e.target.value }))}
+                        className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" rows={2} placeholder="Petunjuk penggunaan" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-white/50 mb-1">Teks Tombol CTA</label>
+                      <input type="text" value={productForm.ctaText} onChange={e => setProductForm(f => ({ ...f, ctaText: e.target.value }))}
+                        className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="Beli Sekarang" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Section: Pengaturan ── */}
+                <div>
+                  <p className="text-[11px] font-semibold text-primary/70 uppercase tracking-wider mb-2">⚙️ Pengaturan</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-white/50 mb-1">Urutan Tampil</label>
+                      <input type="number" value={productForm.sortOrder} onChange={e => setProductForm(f => ({ ...f, sortOrder: e.target.value }))}
+                        className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="0" />
+                    </div>
+                    <div className="flex items-end pb-1">
+                      <label className="flex items-center gap-2.5 text-sm text-white/60 cursor-pointer">
+                        <input type="checkbox" checked={productForm.isActive} onChange={e => setProductForm(f => ({ ...f, isActive: e.target.checked }))}
+                          className="rounded accent-primary" />
+                        Produk Aktif
+                      </label>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-white/10">
+              {/* Feedback */}
+              {formError && <p className="mt-3 text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{formError}</p>}
+              {formSuccess && <p className="mt-3 text-xs text-emerald-400 bg-emerald-500/10 rounded-lg px-3 py-2">{formSuccess}</p>}
+
+              <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-white/10">
                 <button onClick={() => setEditorOpen(false)} className="fo-ios-btn fo-ios-btn-neutral text-sm">Batal</button>
-                <button onClick={handleSaveProduct} disabled={saving}
-                  className="fo-ios-btn text-sm text-white" style={{ background: '#D4AF37' }}>
-                  {saving ? 'Menyimpan...' : editingProduct ? 'Update' : 'Simpan'}
+                <button onClick={handleSaveProduct} disabled={saving || uploadingImage}
+                  className="fo-ios-btn text-sm text-white font-semibold px-6" style={{ background: '#D4AF37' }}>
+                  {saving || uploadingImage ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      {uploadingImage ? 'Upload...' : 'Menyimpan...'}
+                    </span>
+                  ) : editingProduct ? 'Update' : 'Simpan'}
                 </button>
               </div>
             </div>
