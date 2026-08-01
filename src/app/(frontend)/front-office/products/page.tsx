@@ -84,6 +84,7 @@ export default function FrontOfficeProductsPage() {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState(CATEGORY_FILTER_ALL);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [viewMode, setViewMode] = useState('list');
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
@@ -468,6 +469,10 @@ export default function FrontOfficeProductsPage() {
               <option value="inactive">Nonaktif</option>
             </select>
           )}
+          <div className="flex items-center gap-1 p-1 rounded-xl fo-glass-input bg-[#080808]">
+            <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-white/40 hover:text-white/70'}`}>List</button>
+            <button onClick={() => setViewMode('grid')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-white/40 hover:text-white/70'}`}>Grid</button>
+          </div>
         </div>
 
         {/* Success/Error Banners */}
@@ -505,57 +510,97 @@ export default function FrontOfficeProductsPage() {
                 {search || catFilter !== CATEGORY_FILTER_ALL ? 'Tidak ada produk dengan filter ini' : 'Belum ada produk'}
               </div>
             ) : (
-              <div className="space-y-3">
-                {filteredProducts.map(p => {
-                  const effPrice = getEffectivePrice(p);
-                  const hasPromo = effPrice < p.price;
-                  return (
-                    <div key={p.id} className="fo-glass-card-soft rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-start">
-                      <div className="w-16 h-20 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                        {p.imageUrl ? (
-                          <Image src={p.imageUrl} alt={p.name} width={48} height={64} className="object-contain max-h-full" />
-                        ) : (
-                          <span className="text-white/10 text-2xl">📦</span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-white/85 text-sm">{p.name}</h3>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{p.category.name}</span>
-                          {!p.isActive && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">Nonaktif</span>}
-                        </div>
-                        <p className="text-xs text-white/35 mt-1">{p.size}{p.headline && ` — ${p.headline}`}</p>
-                        <div className="flex items-center gap-3 mt-2">
-                          {hasPromo ? (
-                            <>
-                              <span className="text-sm text-white/30 line-through">{formatPrice(p.price)}</span>
-                              <span className="text-sm font-bold text-emerald-400">{formatPrice(effPrice)}</span>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">Promo</span>
-                            </>
+              viewMode === 'list' ? (
+                <div className="space-y-3">
+                  {filteredProducts.map(p => {
+                    const effPrice = getEffectivePrice(p);
+                    const hasPromo = effPrice < p.price;
+                    return (
+                      <div key={p.id} className="fo-glass-card-soft rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-start">
+                        <div className="w-16 h-20 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                          {p.imageUrl ? (
+                            <Image src={p.imageUrl} alt={p.name} width={48} height={64} className="object-contain max-h-full" />
                           ) : (
-                            <span className="text-sm font-bold text-white/70">{formatPrice(p.price)}</span>
+                            <span className="text-white/10 text-2xl">📦</span>
                           )}
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-white/85 text-sm">{p.name}</h3>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{p.category.name}</span>
+                            {!p.isActive && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">Nonaktif</span>}
+                          </div>
+                          <p className="text-xs text-white/35 mt-1">{p.size}{p.headline && ` — ${p.headline}`}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            {hasPromo ? (
+                              <>
+                                <span className="text-sm text-white/30 line-through">{formatPrice(p.price)}</span>
+                                <span className="text-sm font-bold text-emerald-400">{formatPrice(effPrice)}</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">Promo</span>
+                              </>
+                            ) : (
+                              <span className="text-sm font-bold text-white/70">{formatPrice(p.price)}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                          <button onClick={() => openEditProduct(p)} className="fo-ios-btn fo-ios-btn-neutral text-xs">Edit</button>
+                          <button
+                            onClick={() => handleToggleActive(p)}
+                            className={`fo-ios-btn text-xs ${p.isActive ? 'fo-ios-btn-warn' : 'fo-ios-btn-success'}`}
+                          >
+                            {p.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm({ type: 'product', id: p.id, name: p.name })}
+                            className="fo-ios-btn fo-ios-btn-danger text-xs"
+                          >
+                            Hapus
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                        <button onClick={() => openEditProduct(p)} className="fo-ios-btn fo-ios-btn-neutral text-xs">Edit</button>
-                        <button
-                          onClick={() => handleToggleActive(p)}
-                          className={`fo-ios-btn text-xs ${p.isActive ? 'fo-ios-btn-warn' : 'fo-ios-btn-success'}`}
-                        >
-                          {p.isActive ? 'Nonaktifkan' : 'Aktifkan'}
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirm({ type: 'product', id: p.id, name: p.name })}
-                          className="fo-ios-btn fo-ios-btn-danger text-xs"
-                        >
-                          Hapus
-                        </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {filteredProducts.map(p => {
+                    const effPrice = getEffectivePrice(p);
+                    const hasPromo = effPrice < p.price;
+                    return (
+                      <div key={p.id} className="fo-glass-card-soft rounded-xl p-3 flex flex-col h-full group relative">
+                        <div className="w-full h-32 rounded-lg flex items-center justify-center mb-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                          {p.imageUrl ? (
+                            <Image src={p.imageUrl} alt={p.name} width={80} height={120} className="object-contain max-h-full" />
+                          ) : (
+                            <span className="text-white/10 text-3xl">📦</span>
+                          )}
+                        </div>
+                        <h4 className="font-semibold text-white/80 text-xs leading-tight flex-1">{p.name}</h4>
+                        <div className="mt-2">
+                          {!p.isActive && <span className="block text-center text-[9px] mb-1 px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">Nonaktif</span>}
+                          {hasPromo ? (
+                            <div className="text-center">
+                              <p className="text-xs text-white/30 line-through -mb-1">{formatPrice(p.price)}</p>
+                              <p className="text-sm font-bold text-emerald-400">{formatPrice(effPrice)}</p>
+                            </div>
+                          ) : (
+                            <p className="text-sm font-bold text-white/70 text-center">{formatPrice(p.price)}</p>
+                          )}
+                        </div>
+                        <div className="absolute top-2 right-2 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => openEditProduct(p)} className="p-1.5 rounded-full bg-black/40 hover:bg-black/80 backdrop-blur-sm">
+                            <svg className="w-3.5 h-3.5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" /></svg>
+                          </button>
+                           <button onClick={() => handleToggleActive(p)} className="p-1.5 rounded-full bg-black/40 hover:bg-black/80 backdrop-blur-sm">
+                            {p.isActive ? <svg className="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg> : <svg className="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              )
             )}
           </>
         )}
