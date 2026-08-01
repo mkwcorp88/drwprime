@@ -1,82 +1,104 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import fs from 'fs';
-import path from 'path';
 
-function readMigrationSql(): string[] {
-  const migrationDir = path.join(process.cwd(), 'prisma', 'migrations', '20260729000000_add_product_catalog_promotions');
-  const sql = fs.readFileSync(path.join(migrationDir, 'migration.sql'), 'utf-8');
+const CREATE_TABLES_SQL = [
+  `CREATE TABLE IF NOT EXISTS "product_categories" (
+    "id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "sort_order" INTEGER NOT NULL DEFAULT 0,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "product_categories_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "product_categories_slug_key" UNIQUE ("slug")
+  )`,
 
-  return sql
-    .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith('--'));
-}
+  `CREATE TABLE IF NOT EXISTS "products" (
+    "id" TEXT NOT NULL,
+    "category_id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "headline" TEXT,
+    "description" TEXT NOT NULL,
+    "price" DECIMAL(12,2) NOT NULL,
+    "size" TEXT,
+    "image_url" TEXT,
+    "image_key" TEXT,
+    "image_alt" TEXT,
+    "benefits" TEXT[] DEFAULT ARRAY[]::TEXT[] NOT NULL,
+    "usage_instructions" TEXT,
+    "cta_text" TEXT,
+    "sort_order" INTEGER NOT NULL DEFAULT 0,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_by_clerk_id" TEXT,
+    "updated_by_clerk_id" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "products_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "products_slug_key" UNIQUE ("slug"),
+    CONSTRAINT "products_image_key_key" UNIQUE ("image_key"),
+    CONSTRAINT "products_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "product_categories"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+  )`,
 
-async function seedCategories() {
-  const categories = [
-    { name: 'Facial Wash', slug: 'facial-wash', sortOrder: 1 },
-    { name: 'Moisturizer', slug: 'moisturizer', sortOrder: 2 },
-    { name: 'Sunscreen', slug: 'sunscreen', sortOrder: 3 },
-    { name: 'Serum', slug: 'serum', sortOrder: 4 },
-    { name: 'Toner', slug: 'toner', sortOrder: 5 },
-  ];
+  `CREATE TABLE IF NOT EXISTS "product_promotions" (
+    "id" TEXT NOT NULL,
+    "product_id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "badge_text" TEXT,
+    "final_price" DECIMAL(12,2) NOT NULL,
+    "starts_at" TIMESTAMPTZ(3) NOT NULL,
+    "ends_at" TIMESTAMPTZ(3) NOT NULL,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_by_clerk_id" TEXT,
+    "updated_by_clerk_id" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "product_promotions_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "product_promotions_product_id_starts_at_key" UNIQUE ("product_id", "starts_at"),
+    CONSTRAINT "product_promotions_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+  )`,
+];
 
+const CATEGORIES = [
+  { slug: 'facial-wash', name: 'Facial Wash', order: 1 },
+  { slug: 'moisturizer', name: 'Moisturizer', order: 2 },
+  { slug: 'sunscreen', name: 'Sunscreen', order: 3 },
+  { slug: 'serum', name: 'Serum', order: 4 },
+  { slug: 'toner', name: 'Toner', order: 5 },
+];
+
+export async function GET() {
   const results: string[] = [];
 
   try {
-    await prisma.$executeRawUnsafe(`DELETE FROM "product_categories" WHERE "name" = '100ml'`);
-    results.push('Deleted "100ml" category');
-  } catch {
-    /* may not exist */
-  }
-
-  for (const cat of categories) {
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO "product_categories" ("id", "slug", "name", "sort_order") 
-       VALUES ($1, $2, $3, $4) 
-       ON CONFLICT ("slug") DO UPDATE SET "name" = $3, "sort_order" = $4, "updated_at" = NOW()`,
-      crypto.randomUUID(), cat.slug, cat.name, cat.sortOrder
-    );
-    results.push(`Upserted: ${cat.name}`);
-  }
-
-  return results;
-}
-
-export async function GET() {
-  try {
-    const statements = readMigrationSql();
-    const results: string[] = [];
-
-    for (const stmt of statements) {
-      try {
-        await prisma.$executeRawUnsafe(stmt);
-        results.push(stmt.substring(0, 80) + '...');
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (
-          msg.includes('already exists') ||
-          msg.includes('duplicate') ||
-          msg.includes('does not exist') ||
-          msg.includes('was not found')
-        ) {
-          results.push(`SKIPPED (${msg.substring(0, 50)})`);
-        } else {
-          results.push(`FAILED: ${msg.substring(0, 80)}`);
-        }
-      }
+    for (const sql of CREATE_TABLES_SQL) {
+      await prisma.$executeRawUnsafe(sql);
+      results.push('OK: ' + sql.substring(0, 60).replace(/\n/g, ' '));
     }
 
-    const seedResults = await seedCategories();
+    try {
+      await prisma.$executeRawUnsafe(`DELETE FROM "product_categories" WHERE "name" = '100ml'`);
+      results.push('Deleted "100ml" category');
+    } catch { /* ignore */ }
 
-    return NextResponse.json({
-      success: true,
-      migration: results,
-      seed: seedResults,
-    });
+    for (const cat of CATEGORIES) {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO "product_categories" ("id", "slug", "name", "sort_order") 
+         VALUES ($1, $2, $3, $4) 
+         ON CONFLICT ("slug") DO UPDATE SET "name" = $3, "sort_order" = $4`,
+        crypto.randomUUID(), cat.slug, cat.name, cat.order
+      );
+      results.push(`Upserted: ${cat.name}`);
+    }
+
+    return NextResponse.json({ success: true, results });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Setup failed';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Setup failed',
+      results,
+    }, { status: 500 });
   }
 }
