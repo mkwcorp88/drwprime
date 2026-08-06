@@ -548,6 +548,8 @@ model Product {
   usageInstructions String?            @db.Text @map("usage_instructions")
   ctaText           String?            @map("cta_text")
 
+  classification    String?            @map("classification")
+
   sortOrder         Int                @default(0) @map("sort_order")
   isActive          Boolean            @default(true) @map("is_active")
 

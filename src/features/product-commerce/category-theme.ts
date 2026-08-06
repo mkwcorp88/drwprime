@@ -1,8 +1,9 @@
 const CATEGORY_THEMES: Record<string, { color: string; bg: string }> = {
   all: { color: '#B8860B', bg: '#fef9c3' },
   acne: { color: '#0D9488', bg: '#ccfbf1' },
-  lumiera: { color: '#C2185B', bg: '#fce7f3' },
+  brightening: { color: '#C2185B', bg: '#fce7f3' },
   antiaging: { color: '#B8860B', bg: '#fef9c3' },
+  lumiera: { color: '#C2185B', bg: '#fce7f3' },
   premium: { color: '#A16207', bg: '#fef9c3' },
 };
 

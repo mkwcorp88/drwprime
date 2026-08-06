@@ -25,6 +25,7 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
 
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [activeClassification, setActiveClassification] = useState<string>('all');
 
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -36,6 +37,7 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
 
   const filtered = useMemo(() => {
     let result = products;
+    if (activeClassification !== 'all') result = result.filter(p => p.classification === activeClassification);
     if (activeCategory !== 'all') result = result.filter(p => p.categoryId === activeCategory);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -47,7 +49,7 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
       );
     }
     return result;
-  }, [activeCategory, search, products]);
+  }, [activeClassification, activeCategory, search, products]);
 
   const openDetail = useCallback((p: CatalogProduct) => { setSelectedProduct(p); setDetailOpen(true); }, []);
   const closeDetail = useCallback(() => setDetailOpen(false), []);
@@ -124,6 +126,8 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
             onSearchChange={setSearch}
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
+            activeClassification={activeClassification}
+            onClassificationChange={setActiveClassification}
             categories={categories}
           />
         </div>
@@ -134,7 +138,7 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
           <div className="flex items-center justify-between mb-6">
             <p className="text-xs text-stone-400 font-medium">{filtered.length} produk</p>
             <p className="text-xs text-stone-400">
-              {activeCategory !== 'all' ? activeCategory : 'Semua Series'}
+              {activeClassification !== 'all' ? activeClassification : activeCategory !== 'all' ? activeCategory : 'Semua Series'}
             </p>
           </div>
 

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   try {
     await requireAdmin();
     const body = await req.json();
-    const { name, slug, categoryId, description, price, size, headline, imageUrl, imageKey, imageAlt, benefits, usageInstructions, ctaText, sortOrder, isActive } = body;
+    const { name, slug, categoryId, description, price, size, headline, imageUrl, imageKey, imageAlt, benefits, usageInstructions, ctaText, classification, sortOrder, isActive } = body;
 
     if (!name?.trim() || !slug?.trim() || !categoryId || !description?.trim()) {
       return NextResponse.json({ error: 'Nama, slug, kategori, dan deskripsi wajib diisi' }, { status: 400 });
@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
         benefits: Array.isArray(benefits) ? benefits.filter(Boolean) : [],
         usageInstructions: usageInstructions?.trim() || null,
         ctaText: ctaText?.trim() || null,
+        classification: classification?.trim() || null,
         sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
         isActive: isActive ?? true,
       },
@@ -87,7 +88,7 @@ export async function PUT(req: NextRequest) {
   try {
     await requireAdmin();
     const body = await req.json();
-    const { id, name, slug, categoryId, description, price, size, headline, imageUrl, imageKey, imageAlt, benefits, usageInstructions, ctaText, sortOrder, isActive } = body;
+    const { id, name, slug, categoryId, description, price, size, headline, imageUrl, imageKey, imageAlt, benefits, usageInstructions, ctaText, classification, sortOrder, isActive } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Product ID wajib diisi' }, { status: 400 });
@@ -128,6 +129,7 @@ export async function PUT(req: NextRequest) {
     if (benefits !== undefined) updateData.benefits = Array.isArray(benefits) ? benefits.filter(Boolean) : [];
     if (usageInstructions !== undefined) updateData.usageInstructions = usageInstructions?.trim() || null;
     if (ctaText !== undefined) updateData.ctaText = ctaText?.trim() || null;
+    if (classification !== undefined) updateData.classification = classification?.trim() || null;
     if (sortOrder !== undefined) updateData.sortOrder = Number.isFinite(sortOrder) ? sortOrder : 0;
     if (isActive !== undefined) updateData.isActive = isActive;
 

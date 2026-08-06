@@ -19,6 +19,7 @@ type Product = {
   benefits: string[];
   usageInstructions: string | null;
   ctaText: string | null;
+  classification: string | null;
   sortOrder: number;
   isActive: boolean;
   categoryId: string;
@@ -58,6 +59,7 @@ const initialProductForm = {
   benefits: '',
   usageInstructions: '',
   ctaText: '',
+  classification: '',
   sortOrder: '0',
   isActive: true,
   imageUrl: '',
@@ -212,6 +214,7 @@ export default function FrontOfficeProductsPage() {
       benefits: p.benefits.join('\n'),
       usageInstructions: p.usageInstructions || '',
       ctaText: p.ctaText || '',
+      classification: p.classification || '',
       sortOrder: String(p.sortOrder),
       isActive: p.isActive,
       imageUrl: p.imageUrl || '',
@@ -270,6 +273,7 @@ export default function FrontOfficeProductsPage() {
         benefits: productForm.benefits.split('\n').filter(Boolean),
         usageInstructions: productForm.usageInstructions || null,
         ctaText: productForm.ctaText || null,
+        classification: productForm.classification || null,
         sortOrder: Number(productForm.sortOrder) || 0,
         isActive: productForm.isActive,
       };
@@ -769,6 +773,16 @@ export default function FrontOfficeProductsPage() {
                       <input type="text" value={productForm.headline} onChange={e => setProductForm(f => ({ ...f, headline: e.target.value }))}
                         className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="Tagline singkat" />
                     </div>
+                  </div>
+                  <div className="mt-3">
+                    <label className="block text-xs font-semibold text-white/50 mb-1">Klasifikasi</label>
+                    <select value={productForm.classification} onChange={e => setProductForm(f => ({ ...f, classification: e.target.value }))}
+                      className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full bg-[#080808]">
+                      <option value="">Tanpa Klasifikasi</option>
+                      <option value="acne">Acne</option>
+                      <option value="brightening">Brightening</option>
+                      <option value="antiaging">Anti Aging</option>
+                    </select>
                   </div>
                 </div>
 

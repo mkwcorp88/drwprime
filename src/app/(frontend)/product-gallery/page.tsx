@@ -32,6 +32,7 @@ export default async function ProductGalleryPage() {
         category: product.category.name,
         categoryId: product.category.slug,
         categoryName: product.category.name,
+        classification: product.classification,
         benefits: product.benefits,
         caraPakai: product.usageInstructions,
         cta: product.ctaText,

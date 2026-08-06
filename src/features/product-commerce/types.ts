@@ -1,3 +1,13 @@
+export type Classification = 'acne' | 'brightening' | 'antiaging';
+
+export const CLASSIFICATION_LABELS: Record<Classification, string> = {
+  acne: 'Acne',
+  brightening: 'Brightening',
+  antiaging: 'Anti Aging',
+};
+
+export const CLASSIFICATION_LIST: Classification[] = ['acne', 'brightening', 'antiaging'];
+
 export type CatalogProduct = {
   id: string;
   slug: string;
@@ -9,6 +19,7 @@ export type CatalogProduct = {
   category: string;
   categoryId: string;
   categoryName: string;
+  classification: string | null;
   benefits: string[];
   caraPakai: string | null;
   cta: string | null;

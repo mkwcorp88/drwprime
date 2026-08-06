@@ -1,6 +1,7 @@
 'use client';
 
 import { getCategoryColor } from '@/features/product-commerce/category-theme';
+import { CLASSIFICATION_LIST, CLASSIFICATION_LABELS } from '@/features/product-commerce/types';
 import type { CatalogCategory } from '@/features/product-commerce/types';
 
 interface CatalogToolbarProps {
@@ -8,6 +9,8 @@ interface CatalogToolbarProps {
   onSearchChange: (v: string) => void;
   activeCategory: string;
   onCategoryChange: (id: string) => void;
+  activeClassification: string;
+  onClassificationChange: (id: string) => void;
   categories: CatalogCategory[];
 }
 
@@ -16,9 +19,11 @@ export default function CatalogToolbar({
   onSearchChange,
   activeCategory,
   onCategoryChange,
+  activeClassification,
+  onClassificationChange,
   categories,
 }: CatalogToolbarProps) {
-  const displayCategories = [{ id: 'all', name: 'Semua' }, ...categories.map(c => ({ id: c.id, name: c.name }))];
+  const displayCategories = [{ id: 'all', name: 'Semua Type' }, ...categories.map(c => ({ id: c.id, name: c.name }))];
 
   return (
     <div className="space-y-4">
@@ -48,18 +53,49 @@ export default function CatalogToolbar({
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
-        {displayCategories.map(c => {
-          const active = activeCategory === c.id;
-          const color = getCategoryColor(c.id as string);
+        <button
+          onClick={() => onClassificationChange('all')}
+          className="shrink-0 px-4 py-2 rounded-full font-medium text-xs sm:text-sm transition-all whitespace-nowrap"
+          style={{
+            background: activeClassification === 'all' ? '#B8860B' : 'transparent',
+            color: activeClassification === 'all' ? '#fff' : 'rgb(120,113,108)',
+            border: activeClassification === 'all' ? '1px solid #B8860B' : '1px solid rgb(214,211,209)',
+          }}
+        >
+          Semua
+        </button>
+        {CLASSIFICATION_LIST.map(c => {
+          const active = activeClassification === c;
+          const color = getCategoryColor(c);
           return (
             <button
-              key={c.id}
-              onClick={() => onCategoryChange(c.id)}
+              key={c}
+              onClick={() => onClassificationChange(c)}
               className="shrink-0 px-4 py-2 rounded-full font-medium text-xs sm:text-sm transition-all whitespace-nowrap"
               style={{
                 background: active ? color : 'transparent',
                 color: active ? '#fff' : 'rgb(120,113,108)',
                 border: active ? `1px solid ${color}` : '1px solid rgb(214,211,209)',
+              }}
+            >
+              {CLASSIFICATION_LABELS[c]}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {displayCategories.map(c => {
+          const active = activeCategory === c.id;
+          return (
+            <button
+              key={c.id}
+              onClick={() => onCategoryChange(c.id)}
+              className="shrink-0 px-3 py-1.5 rounded-full font-medium text-[11px] sm:text-xs transition-all whitespace-nowrap"
+              style={{
+                background: active ? 'rgb(231,229,228)' : 'transparent',
+                color: active ? 'rgb(68,64,60)' : 'rgb(168,162,158)',
+                border: active ? '1px solid rgb(214,211,209)' : '1px solid rgb(231,229,228)',
               }}
             >
               {c.name}
