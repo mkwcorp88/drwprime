@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 import crypto from 'crypto';
 
 export async function POST(req: Request) {
   try {
+    await requireAdmin();
     const body = await req.json();
     const { publicToken, paymentMethod } = body;
 
@@ -67,6 +69,7 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') return handleAuthError(error);
     console.error('[DUMMY DOKU] Error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Gagal memproses pembayaran' },
