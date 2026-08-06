@@ -18,7 +18,7 @@ export default function ProductCard({ product, onOpenDetail, onAddToCart, onBuyN
 
   return (
     <article
-      className="group relative cursor-pointer overflow-hidden rounded-xl border border-stone-200 bg-white transition-all hover:border-stone-300 hover:shadow-md"
+      className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-stone-200 bg-white transition-all hover:border-stone-300 hover:shadow-md"
       onClick={() => onOpenDetail(product)}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail(product); } }}
       tabIndex={0}
@@ -51,24 +51,26 @@ export default function ProductCard({ product, onOpenDetail, onAddToCart, onBuyN
         )}
       </div>
 
-      <div className="p-3 sm:p-4" onClick={e => e.stopPropagation()}>
+      <div className="flex flex-1 flex-col p-3 sm:p-4" onClick={e => e.stopPropagation()}>
         <h3 className="font-semibold text-[13px] sm:text-sm leading-tight mb-1 line-clamp-2 text-stone-800 group-hover:text-stone-900 transition-colors">
           {product.name}
         </h3>
         {product.size && <p className="text-[10px] sm:text-xs mb-1 text-stone-400 line-clamp-1">{product.size}</p>}
-        <p className="text-[10px] sm:text-xs line-clamp-2 mb-3 leading-relaxed text-stone-500">{product.headline}</p>
+        <p className="mb-3 line-clamp-2 text-[10px] leading-relaxed text-stone-500 sm:text-xs">{product.headline}</p>
 
-        <div className="flex items-end justify-between gap-2">
-          <div className="min-w-0 flex-1">
+        <div className="mt-auto flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
             {hasDiscount && (
               <p className="text-[10px] sm:text-xs line-through text-stone-400">{formatPrice(product.price)}</p>
             )}
-            <p className="font-bold text-[13px] sm:text-base leading-tight truncate" style={{ color }}>{formatPrice(product.effectivePrice)}</p>
+            <p className="whitespace-nowrap text-[13px] font-bold leading-tight tabular-nums sm:text-base" style={{ color }}>
+              {formatPrice(product.effectivePrice)}
+            </p>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="grid w-full grid-cols-[2.25rem_minmax(0,1fr)] items-center gap-1 sm:flex sm:w-auto sm:shrink-0">
             <button
               onClick={e => { e.stopPropagation(); onAddToCart(product); }}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-white font-bold transition-all active:scale-90"
+              className="flex h-9 w-9 items-center justify-center rounded-lg font-bold text-white transition-all active:scale-90 sm:h-10 sm:w-10"
               style={{ background: color, opacity: 0.8 }}
               aria-label={`Tambah ${product.name} ke keranjang`}
             >
@@ -78,7 +80,7 @@ export default function ProductCard({ product, onOpenDetail, onAddToCart, onBuyN
             </button>
             <button
               onClick={e => { e.stopPropagation(); onBuyNow(product); }}
-              className="h-9 sm:h-10 px-3 rounded-lg flex items-center justify-center text-white font-semibold text-[11px] sm:text-xs transition-all active:scale-90"
+              className="flex h-9 min-w-0 items-center justify-center rounded-lg px-2 text-[11px] font-semibold text-white transition-all active:scale-90 sm:h-10 sm:px-3 sm:text-xs"
               style={{ background: color }}
               aria-label={`Beli ${product.name} sekarang`}
             >
