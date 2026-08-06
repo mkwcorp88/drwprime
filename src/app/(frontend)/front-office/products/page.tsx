@@ -85,6 +85,7 @@ export default function FrontOfficeProductsPage() {
 
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState(CATEGORY_FILTER_ALL);
+  const [classificationFilter, setClassificationFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [viewMode, setViewMode] = useState('list');
 
@@ -151,6 +152,10 @@ export default function FrontOfficeProductsPage() {
       if (!p.name.toLowerCase().includes(q) && !(p.headline || '').toLowerCase().includes(q)) return false;
     }
     if (catFilter !== CATEGORY_FILTER_ALL && p.categoryId !== catFilter) return false;
+    if (classificationFilter !== 'all') {
+      if (classificationFilter === '__none__') { if (p.classification) return false; }
+      else if (p.classification !== classificationFilter) return false;
+    }
     if (statusFilter === 'active' && !p.isActive) return false;
     if (statusFilter === 'inactive' && p.isActive) return false;
     return true;
@@ -174,6 +179,19 @@ export default function FrontOfficeProductsPage() {
   const scheduledPromos = promotions.filter(p => p.isActive && new Date(p.startsAt) > now).length;
 
   const formatPrice = (p: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(p);
+
+  const classificationLabel = (c: string | null) => {
+    if (c === 'acne') return 'Acne';
+    if (c === 'brightening') return 'Brightening';
+    if (c === 'antiaging') return 'Anti Aging';
+    return null;
+  };
+  const classificationBadgeColor = (c: string | null) => {
+    if (c === 'acne') return 'bg-teal-500/10 text-teal-400';
+    if (c === 'brightening') return 'bg-pink-500/10 text-pink-400';
+    if (c === 'antiaging') return 'bg-amber-500/10 text-amber-400';
+    return 'bg-white/5 text-white/25';
+  };
 
   const getEffectivePrice = (product: Product) => {
     const active = product.promotions.find(
@@ -465,6 +483,19 @@ export default function FrontOfficeProductsPage() {
           </select>
           {tab === 'products' && (
             <select
+              value={classificationFilter}
+              onChange={e => setClassificationFilter(e.target.value)}
+              className="fo-glass-input rounded-xl px-3 py-2.5 text-sm bg-[#080808]"
+            >
+              <option value="all">Semua Varian</option>
+              <option value="acne">Acne</option>
+              <option value="brightening">Brightening</option>
+              <option value="antiaging">Anti Aging</option>
+              <option value="__none__">Belum Diklasifikasikan</option>
+            </select>
+          )}
+          {tab === 'products' && (
+            <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
               className="fo-glass-input rounded-xl px-3 py-2.5 text-sm bg-[#080808]"
@@ -512,7 +543,7 @@ export default function FrontOfficeProductsPage() {
           <>
             {filteredProducts.length === 0 ? (
               <div className="text-center py-20 text-white/30">
-                {search || catFilter !== CATEGORY_FILTER_ALL ? 'Tidak ada produk dengan filter ini' : 'Belum ada produk'}
+                {search || catFilter !== CATEGORY_FILTER_ALL || classificationFilter !== 'all' ? 'Tidak ada produk dengan filter ini' : 'Belum ada produk'}
               </div>
             ) : (
               viewMode === 'list' ? (
@@ -533,6 +564,11 @@ export default function FrontOfficeProductsPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-semibold text-white/85 text-sm">{p.name}</h3>
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{p.category.name}</span>
+                            {classificationLabel(p.classification) && (
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full ${classificationBadgeColor(p.classification)}`}>
+                                {classificationLabel(p.classification)}
+                              </span>
+                            )}
                             {!p.isActive && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">Nonaktif</span>}
                           </div>
                           <p className="text-xs text-white/35 mt-1">{p.size}{p.headline && ` — ${p.headline}`}</p>
@@ -582,6 +618,14 @@ export default function FrontOfficeProductsPage() {
                           )}
                         </div>
                         <h4 className="font-semibold text-white/80 text-xs leading-tight flex-1">{p.name}</h4>
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary/70">{p.category.name}</span>
+                          {classificationLabel(p.classification) && (
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${classificationBadgeColor(p.classification)}`}>
+                              {classificationLabel(p.classification)}
+                            </span>
+                          )}
+                        </div>
                         <div className="mt-2">
                           {!p.isActive && <span className="block text-center text-[9px] mb-1 px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">Nonaktif</span>}
                           {hasPromo ? (

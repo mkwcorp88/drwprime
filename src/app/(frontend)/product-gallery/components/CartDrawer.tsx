@@ -10,6 +10,7 @@ import { validateCheckout, type FieldErrors } from '@/features/product-commerce/
 interface CartDrawerProps {
   open: boolean;
   cart: CartItem[];
+  mode?: 'cart' | 'buy_now';
   onClose: () => void;
   onRemoveItem: (id: string) => void;
   onUpdateQuantity: (id: string, delta: number) => void;
@@ -47,7 +48,7 @@ const EMPTY_FORM: CheckoutForm = {
 };
 
 export default function CartDrawer({
-  open, cart, onClose, onRemoveItem, onUpdateQuantity, onCheckout, pendingOrder, clearPendingOrder,
+  open, cart, mode = 'cart', onClose, onRemoveItem, onUpdateQuantity, onCheckout, pendingOrder, clearPendingOrder,
 }: CartDrawerProps) {
   const [form, setForm] = useState<CheckoutForm>(EMPTY_FORM);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -116,10 +117,11 @@ export default function CartDrawer({
         <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Keranjang" tabIndex={-1} className="h-full flex flex-col bg-white shadow-xl outline-none lg:border-r lg:border-stone-100">
           <header className="flex items-center justify-between p-5 border-b border-stone-100 flex-shrink-0">
             <h2 className="font-bold text-lg flex items-center gap-2 text-stone-800">
-              <svg className="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
-              </svg>
-              Keranjang
+              {mode === 'buy_now' ? (
+                <><svg className="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> Beli Sekarang</>
+              ) : (
+                <><svg className="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" /></svg> Keranjang</>
+              )}
               {cart.length > 0 && <span className="text-sm font-normal text-stone-400">({cart.length})</span>}
             </h2>
             <button onClick={handleClose} disabled={loading} className="text-stone-400 hover:text-stone-600 transition-colors disabled:opacity-30">
@@ -182,16 +184,22 @@ export default function CartDrawer({
                       </p>
                     </div>
                     <div className="flex flex-col items-end justify-between">
-                      <button onClick={() => onRemoveItem(item.product.id)} className="text-stone-300 hover:text-red-400 transition-colors p-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                      <div className="flex items-center gap-1 bg-stone-100 rounded-lg p-0.5">
-                        <button onClick={() => onUpdateQuantity(item.product.id, -1)} className="w-7 h-7 rounded-md flex items-center justify-center text-stone-400 text-sm font-semibold hover:bg-stone-200">-</button>
-                        <span className="w-6 text-center text-xs font-semibold text-stone-700">{item.quantity}</span>
-                        <button onClick={() => onUpdateQuantity(item.product.id, 1)} className="w-7 h-7 rounded-md flex items-center justify-center text-stone-400 text-sm font-semibold hover:bg-stone-200">+</button>
-                      </div>
+                      {mode === 'cart' && (
+                        <button onClick={() => onRemoveItem(item.product.id)} className="text-stone-300 hover:text-red-400 transition-colors p-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                      {mode === 'cart' ? (
+                        <div className="flex items-center gap-1 bg-stone-100 rounded-lg p-0.5">
+                          <button onClick={() => onUpdateQuantity(item.product.id, -1)} className="w-7 h-7 rounded-md flex items-center justify-center text-stone-400 text-sm font-semibold hover:bg-stone-200">-</button>
+                          <span className="w-6 text-center text-xs font-semibold text-stone-700">{item.quantity}</span>
+                          <button onClick={() => onUpdateQuantity(item.product.id, 1)} className="w-7 h-7 rounded-md flex items-center justify-center text-stone-400 text-sm font-semibold hover:bg-stone-200">+</button>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-semibold text-stone-500">x{item.quantity}</span>
+                      )}
                     </div>
                   </div>
                 ))}

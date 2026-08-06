@@ -11,9 +11,10 @@ interface ProductDetailDialogProps {
   open: boolean;
   onClose: () => void;
   onAddToCart: (p: CatalogProduct, qty: number) => void;
+  onBuyNow: (p: CatalogProduct, qty: number) => void;
 }
 
-export default function ProductDetailDialog({ product, open, onClose, onAddToCart }: ProductDetailDialogProps) {
+export default function ProductDetailDialog({ product, open, onClose, onAddToCart, onBuyNow }: ProductDetailDialogProps) {
   const [quantity, setQuantity] = useState(1);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
@@ -144,13 +145,20 @@ export default function ProductDetailDialog({ product, open, onClose, onAddToCar
                   </div>
                   <button
                     onClick={() => { onAddToCart(product, quantity); onClose(); }}
+                    className="px-4 py-3 rounded-xl font-semibold text-sm text-white transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                    style={{ background: color, opacity: 0.8 }}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
+                    </svg>
+                    Keranjang
+                  </button>
+                  <button
+                    onClick={() => { onBuyNow(product, quantity); onClose(); }}
                     className="flex-1 min-[400px]:flex-none px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all active:scale-95 flex items-center justify-center gap-2"
                     style={{ background: color }}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
-                    </svg>
-                    + Keranjang
+                    Beli Sekarang
                   </button>
                 </div>
               </div>

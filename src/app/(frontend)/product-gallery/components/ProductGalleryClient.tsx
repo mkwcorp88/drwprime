@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useReducer, useCallback } from 'react';
 import Image from 'next/image';
-import type { CatalogProduct, CatalogCategory, CheckoutForm, PendingOrder } from '@/features/product-commerce/types';
+import type { CatalogProduct, CatalogCategory, CheckoutForm, CartItem, PendingOrder } from '@/features/product-commerce/types';
 import { cartReducer } from '@/features/product-commerce/cart-reducer';
 
 import CatalogToolbar from './CatalogToolbar';
@@ -32,6 +32,7 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
 
   const [cart, dispatch] = useReducer(cartReducer, []);
   const [cartOpen, setCartOpen] = useState(false);
+  const [cartMode, setCartMode] = useState<'cart' | 'buy_now'>('cart');
 
   const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
 
@@ -59,6 +60,20 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
   }, []);
   const removeFromCart = useCallback((id: string) => dispatch({ type: 'REMOVE_ITEM', id }), []);
   const updateQuantity = useCallback((id: string, delta: number) => dispatch({ type: 'UPDATE_QUANTITY', id, delta }), []);
+
+  const buyNow = useCallback((p: CatalogProduct, qty = 1) => {
+    dispatch({ type: 'CLEAR' });
+    dispatch({ type: 'ADD_ITEM', product: p, quantity: qty });
+    setCartMode('buy_now');
+    setCartOpen(true);
+  }, []);
+
+  const openCart = useCallback(() => {
+    if (cart.length > 0) {
+      setCartMode('cart');
+      setCartOpen(true);
+    }
+  }, [cart.length]);
 
   const handleCheckout = useCallback(async (form: CheckoutForm, idempotencyKey: string): Promise<{ paymentUrl: string; publicToken: string } | null> => {
     const res = await fetch('/api/products/doku/create-session', {
@@ -146,14 +161,15 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
             products={filtered}
             onOpenDetail={openDetail}
             onAddToCart={addToCart}
+            onBuyNow={buyNow}
             emptyMessage={search ? 'Tidak ada produk yang cocok dengan pencarian' : undefined}
           />
         </div>
       </section>
 
-      {!cartOpen && cart.length > 0 && (
+      {!cartOpen && cart.length > 0 && cartMode === 'cart' && (
         <button
-          onClick={() => setCartOpen(true)}
+          onClick={openCart}
           className="hidden lg:flex fixed bottom-10 right-10 w-14 h-14 rounded-2xl items-center justify-center shadow-lg z-50 transition-all hover:scale-105 active:scale-95 hover:shadow-xl"
           style={{ background: '#D4AF37' }}
           aria-label="Buka keranjang"
@@ -167,18 +183,20 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
         </button>
       )}
 
-      <CartDock cart={cart} onOpenCart={() => setCartOpen(true)} />
+      {!cartOpen && <CartDock cart={cart} onOpenCart={openCart} />}
 
       <ProductDetailDialog
         product={selectedProduct!}
         open={detailOpen}
         onClose={closeDetail}
         onAddToCart={addToCart}
+        onBuyNow={buyNow}
       />
 
       <CartDrawer
         open={cartOpen}
         cart={cart}
+        mode={cartMode}
         onClose={() => setCartOpen(false)}
         onRemoveItem={removeFromCart}
         onUpdateQuantity={updateQuantity}

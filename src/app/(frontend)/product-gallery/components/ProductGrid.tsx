@@ -7,10 +7,11 @@ interface ProductGridProps {
   products: CatalogProduct[];
   onOpenDetail: (p: CatalogProduct) => void;
   onAddToCart: (p: CatalogProduct) => void;
+  onBuyNow: (p: CatalogProduct) => void;
   emptyMessage?: string;
 }
 
-export default function ProductGrid({ products, onOpenDetail, onAddToCart, emptyMessage }: ProductGridProps) {
+export default function ProductGrid({ products, onOpenDetail, onAddToCart, onBuyNow, emptyMessage }: ProductGridProps) {
   if (products.length === 0) {
     return (
       <div className="text-center py-20">
@@ -33,6 +34,7 @@ export default function ProductGrid({ products, onOpenDetail, onAddToCart, empty
           product={product}
           onOpenDetail={onOpenDetail}
           onAddToCart={onAddToCart}
+          onBuyNow={onBuyNow}
         />
       ))}
     </div>

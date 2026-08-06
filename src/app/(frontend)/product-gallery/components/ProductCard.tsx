@@ -9,9 +9,10 @@ interface ProductCardProps {
   product: CatalogProduct;
   onOpenDetail: (p: CatalogProduct) => void;
   onAddToCart: (p: CatalogProduct) => void;
+  onBuyNow: (p: CatalogProduct) => void;
 }
 
-export default function ProductCard({ product, onOpenDetail, onAddToCart }: ProductCardProps) {
+export default function ProductCard({ product, onOpenDetail, onAddToCart, onBuyNow }: ProductCardProps) {
   const color = getCategoryColor(product.categoryId);
   const hasDiscount = product.effectivePrice < product.price;
 
@@ -64,16 +65,26 @@ export default function ProductCard({ product, onOpenDetail, onAddToCart }: Prod
             )}
             <p className="font-bold text-[13px] sm:text-base leading-tight truncate" style={{ color }}>{formatPrice(product.effectivePrice)}</p>
           </div>
-          <button
-            onClick={e => { e.stopPropagation(); onAddToCart(product); }}
-            className="flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-white font-bold transition-all active:scale-90"
-            style={{ background: color }}
-            aria-label={`Tambah ${product.name} ke keranjang`}
-          >
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={e => { e.stopPropagation(); onAddToCart(product); }}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-white font-bold transition-all active:scale-90"
+              style={{ background: color, opacity: 0.8 }}
+              aria-label={`Tambah ${product.name} ke keranjang`}
+            >
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
+              </svg>
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); onBuyNow(product); }}
+              className="h-9 sm:h-10 px-3 rounded-lg flex items-center justify-center text-white font-semibold text-[11px] sm:text-xs transition-all active:scale-90"
+              style={{ background: color }}
+              aria-label={`Beli ${product.name} sekarang`}
+            >
+              Beli
+            </button>
+          </div>
         </div>
       </div>
     </article>
