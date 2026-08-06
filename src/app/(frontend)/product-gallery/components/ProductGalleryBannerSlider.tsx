@@ -68,8 +68,8 @@ export default function ProductGalleryBannerSlider({ banners, fallbackSrc = '/he
 
   if (banners.length === 0) {
     return (
-      <section className="relative w-full">
-        <div className="relative w-full aspect-[16/9] max-h-[420px] overflow-hidden">
+      <section className="relative w-full bg-stone-100">
+        <div className="relative w-full aspect-[4/3] md:aspect-[16/9] overflow-hidden">
           <Image
             src={fallbackSrc}
             alt="DRW Prime Products"
@@ -108,9 +108,9 @@ export default function ProductGalleryBannerSlider({ banners, fallbackSrc = '/he
   );
 
   return (
-    <section className="relative w-full">
+    <section className="relative w-full bg-stone-100">
       <div
-        className="relative w-full aspect-[16/9] max-h-[480px] overflow-hidden group"
+        className="relative w-full aspect-[4/3] md:aspect-[16/9] overflow-hidden group"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >

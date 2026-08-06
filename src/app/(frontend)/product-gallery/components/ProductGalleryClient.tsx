@@ -122,37 +122,34 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
 
   return (
     <div className="min-h-screen bg-stone-50">
+      {/* Top Search Bar (Filling the gap below navbar) */}
+      <div className="bg-black/95 px-4 py-3 border-b border-primary/20">
+        <div className="relative max-w-2xl mx-auto">
+          <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Cari produk, manfaat, atau series..."
+            className="w-full pl-12 pr-10 py-3 rounded-xl bg-white border border-transparent text-stone-800 placeholder-stone-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm transition-all shadow-sm"
+            autoComplete="off"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600" aria-label="Hapus pencarian">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Hero / Banner Slider */}
       <ProductGalleryBannerSlider banners={banners} />
 
-      {/* Premium Header Identity */}
-      <section className="pt-10 lg:pt-14 pb-4 px-5">
-        <div className="max-w-7xl mx-auto text-center">
-          <p className="text-[11px] uppercase tracking-[0.25em] text-stone-400 font-semibold mb-3">DRW PRIME SKINCARE</p>
-          <h1 className="text-3xl lg:text-4xl font-bold text-stone-800 mb-3 tracking-tight">Etalase Perawatan Kulit</h1>
-          <p className="text-sm lg:text-base text-stone-500 max-w-lg mx-auto">Temukan rangkaian Acne, Brightening, dan Anti Aging sesuai kebutuhan kulitmu.</p>
-          <div className="flex flex-wrap items-center justify-center gap-4 lg:gap-8 mt-6 text-[11px] text-stone-400">
-            <span className="inline-flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              Produk Original
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-              Pembayaran Aman
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              Informasi Produk Lengkap
-            </span>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-5 pb-6">
+      <section className="px-5 pb-6 pt-6">
         <div className="max-w-7xl mx-auto">
           <CatalogToolbar
-            search={search}
-            onSearchChange={setSearch}
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
             activeClassification={activeClassification}

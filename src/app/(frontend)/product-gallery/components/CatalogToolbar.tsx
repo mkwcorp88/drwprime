@@ -14,8 +14,6 @@ const CLASS_ICONS: Record<string, string> = {
 const CLASS_ORDER: (string | null)[] = [null, 'acne', 'brightening', 'antiaging'];
 
 interface CatalogToolbarProps {
-  search: string;
-  onSearchChange: (v: string) => void;
   activeCategory: string;
   onCategoryChange: (id: string) => void;
   activeClassification: string;
@@ -24,8 +22,6 @@ interface CatalogToolbarProps {
 }
 
 export default function CatalogToolbar({
-  search,
-  onSearchChange,
   activeCategory,
   onCategoryChange,
   activeClassification,
@@ -36,25 +32,6 @@ export default function CatalogToolbar({
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-      <div className="relative w-full">
-        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input
-          type="search"
-          value={search}
-          onChange={e => onSearchChange(e.target.value)}
-          placeholder="Cari produk, manfaat, atau series..."
-          className="w-full pl-12 pr-10 py-3.5 rounded-xl bg-white border border-stone-200 text-stone-800 placeholder-stone-400 focus:border-stone-400 focus:outline-none focus:ring-4 focus:ring-stone-100 text-sm transition-all shadow-sm"
-          autoComplete="off"
-        />
-        {search && (
-          <button onClick={() => onSearchChange('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600" aria-label="Hapus pencarian">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        )}
-      </div>
-
       <div>
         <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-3 text-center">Kebutuhan Kulit</p>
         <div className="flex gap-4 justify-start sm:justify-center overflow-x-auto pb-2 scrollbar-hide px-2" style={{ WebkitOverflowScrolling: 'touch' }}>
