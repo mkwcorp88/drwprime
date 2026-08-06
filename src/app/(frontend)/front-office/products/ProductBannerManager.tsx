@@ -198,7 +198,6 @@ export default function ProductBannerManager() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-semibold text-white/85 text-sm">{b.title}</h3>
-                  {b.heading && <span className="text-white/40 text-xs">{b.heading}</span>}
                   <span className={`text-[10px] px-2 py-0.5 rounded-full ${b.isActive ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
                     {b.isActive ? 'Aktif' : 'Nonaktif'}
                   </span>
@@ -229,7 +228,7 @@ export default function ProductBannerManager() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-white/50 mb-1">Judul Banner *</label>
+                <label className="block text-xs font-semibold text-white/50 mb-1">Judul Banner * (Hanya untuk Admin)</label>
                 <input type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                   className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="Nama internal (tidak tampil di depan)" />
               </div>
@@ -259,28 +258,9 @@ export default function ProductBannerManager() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-white/50 mb-1">Heading / Judul Overlay</label>
-                <input type="text" value={form.heading} onChange={e => setForm(f => ({ ...f, heading: e.target.value }))}
-                  className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="Kosongkan jika teks sudah ada di gambar" />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-white/50 mb-1">Deskripsi Overlay</label>
-                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" rows={2} placeholder="Opsional" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-white/50 mb-1">Teks Tombol CTA</label>
-                  <input type="text" value={form.ctaText} onChange={e => setForm(f => ({ ...f, ctaText: e.target.value }))}
-                    className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="Lihat Produk" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-white/50 mb-1">Link CTA</label>
-                  <input type="text" value={form.ctaLink} onChange={e => setForm(f => ({ ...f, ctaLink: e.target.value }))}
-                    className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="/reservation" />
-                </div>
+                <label className="block text-xs font-semibold text-white/50 mb-1">Link Tujuan saat diklik (Opsional)</label>
+                <input type="text" value={form.ctaLink} onChange={e => setForm(f => ({ ...f, ctaLink: e.target.value }))}
+                  className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full" placeholder="Misal: /product-gallery atau https://wa.me/..." />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
