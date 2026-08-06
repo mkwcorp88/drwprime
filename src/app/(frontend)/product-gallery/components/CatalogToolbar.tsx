@@ -34,7 +34,7 @@ export default function CatalogToolbar({
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
         <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-3 text-center">Kebutuhan Kulit</p>
-        <div className="flex gap-4 justify-start sm:justify-center overflow-x-auto pb-2 scrollbar-hide px-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex gap-4 justify-start sm:justify-center overflow-x-auto pt-3 pb-4 scrollbar-hide px-2 -mt-3" style={{ WebkitOverflowScrolling: 'touch' }}>
           {CLASS_ORDER.map((c) => {
             const isAll = c === null;
             const active = isAll ? activeClassification === 'all' : activeClassification === c;
@@ -72,7 +72,7 @@ export default function CatalogToolbar({
 
       <div className="pt-2">
         <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-3 text-center">Tipe Produk</p>
-        <div className="flex gap-2 justify-start sm:justify-center overflow-x-auto pb-1 scrollbar-hide px-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex gap-2 justify-start sm:justify-center overflow-x-auto pt-2 pb-3 scrollbar-hide px-2 -mt-2" style={{ WebkitOverflowScrolling: 'touch' }}>
           {displayCategories.map(c => {
             const active = activeCategory === c.id;
             return (
