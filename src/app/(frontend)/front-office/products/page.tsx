@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import ProductBannerManager from './ProductBannerManager';
 
 type Category = { id: string; slug: string; name: string; _count?: { products: number } };
 
@@ -39,11 +40,12 @@ type Promotion = {
   product: { id: string; name: string; slug: string; price: number; imageUrl: string | null };
 };
 
-type Tab = 'products' | 'promotions';
+type Tab = 'products' | 'promotions' | 'banners';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'products', label: 'Etalase' },
   { key: 'promotions', label: 'Promo' },
+  { key: 'banners', label: 'Banner' },
 ];
 
 const CATEGORY_FILTER_ALL = '__all__';
@@ -962,6 +964,11 @@ export default function FrontOfficeProductsPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ── Tab: Banners ── */}
+        {!loading && !error && tab === 'banners' && (
+          <ProductBannerManager />
         )}
 
         {/* Delete Confirmation Overlay */}

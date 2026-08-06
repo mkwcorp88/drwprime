@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo, useReducer, useCallback } from 'react';
-import Image from 'next/image';
-import type { CatalogProduct, CatalogCategory, CheckoutForm, CartItem, PendingOrder } from '@/features/product-commerce/types';
+import type { CatalogProduct, CatalogCategory, CheckoutForm, PendingOrder } from '@/features/product-commerce/types';
+import { CLASSIFICATION_LABELS } from '@/features/product-commerce/types';
 import { cartReducer } from '@/features/product-commerce/cart-reducer';
 
 import CatalogToolbar from './CatalogToolbar';
@@ -10,14 +10,16 @@ import ProductGrid from './ProductGrid';
 import ProductDetailDialog from './ProductDetailDialog';
 import CartDock from './CartDock';
 import CartDrawer from './CartDrawer';
+import ProductGalleryBannerSlider, { type GalleryBanner } from './ProductGalleryBannerSlider';
 import { GallerySkeleton, GalleryError } from './GalleryState';
 
 interface ProductGalleryClientProps {
   initialProducts: CatalogProduct[];
   initialCategories: CatalogCategory[];
+  banners: GalleryBanner[];
 }
 
-export default function ProductGalleryClient({ initialProducts, initialCategories }: ProductGalleryClientProps) {
+export default function ProductGalleryClient({ initialProducts, initialCategories, banners }: ProductGalleryClientProps) {
   const [products] = useState<CatalogProduct[]>(initialProducts);
   const [categories] = useState<CatalogCategory[]>(initialCategories);
   const [loading] = useState(false);
@@ -120,17 +122,29 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
 
   return (
     <div className="min-h-screen bg-stone-50">
-      {/* Hero */}
-      <section className="relative w-full">
-        <div className="relative w-full aspect-[16/9] max-h-[420px] overflow-hidden">
-          <Image
-            src="/hero-products.webp"
-            alt="DRW Prime Products"
-            fill
-            className="object-cover"
-            priority
-            sizes="100vw"
-          />
+      {/* Hero / Banner Slider */}
+      <ProductGalleryBannerSlider banners={banners} />
+
+      {/* Premium Header Identity */}
+      <section className="pt-8 pb-2 px-5">
+        <div className="max-w-7xl mx-auto text-center">
+          <p className="text-[11px] uppercase tracking-[0.25em] text-stone-400 font-semibold mb-2">DRW PRIME SKINCARE</p>
+          <h1 className="text-2xl lg:text-4xl font-bold text-stone-800 mb-2 tracking-tight">Etalase Perawatan Kulit</h1>
+          <p className="text-sm text-stone-500 max-w-lg mx-auto">Temukan rangkaian Acne, Brightening, dan Anti Aging sesuai kebutuhan kulitmu.</p>
+          <div className="flex flex-wrap items-center justify-center gap-4 lg:gap-8 mt-5 text-[11px] text-stone-400">
+            <span className="inline-flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              Produk Original
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              Pembayaran Aman
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              Informasi Produk Lengkap
+            </span>
+          </div>
         </div>
       </section>
 
@@ -153,7 +167,9 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
           <div className="flex items-center justify-between mb-6">
             <p className="text-xs text-stone-400 font-medium">{filtered.length} produk</p>
             <p className="text-xs text-stone-400">
-              {activeClassification !== 'all' ? activeClassification : activeCategory !== 'all' ? activeCategory : 'Semua Series'}
+              {activeClassification !== 'all'
+                ? CLASSIFICATION_LABELS[activeClassification as keyof typeof CLASSIFICATION_LABELS] || activeClassification
+                : activeCategory !== 'all' ? activeCategory : 'Semua Series'}
             </p>
           </div>
 
