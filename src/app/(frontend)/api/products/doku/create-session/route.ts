@@ -109,7 +109,7 @@ export async function POST(req: Request) {
 
     const invoiceNumber = generateInvoiceNumber();
     const publicToken = generatePublicToken();
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || (req.headers.get('x-forwarded-host') ? `https://${req.headers.get('x-forwarded-host')}` : process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://drwprime.com');
     const returnUrl = `${appUrl}/product-gallery/order/${publicToken}`;
     const notificationUrl = `${appUrl}/api/products/doku/notification`;
     const dummyPaymentUrl = `${appUrl}/payment/${publicToken}`;
