@@ -64,13 +64,14 @@ function buildLabelSvg(data: ShippingLabelData): string {
     .filter(Boolean)
     .join(', ');
 
-  const addressLines = wrapLines(fullAddress, 48);
+  const recipientNameLines = wrapLines(data.customerName, 30).slice(0, 2);
+  const addressLines = wrapLines(fullAddress, 42).slice(0, 5);
 
   const productLines: string[] = [];
   for (const item of data.items.slice(0, 6)) {
     const parts = [item.name];
     if (item.size) parts.push(item.size);
-    parts.push(`×${item.quantity}`);
+    parts.push(`x${item.quantity}`);
     productLines.push(escapeXml(parts.join(' ')));
   }
   if (data.items.length > 6) {
@@ -81,71 +82,94 @@ function buildLabelSvg(data: ShippingLabelData): string {
     ? wrapLines(data.notes, 55).slice(0, 2)
     : [];
 
+  const recipientNameStartY = 382;
+  const recipientPhoneY = recipientNameStartY + recipientNameLines.length * 58 + 8;
+  const addressStartY = recipientPhoneY + 56;
+  const recipientEndY = addressStartY + addressLines.length * 44 + 28;
+  const invoiceY = recipientEndY + 56;
+  const paidAtY = invoiceY + 45;
+  const orderDividerY = paidAtY + 31;
+  const productsTitleY = orderDividerY + 50;
+  const productsStartY = productsTitleY + 46;
+  const productsEndY = productsStartY + productLines.length * 42 + 20;
+  const notesDividerY = productsEndY + 8;
+  const notesTitleY = notesDividerY + 38;
+  const notesStartY = notesTitleY + 38;
+
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <style>
+    .sans { font-family: "DejaVu Sans", sans-serif; }
+    .mono { font-family: "DejaVu Sans Mono", monospace; }
+  </style>
   <rect width="${w}" height="${h}" fill="#fff"/>
-  <rect x="16" y="16" width="${w - 32}" height="${h - 32}" fill="none" stroke="#111" stroke-width="3" rx="12"/>
+  <rect x="24" y="24" width="${w - 48}" height="${h - 48}" fill="none" stroke="#111" stroke-width="4" rx="12"/>
 
-  <text x="${w / 2}" y="72" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="700" fill="#444">PENGIRIM</text>
-  <text x="${w / 2}" y="104" text-anchor="middle" font-family="sans-serif" font-size="26" font-weight="700" fill="#111">${escapeXml(SENDER.name)}</text>
-  <text x="${w / 2}" y="132" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#333">${escapeXml(SENDER.phone)}</text>
-  <text x="${w / 2}" y="156" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#555">${escapeXml(SENDER.address)}</text>
-  <text x="${w / 2}" y="178" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#555">${escapeXml(SENDER.city)}</text>
+  <text class="sans" x="${w / 2}" y="78" text-anchor="middle" font-size="28" font-weight="700" fill="#444">PENGIRIM</text>
+  <text class="sans" x="${w / 2}" y="128" text-anchor="middle" font-size="44" font-weight="700" fill="#111">${escapeXml(SENDER.name)}</text>
+  <text class="sans" x="${w / 2}" y="170" text-anchor="middle" font-size="30" fill="#333">${escapeXml(SENDER.phone)}</text>
+  <text class="sans" x="${w / 2}" y="210" text-anchor="middle" font-size="28" fill="#555">${escapeXml(SENDER.address)}</text>
+  <text class="sans" x="${w / 2}" y="246" text-anchor="middle" font-size="28" fill="#555">${escapeXml(SENDER.city)}</text>
 
-  <line x1="80" y1="200" x2="${w - 80}" y2="200" stroke="#e5e5e5" stroke-width="2"/>
+  <line x1="70" y1="276" x2="${w - 70}" y2="276" stroke="#bbb" stroke-width="3"/>
 
-  <text x="${w / 2}" y="244" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="700" fill="#444">PENERIMA</text>
-  <text x="${w / 2}" y="284" text-anchor="middle" font-family="sans-serif" font-size="30" font-weight="700" fill="#111">${escapeXml(data.customerName)}</text>
-  <text x="${w / 2}" y="316" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#333">${escapeXml(data.customerPhone)}</text>
+  <text class="sans" x="${w / 2}" y="322" text-anchor="middle" font-size="32" font-weight="700" fill="#444">PENERIMA</text>
+  ${recipientNameLines
+    .map(
+      (line, i) =>
+        `<text class="sans" x="${w / 2}" y="${recipientNameStartY + i * 58}" text-anchor="middle" font-size="54" font-weight="700" fill="#111">${escapeXml(line)}</text>`,
+    )
+    .join('\n  ')}
+  <text class="sans" x="${w / 2}" y="${recipientPhoneY}" text-anchor="middle" font-size="36" fill="#333">${escapeXml(data.customerPhone)}</text>
   ${addressLines
     .map(
       (line, i) =>
-        `<text x="${w / 2}" y="${344 + i * 30}" text-anchor="middle" font-family="sans-serif" font-size="${
-          addressLines.length > 3 ? 18 : 20
+        `<text class="sans" x="${w / 2}" y="${addressStartY + i * 44}" text-anchor="middle" font-size="${
+          addressLines.length > 3 ? 32 : 36
         }" fill="#111">${escapeXml(line)}</text>`,
     )
     .join('\n  ')}
 
-  <line x1="80" y1="${addressLines.length > 4 ? 500 : 460}" x2="${w - 80}" y2="${addressLines.length > 4 ? 500 : 460}" stroke="#e5e5e5" stroke-width="2"/>
+  <line x1="70" y1="${recipientEndY}" x2="${w - 70}" y2="${recipientEndY}" stroke="#bbb" stroke-width="3"/>
 
-  <text x="80" y="${addressLines.length > 4 ? 540 : 500}" font-family="monospace" font-size="28" font-weight="700" fill="#111"># ${escapeXml(data.invoiceNumber)}</text>
-  <text x="80" y="${addressLines.length > 4 ? 574 : 534}" font-family="sans-serif" font-size="16" fill="#555">Dibayar: ${escapeXml(data.paidAt)} WIB</text>
+  <text class="mono" x="70" y="${invoiceY}" font-size="40" font-weight="700" fill="#111"># ${escapeXml(data.invoiceNumber)}</text>
+  <text class="sans" x="70" y="${paidAtY}" font-size="27" fill="#555">Dibayar: ${escapeXml(data.paidAt)} WIB</text>
 
-  <line x1="80" y1="${addressLines.length > 4 ? 598 : 558}" x2="${w - 80}" y2="${addressLines.length > 4 ? 598 : 558}" stroke="#e5e5e5" stroke-width="2"/>
+  <line x1="70" y1="${orderDividerY}" x2="${w - 70}" y2="${orderDividerY}" stroke="#bbb" stroke-width="3"/>
 
-  <text x="80" y="${addressLines.length > 4 ? 636 : 596}" font-family="sans-serif" font-size="18" font-weight="700" fill="#444">ISI PAKET</text>
+  <text class="sans" x="70" y="${productsTitleY}" font-size="30" font-weight="700" fill="#444">ISI PAKET</text>
   ${productLines
     .map(
       (line, i) =>
-        `<text x="80" y="${(addressLines.length > 4 ? 670 : 630) + i * 28}" font-family="sans-serif" font-size="18" fill="#111">${line}</text>`,
+        `<text class="sans" x="70" y="${productsStartY + i * 42}" font-size="29" fill="#111">${line}</text>`,
     )
     .join('\n  ')}
 
   ${notesLines.length > 0
-    ? `<line x1="80" y1="${(addressLines.length > 4 ? 850 : 810)}" x2="${w - 80}" y2="${(addressLines.length > 4 ? 850 : 810)}" stroke="#e5e5e5" stroke-width="2"/>
-  <text x="80" y="${(addressLines.length > 4 ? 884 : 844)}" font-family="sans-serif" font-size="14" font-weight="700" fill="#888">CATATAN</text>
+    ? `<line x1="70" y1="${notesDividerY}" x2="${w - 70}" y2="${notesDividerY}" stroke="#bbb" stroke-width="3"/>
+  <text class="sans" x="70" y="${notesTitleY}" font-size="25" font-weight="700" fill="#666">CATATAN</text>
   ${notesLines
     .map(
       (line, i) =>
-        `<text x="80" y="${(addressLines.length > 4 ? 912 : 872) + i * 22}" font-family="sans-serif" font-size="16" fill="#333">${escapeXml(line)}</text>`,
+        `<text class="sans" x="70" y="${notesStartY + i * 36}" font-size="27" fill="#333">${escapeXml(line)}</text>`,
     )
     .join('\n  ')}`
     : ''}
 
-  <rect x="80" y="${h - 180}" width="${w - 160}" height="70" rx="10" fill="#111"/>
-  <text x="${w / 2}" y="${h - 138}" text-anchor="middle" font-family="sans-serif" font-size="28" font-weight="900" fill="#fff" letter-spacing="6">LUNAS — NON-COD</text>
+  <rect x="70" y="${h - 220}" width="${w - 140}" height="96" rx="10" fill="#111"/>
+  <text class="sans" x="${w / 2}" y="${h - 156}" text-anchor="middle" font-size="48" font-weight="700" fill="#fff" letter-spacing="4">LUNAS - NON-COD</text>
 
-  <text x="${w / 2}" y="${h - 70}" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#aaa">Label alamat — bukan bukti pembayaran  |  ${escapeXml(data.generatedAt)} WIB</text>
+  <text class="sans" x="${w / 2}" y="${h - 70}" text-anchor="middle" font-size="22" fill="#777">Label alamat - bukan bukti pembayaran | ${escapeXml(data.generatedAt)} WIB</text>
 </svg>`;
 }
 
 export async function renderShippingLabelPng(data: ShippingLabelData): Promise<Buffer> {
   const svg = buildLabelSvg(data);
-  return sharp(Buffer.from(svg)).png().toBuffer();
+  return sharp(Buffer.from(svg)).png().withMetadata({ density: 300 }).toBuffer();
 }
 
 export async function renderShippingLabelJpg(data: ShippingLabelData): Promise<Buffer> {
   const svg = buildLabelSvg(data);
-  return sharp(Buffer.from(svg)).jpeg({ quality: 95 }).toBuffer();
+  return sharp(Buffer.from(svg)).jpeg({ quality: 95, chromaSubsampling: '4:4:4' }).withMetadata({ density: 300 }).toBuffer();
 }
 
 export async function renderShippingLabelPdf(data: ShippingLabelData): Promise<Buffer> {
