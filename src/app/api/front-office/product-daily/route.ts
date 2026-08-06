@@ -14,16 +14,18 @@ export async function GET(request: NextRequest) {
 
     if (date) {
       const [y, m, d] = date.split('-').map(Number);
-      const start = new Date(Date.UTC(y, m - 1, d, 17, 0, 0, 0));
-      const end = new Date(Date.UTC(y, m - 1, d + 1, 17, 0, 0, 0));
+      const start = new Date(Date.UTC(y, m - 1, d - 1, 17, 0, 0, 0));
+      const end = new Date(Date.UTC(y, m - 1, d, 17, 0, 0, 0));
       where.createdAt = { gte: start, lt: end };
     } else {
       const now = new Date();
+      const utcHour = now.getUTCHours();
       const y = now.getUTCFullYear();
       const m = now.getUTCMonth();
       const d = now.getUTCDate();
-      const start = new Date(Date.UTC(y, m, d, 17, 0, 0, 0));
-      const end = new Date(Date.UTC(y, m, d + 1, 17, 0, 0, 0));
+      const wibD = utcHour >= 17 ? d + 1 : d;
+      const start = new Date(Date.UTC(y, m, wibD - 1, 17, 0, 0, 0));
+      const end = new Date(Date.UTC(y, m, wibD, 17, 0, 0, 0));
       where.createdAt = { gte: start, lt: end };
     }
 
