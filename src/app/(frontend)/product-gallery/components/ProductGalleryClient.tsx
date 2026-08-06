@@ -126,12 +126,12 @@ export default function ProductGalleryClient({ initialProducts, initialCategorie
       <ProductGalleryBannerSlider banners={banners} />
 
       {/* Premium Header Identity */}
-      <section className="pt-8 pb-2 px-5">
+      <section className="pt-10 lg:pt-14 pb-4 px-5">
         <div className="max-w-7xl mx-auto text-center">
-          <p className="text-[11px] uppercase tracking-[0.25em] text-stone-400 font-semibold mb-2">DRW PRIME SKINCARE</p>
-          <h1 className="text-2xl lg:text-4xl font-bold text-stone-800 mb-2 tracking-tight">Etalase Perawatan Kulit</h1>
-          <p className="text-sm text-stone-500 max-w-lg mx-auto">Temukan rangkaian Acne, Brightening, dan Anti Aging sesuai kebutuhan kulitmu.</p>
-          <div className="flex flex-wrap items-center justify-center gap-4 lg:gap-8 mt-5 text-[11px] text-stone-400">
+          <p className="text-[11px] uppercase tracking-[0.25em] text-stone-400 font-semibold mb-3">DRW PRIME SKINCARE</p>
+          <h1 className="text-3xl lg:text-4xl font-bold text-stone-800 mb-3 tracking-tight">Etalase Perawatan Kulit</h1>
+          <p className="text-sm lg:text-base text-stone-500 max-w-lg mx-auto">Temukan rangkaian Acne, Brightening, dan Anti Aging sesuai kebutuhan kulitmu.</p>
+          <div className="flex flex-wrap items-center justify-center gap-4 lg:gap-8 mt-6 text-[11px] text-stone-400">
             <span className="inline-flex items-center gap-1.5">
               <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               Produk Original

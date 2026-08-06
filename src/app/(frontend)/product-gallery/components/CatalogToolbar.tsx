@@ -35,8 +35,8 @@ export default function CatalogToolbar({
   const displayCategories = [{ id: 'all', name: 'Semua Tipe' }, ...categories.map(c => ({ id: c.id, name: c.name }))];
 
   return (
-    <div className="space-y-5">
-      <div className="relative max-w-xl mx-auto">
+    <div className="space-y-6 max-w-2xl mx-auto">
+      <div className="relative w-full">
         <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
@@ -45,7 +45,7 @@ export default function CatalogToolbar({
           value={search}
           onChange={e => onSearchChange(e.target.value)}
           placeholder="Cari produk, manfaat, atau series..."
-          className="w-full pl-12 pr-10 py-3 rounded-xl bg-white border border-stone-200 text-stone-800 placeholder-stone-400 focus:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-100 text-sm transition-all"
+          className="w-full pl-12 pr-10 py-3.5 rounded-xl bg-white border border-stone-200 text-stone-800 placeholder-stone-400 focus:border-stone-400 focus:outline-none focus:ring-4 focus:ring-stone-100 text-sm transition-all shadow-sm"
           autoComplete="off"
         />
         {search && (
@@ -56,8 +56,8 @@ export default function CatalogToolbar({
       </div>
 
       <div>
-        <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-2">Kebutuhan Kulit</p>
-        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-3 text-center">Kebutuhan Kulit</p>
+        <div className="flex gap-4 justify-start sm:justify-center overflow-x-auto pb-2 scrollbar-hide px-2" style={{ WebkitOverflowScrolling: 'touch' }}>
           {CLASS_ORDER.map((c) => {
             const isAll = c === null;
             const active = isAll ? activeClassification === 'all' : activeClassification === c;
@@ -66,25 +66,25 @@ export default function CatalogToolbar({
               <button
                 key={isAll ? 'all' : c}
                 onClick={() => onClassificationChange(isAll ? 'all' : c!)}
-                className={`shrink-0 flex flex-col items-center gap-1.5 transition-all ${active ? 'scale-105' : 'opacity-70 hover:opacity-100'}`}
+                className={`shrink-0 flex flex-col items-center gap-2 transition-all ${active ? '-translate-y-1' : 'opacity-80 hover:opacity-100 hover:-translate-y-0.5'}`}
                 aria-pressed={active}
               >
                 <div
-                  className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl flex items-center justify-center overflow-hidden transition-all"
+                  className="w-16 h-16 lg:w-20 lg:h-20 rounded-[1.25rem] flex items-center justify-center overflow-hidden transition-all shadow-sm"
                   style={{
-                    background: active ? `${color}12` : 'transparent',
-                    border: active ? `2px solid ${color}` : '2px solid transparent',
+                    background: isAll ? (active ? `${color}15` : '#f8f8f8') : 'transparent',
+                    boxShadow: active ? `0 0 0 2px ${color}, 0 4px 12px ${color}25` : '0 2px 8px rgba(0,0,0,0.04)',
                   }}
                 >
                   {isAll ? (
-                    <svg className="w-7 h-7 lg:w-8 lg:h-8" style={{ color }} fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <svg className="w-8 h-8 lg:w-10 lg:h-10" style={{ color: active ? color : '#a8a29e' }} fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                     </svg>
                   ) : (
-                    <Image src={CLASS_ICONS[c]} alt={CLASSIFICATION_LABELS[c as keyof typeof CLASSIFICATION_LABELS]} width={48} height={48} className="w-8 h-8 lg:w-10 lg:h-10 object-contain" />
+                    <Image src={CLASS_ICONS[c]} alt={CLASSIFICATION_LABELS[c as keyof typeof CLASSIFICATION_LABELS]} width={80} height={80} className="w-full h-full object-cover" />
                   )}
                 </div>
-                <span className={`text-[11px] font-semibold whitespace-nowrap ${active ? 'text-stone-700' : 'text-stone-400'}`}>
+                <span className={`text-[11px] lg:text-xs font-semibold whitespace-nowrap ${active ? 'text-stone-800' : 'text-stone-500'}`}>
                   {isAll ? 'Semua' : CLASSIFICATION_LABELS[c as keyof typeof CLASSIFICATION_LABELS]}
                 </span>
               </button>
@@ -93,9 +93,9 @@ export default function CatalogToolbar({
         </div>
       </div>
 
-      <div>
-        <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-2">Tipe Produk</p>
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="pt-2">
+        <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-3 text-center">Tipe Produk</p>
+        <div className="flex gap-2 justify-start sm:justify-center overflow-x-auto pb-1 scrollbar-hide px-2" style={{ WebkitOverflowScrolling: 'touch' }}>
           {displayCategories.map(c => {
             const active = activeCategory === c.id;
             return (
