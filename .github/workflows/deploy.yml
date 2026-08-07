@@ -10,7 +10,7 @@ env:
   DEPLOY_IMAGE: ghcr.io/mkwcorp88/drwprime
   LOCAL_IMAGE: 127.0.0.1:5555/drwprime
   COOLIFY_API_URL: http://127.0.0.1:8000/api/v1
-  COOLIFY_APP_UUID: k79t06olv0zwlwpdy3n4gpdm
+  COOLIFY_APP_DOMAIN: drwprime.com
   REGISTRY_HOST_PORT: 127.0.0.1:5555
 
 jobs:
@@ -78,6 +78,10 @@ jobs:
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
       IMAGE_TAG: ${{ github.sha }}
     steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Mirror to local registry
         run: |
           printf '%s' "${{ github.token }}" | docker login "$REGISTRY" --username "${{ github.actor }}" --password-stdin
@@ -91,17 +95,55 @@ jobs:
       - name: Update Coolify & deploy
         run: |
           set -euo pipefail
+
+          applications="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $COOLIFY_TOKEN" \
+            "$COOLIFY_API_URL/applications")"
+
+          app_uuid="$(printf '%s' "$applications" | node -e '
+            let input = "";
+            process.stdin.setEncoding("utf8");
+            process.stdin.on("data", chunk => { input += chunk; });
+            process.stdin.on("end", () => {
+              const applications = JSON.parse(input);
+              const targetDomain = process.env.COOLIFY_APP_DOMAIN.toLowerCase();
+              const targetName = targetDomain.split(".")[0];
+              const matchesDomain = application => String(application.fqdn || "")
+                .split(",")
+                .some(value => {
+                  const domain = value.trim();
+                  try {
+                    return new URL(domain).hostname.toLowerCase() === targetDomain;
+                  } catch {
+                    return domain.toLowerCase() === targetDomain;
+                  }
+                });
+              const application = applications.find(matchesDomain)
+                || applications.find(item => String(item.name || "").toLowerCase() === targetName);
+
+              if (!application?.uuid) {
+                const available = applications.map(item => `${item.name || "unnamed"} (${item.fqdn || "no domain"})`);
+                console.error(`No Coolify application matched ${targetDomain}. Available: ${available.join(", ")}`);
+                process.exit(1);
+              }
+
+              process.stdout.write(application.uuid);
+            });
+          ')"
+
+          printf 'COOLIFY_APP_UUID=%s\n' "$app_uuid" >> "$GITHUB_ENV"
+
           curl --fail-with-body --silent --show-error \
             --request PATCH \
             --header "Authorization: Bearer $COOLIFY_TOKEN" \
             --header "Content-Type: application/json" \
             --data "{\"docker_registry_image_name\":\"$LOCAL_IMAGE\",\"docker_registry_image_tag\":\"$IMAGE_TAG\"}" \
-            "$COOLIFY_API_URL/applications/$COOLIFY_APP_UUID"
+            "$COOLIFY_API_URL/applications/$app_uuid"
 
           curl --fail-with-body --silent --show-error \
             --request GET \
             --header "Authorization: Bearer $COOLIFY_TOKEN" \
-            "$COOLIFY_API_URL/deploy?uuid=$COOLIFY_APP_UUID&force=true"
+            "$COOLIFY_API_URL/deploy?uuid=$app_uuid&force=true"
 
       - name: Wait for healthy container
         run: |
