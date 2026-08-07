@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import { useRunningText } from '@/components/RunningTextProvider';
 
 type Banner = {
   id: string;
@@ -37,8 +38,13 @@ const initialForm = {
 };
 
 export default function ProductBannerManager() {
+  const { runningText, setRunningText } = useRunningText();
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [runningTextDraft, setRunningTextDraft] = useState(runningText);
+  const [runningTextSaving, setRunningTextSaving] = useState(false);
+  const [runningTextError, setRunningTextError] = useState('');
+  const [runningTextSuccess, setRunningTextSuccess] = useState('');
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -59,6 +65,45 @@ export default function ProductBannerManager() {
   }, []);
 
   useEffect(() => { fetchBanners(); }, [fetchBanners]);
+
+  useEffect(() => {
+    setRunningTextDraft(runningText);
+  }, [runningText]);
+
+  const handleRunningTextSave = async () => {
+    const text = runningTextDraft.trim();
+    if (!text) {
+      setRunningTextError('Running text wajib diisi');
+      setRunningTextSuccess('');
+      return;
+    }
+
+    setRunningTextSaving(true);
+    setRunningTextError('');
+    setRunningTextSuccess('');
+
+    try {
+      const res = await fetch('/api/front-office/running-text', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setRunningTextError(data.error || 'Gagal menyimpan running text');
+        return;
+      }
+
+      setRunningText(data.text);
+      setRunningTextDraft(data.text);
+      setRunningTextSuccess(data.message || 'Running text berhasil disimpan');
+    } catch {
+      setRunningTextError('Gagal menyimpan running text');
+    } finally {
+      setRunningTextSaving(false);
+    }
+  };
 
   const openCreate = () => {
     setForm(initialForm);
@@ -177,6 +222,43 @@ export default function ProductBannerManager() {
 
   return (
     <>
+      <section className="fo-glass-card-soft rounded-2xl p-5 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+          <div>
+            <h2 className="font-semibold text-white/85">Running Text</h2>
+            <p className="text-xs text-white/40 mt-1">Teks ini tampil di bagian paling atas website pada desktop dan mobile.</p>
+          </div>
+          <span className="text-[10px] text-white/30 shrink-0">{runningTextDraft.length}/500 karakter</span>
+        </div>
+
+        <textarea
+          value={runningTextDraft}
+          onChange={e => {
+            setRunningTextDraft(e.target.value);
+            setRunningTextError('');
+            setRunningTextSuccess('');
+          }}
+          maxLength={500}
+          rows={3}
+          className="fo-glass-input rounded-xl px-3 py-2.5 text-sm w-full resize-y"
+          placeholder="Masukkan running text..."
+        />
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-3">
+          <div>
+            {runningTextError && <p className="text-red-400 text-xs">{runningTextError}</p>}
+            {runningTextSuccess && <p className="text-emerald-400 text-xs">{runningTextSuccess}</p>}
+          </div>
+          <button
+            onClick={handleRunningTextSave}
+            disabled={runningTextSaving || !runningTextDraft.trim() || runningTextDraft.trim() === runningText}
+            className="fo-ios-btn fo-ios-btn-primary text-sm disabled:opacity-50"
+          >
+            {runningTextSaving ? 'Menyimpan...' : 'Simpan Running Text'}
+          </button>
+        </div>
+      </section>
+
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <p className="text-white/40 text-xs">{banners.length} banner — {banners.filter(b => b.isActive).length} aktif</p>
         <button onClick={openCreate} className="fo-ios-btn fo-ios-btn-primary text-sm">+ Banner Baru</button>

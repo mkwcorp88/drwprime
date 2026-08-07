@@ -3,6 +3,8 @@ import { ClerkProvider } from "@clerk/nextjs";
 import Script from "next/script";
 import "./globals.css";
 import { SITE_URL, SITE_NAME, DEFAULT_OG_IMAGE } from "@/lib/seo";
+import { getRunningText } from "@/lib/running-text";
+import { RunningTextProvider } from "@/components/RunningTextProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -55,11 +57,13 @@ export const viewport: Viewport = {
   themeColor: "#D4AF37",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const runningText = await getRunningText();
+
   return (
     <ClerkProvider>
       <html lang="id">
@@ -144,7 +148,9 @@ export default function RootLayout({
               style={{ display: 'none', visibility: 'hidden' }}
             />
           </noscript>
-          {children}
+          <RunningTextProvider initialText={runningText}>
+            {children}
+          </RunningTextProvider>
         </body>
       </html>
     </ClerkProvider>

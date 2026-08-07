@@ -45,7 +45,7 @@ type Tab = 'products' | 'promotions' | 'banners';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'products', label: 'Etalase' },
   { key: 'promotions', label: 'Promo' },
-  { key: 'banners', label: 'Banner' },
+  { key: 'banners', label: 'Banner & Running Text' },
 ];
 
 const CATEGORY_FILTER_ALL = '__all__';
@@ -417,8 +417,8 @@ export default function FrontOfficeProductsPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-white/90">Products & Promo</h1>
-            <p className="text-sm text-white/40 mt-1">Kelola katalog produk dan promo harga terjadwal</p>
+            <h1 className="text-2xl font-bold text-white/90">Products, Promo & Banner</h1>
+            <p className="text-sm text-white/40 mt-1">Kelola katalog, promo, banner produk, dan running text</p>
           </div>
           <div className="flex gap-3">
             <Link href="/product-gallery" target="_blank" className="fo-ios-btn fo-ios-btn-neutral text-xs">Lihat Etalase</Link>
@@ -443,7 +443,7 @@ export default function FrontOfficeProductsPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           {TABS.map(t => (
             <button
               key={t.key}
@@ -456,16 +456,18 @@ export default function FrontOfficeProductsPage() {
             </button>
           ))}
           <div className="flex-1" />
-          <button
-            onClick={tab === 'products' ? openAddProduct : openAddPromo}
-            className="fo-ios-btn fo-ios-btn-success text-xs"
-          >
-            + {tab === 'products' ? 'Produk' : 'Promo'}
-          </button>
+          {tab !== 'banners' && (
+            <button
+              onClick={tab === 'products' ? openAddProduct : openAddPromo}
+              className="fo-ios-btn fo-ios-btn-success text-xs"
+            >
+              + {tab === 'products' ? 'Produk' : 'Promo'}
+            </button>
+          )}
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 mb-6">
+        <div className={`flex flex-wrap gap-3 mb-6 ${tab === 'banners' ? 'hidden' : ''}`}>
           <input
             type="text"
             value={search}
