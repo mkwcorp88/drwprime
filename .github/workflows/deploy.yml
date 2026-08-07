@@ -78,6 +78,7 @@ jobs:
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
       IMAGE_TAG: ${{ github.sha }}
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -100,61 +101,50 @@ jobs:
             --header "Authorization: Bearer $COOLIFY_TOKEN" \
             "$COOLIFY_API_URL/applications")"
 
-          app_uuid="$(printf '%s' "$applications" | node -e '
-            let input = "";
-            process.stdin.setEncoding("utf8");
-            process.stdin.on("data", chunk => { input += chunk; });
-            process.stdin.on("end", () => {
-              const applications = JSON.parse(input);
-              const targetDomain = process.env.COOLIFY_APP_DOMAIN.toLowerCase();
-              const targetName = targetDomain.split(".")[0];
-              const matchesDomain = application => String(application.fqdn || "")
-                .split(",")
-                .some(value => {
-                  const domain = value.trim();
-                  try {
-                    return new URL(domain).hostname.toLowerCase() === targetDomain;
-                  } catch {
-                    return domain.toLowerCase() === targetDomain;
-                  }
-                });
-              const application = applications.find(matchesDomain)
-                || applications.find(item => String(item.name || "").toLowerCase() === targetName);
+          app_uuid="$(printf '%s' "$applications" \
+            | node .github/scripts/resolve-coolify-resource.mjs application "$COOLIFY_APP_DOMAIN")"
 
-              if (!application?.uuid) {
-                const available = applications.map(item => `${item.name || "unnamed"} (${item.fqdn || "no domain"})`);
-                console.error(`No Coolify application matched ${targetDomain}. Available: ${available.join(", ")}`);
-                process.exit(1);
-              }
+          if [ -n "$app_uuid" ]; then
+            curl --fail-with-body --silent --show-error \
+              --request PATCH \
+              --header "Authorization: Bearer $COOLIFY_TOKEN" \
+              --header "Content-Type: application/json" \
+              --data "{\"docker_registry_image_name\":\"$LOCAL_IMAGE\",\"docker_registry_image_tag\":\"$IMAGE_TAG\"}" \
+              "$COOLIFY_API_URL/applications/$app_uuid"
 
-              process.stdout.write(application.uuid);
-            });
-          ')"
+            curl --fail-with-body --silent --show-error \
+              --request POST \
+              --header "Authorization: Bearer $COOLIFY_TOKEN" \
+              "$COOLIFY_API_URL/deploy?uuid=$app_uuid&force=true"
+          else
+            services="$(curl --fail-with-body --silent --show-error \
+              --header "Authorization: Bearer $COOLIFY_TOKEN" \
+              "$COOLIFY_API_URL/services")"
+            service_uuid="$(printf '%s' "$services" \
+              | node .github/scripts/resolve-coolify-resource.mjs service "$COOLIFY_APP_DOMAIN")"
 
-          printf 'COOLIFY_APP_UUID=%s\n' "$app_uuid" >> "$GITHUB_ENV"
+            if [ -z "$service_uuid" ]; then
+              printf 'No Coolify application or service matched %s\n' "$COOLIFY_APP_DOMAIN" >&2
+              exit 1
+            fi
 
-          curl --fail-with-body --silent --show-error \
-            --request PATCH \
-            --header "Authorization: Bearer $COOLIFY_TOKEN" \
-            --header "Content-Type: application/json" \
-            --data "{\"docker_registry_image_name\":\"$LOCAL_IMAGE\",\"docker_registry_image_tag\":\"$IMAGE_TAG\"}" \
-            "$COOLIFY_API_URL/applications/$app_uuid"
-
-          curl --fail-with-body --silent --show-error \
-            --request GET \
-            --header "Authorization: Bearer $COOLIFY_TOKEN" \
-            "$COOLIFY_API_URL/deploy?uuid=$app_uuid&force=true"
+            curl --fail-with-body --silent --show-error \
+              --request POST \
+              --header "Authorization: Bearer $COOLIFY_TOKEN" \
+              "$COOLIFY_API_URL/services/$service_uuid/restart?latest=true"
+          fi
 
       - name: Wait for healthy container
         run: |
+          expected_image_id="$(docker image inspect "$REGISTRY_HOST_PORT/drwprime:$IMAGE_TAG" --format '{{.Id}}')"
           last_cid=""
           for i in $(seq 1 18); do
-            cid="$(docker ps -a --latest --filter "label=coolify.name=$COOLIFY_APP_UUID" --format '{{.ID}}')"
+            cid="$(docker ps -a --latest --filter "ancestor=$expected_image_id" --format '{{.ID}}')"
             if [ -n "$cid" ]; then
               last_cid="$cid"
-              tag="$(docker inspect --format '{{.Config.Image}}' "$cid")"
+              image_id="$(docker inspect --format '{{.Image}}' "$cid")"
               state="$(docker inspect --format '{{.State.Status}}' "$cid")"
-              if [ "$tag" = "$LOCAL_IMAGE:$IMAGE_TAG" ]; then
+              if [ "$image_id" = "$expected_image_id" ]; then
                 if [ "$state" != "running" ]; then
                   docker logs --tail 200 "$cid" || true
                   exit 1
