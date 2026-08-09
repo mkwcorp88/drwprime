@@ -124,11 +124,21 @@ export default function Navbar() {
             )}
             {isAdmin && (
               <li>
-                <Link 
-                  href="/front-office" 
+                <Link
+                  href="/front-office"
                   className="text-primary hover:text-primary/80 transition-colors duration-300 text-[13px] xl:text-sm font-medium tracking-normal xl:tracking-wide whitespace-nowrap"
                 >
                   FRONT OFFICE
+                </Link>
+              </li>
+            )}
+            {isAdmin && (
+              <li>
+                <Link
+                  href="/admin/seo"
+                  className="text-primary hover:text-primary/80 transition-colors duration-300 text-[13px] xl:text-sm font-medium tracking-normal xl:tracking-wide whitespace-nowrap"
+                >
+                  SEO
                 </Link>
               </li>
             )}
@@ -271,12 +281,23 @@ export default function Navbar() {
               )}
               {isAdmin && (
                 <li>
-                  <Link 
+                  <Link
                     href="/front-office"
                     onClick={() => setIsOpen(false)}
                     className="block px-5 py-3 text-primary hover:text-primary/80 hover:bg-primary/10 transition-colors duration-300 text-sm font-medium tracking-wide"
                   >
                     FRONT OFFICE
+                  </Link>
+                </li>
+              )}
+              {isAdmin && (
+                <li>
+                  <Link
+                    href="/admin/seo"
+                    onClick={() => setIsOpen(false)}
+                    className="block px-5 py-3 text-primary hover:text-primary/80 hover:bg-primary/10 transition-colors duration-300 text-sm font-medium tracking-wide"
+                  >
+                    SEO
                   </Link>
                 </li>
               )}
