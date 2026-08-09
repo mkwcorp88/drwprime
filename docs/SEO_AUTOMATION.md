@@ -153,7 +153,7 @@ Di server: `/opt/git/drwprime.env` (dibaca `deploy-drwprime.sh` saat `docker run
 | `TELEGRAM_BOT_TOKEN` | opsional | Notifikasi |
 | `TELEGRAM_CHAT_ID` | opsional | Notifikasi |
 | `BLOG_ARTICLES_PER_DAY` | opsional | Default `1` |
-| `GEO_GEN_GEMINI_MODEL` | opsional | Default `gemini-2.5-flash` |
+| `GEO_GEN_GEMINI_MODEL` | opsional | Default `gemini-flash-latest` |
 | `GEO_IMAGE_GEMINI_MODEL` | opsional | Default `gemini-2.5-flash-image` |
 
 Semuanya runtime-only (bukan build-arg) — cukup redeploy agar container membacanya.
@@ -203,6 +203,22 @@ jadwal menerbitkan secara normal.
   auto-push, jadi drift ini dorman — tapi jangan arahkan dev ke DB prod.
 - **Node 25 mematahkan loader Payload** (`loadEnv` / `ci-info` gagal di interop CJS).
   Skrip Payload standalone harus dijalankan di Node 22 — di dalam container, bukan di Mac.
+- **Jangan pin model teks balik ke `gemini-2.5-flash`.** API key drwprime terbitan baru ditolak
+  Google untuk model itu ("no longer available to new users") walaupun ia masih muncul di
+  `GET /v1beta/models`. Pakai `gemini-flash-latest`.
+- **Flash itu thinking model** — token reasoning ikut memakan `maxOutputTokens` yang sama.
+  Budget kekecilan bukan menghasilkan artikel pendek, tapi respons `MAX_TOKENS` **tanpa teks
+  sama sekali**. Karena itu budget artikel 24k, bukan 8k.
+- **Foto sumber cover wajib `.webp`.** PNG aslinya ~1.6 MB dan setelah base64 jadi request
+  >2 MB; webp cuma 20-70 KB.
+- **API Gemini kadang balas 404 dengan body kosong** secara transien untuk model yang jelas ada.
+  Retry menyelesaikannya — jangan langsung simpulkan modelnya tidak tersedia.
+- **Media disajikan langsung dari CDN**, bukan lewat `/cms-api/media/file/*`
+  (lihat `generateFileURL` di `src/payload.config.ts`). Route proxy Payload mengambil ulang objek
+  lewat AWS SDK dan MinIO ini menjawab `S3ServiceException` → dulu SEMUA cover blog 500.
+  Konsekuensi: `media.url` sekarang **absolut**, jangan lagi diberi prefix `SITE_URL`.
+- **`cdn.drwskincare.com` di balik Cloudflare memblokir UA `python-urllib` (403).** Saat mengetes
+  gambar pakai `curl`, bukan urllib — kalau tidak, akan salah kira izin bucket-nya bermasalah.
 
 ---
 
