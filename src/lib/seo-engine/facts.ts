@@ -20,16 +20,21 @@ export const COMPANY = {
   region: 'Sleman, Daerah Istimewa Yogyakarta',
 } as const;
 
-/** Real DRW Prime interior photos on the live site — used to ground the AI cover. */
+/**
+ * Real DRW Prime interior photos on the live site — used to ground the AI cover.
+ * The `.webp` variants are deliberate: the `.png` originals are ~1.6 MB each,
+ * which base64-inlines into a >2 MB Gemini request. The webp equivalents are
+ * 20-70 KB with no visible quality loss at reference-image size.
+ */
 export const SOURCE_PHOTOS = [
-  '/drwprime-facial-room.png',
-  '/drwprime-facial-room-2.png',
-  '/drwprime-laser-room.png',
-  '/drwprime-consultation-room.png',
-  '/drwprime-contouring-room.png',
-  '/drwprime-loungue.png',
-  '/drwprime-resepsionis-2.png',
-  '/drwprime-faceside.png',
+  '/drwprime-facial-room.webp',
+  '/drwprime-facial-room-2.webp',
+  '/drwprime-laser-room.webp',
+  '/drwprime-consultation-room.webp',
+  '/drwprime-contouring-room.webp',
+  '/drwprime-loungue.webp',
+  '/drwprime-resepsionis-2.webp',
+  '/drwprime-faceside.webp',
 ] as const;
 
 function formatPrice(value: number): string {

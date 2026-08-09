@@ -5,18 +5,23 @@
  * same shape already proven in the drwtrans blog engine.
  *
  * Env: GEMINI_API_KEY (or GOOGLE_API_KEY),
- *      GEO_GEN_GEMINI_MODEL   (default gemini-2.5-flash),
+ *      GEO_GEN_GEMINI_MODEL   (default gemini-flash-latest),
  *      GEO_IMAGE_GEMINI_MODEL (default gemini-2.5-flash-image).
+ *
+ * NOTE: do not "pin" the text model back to `gemini-2.5-flash` — Google now
+ * refuses it for newly issued API keys ("no longer available to new users"),
+ * even though it still appears in the models list. `gemini-flash-latest`
+ * resolves to the current Flash and is verified working with this project's key.
  */
 import { COMPANY, factSheet, SOURCE_PHOTOS } from './facts';
 import type { ArticleBlock } from './lexical';
 
 const KEY = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
-const TEXT_MODEL = process.env.GEO_GEN_GEMINI_MODEL || 'gemini-2.5-flash';
+const TEXT_MODEL = process.env.GEO_GEN_GEMINI_MODEL || 'gemini-flash-latest';
 const IMAGE_MODELS = [
   process.env.GEO_IMAGE_GEMINI_MODEL || 'gemini-2.5-flash-image',
-  'gemini-2.5-flash-image-preview',
+  'gemini-3.1-flash-image',
 ];
 
 export function hasGeminiKey(): boolean {
@@ -127,10 +132,18 @@ async function callGemini<T>(prompt: string, schema: object, maxOutputTokens: nu
         throw new Error(`gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
       }
       const json = await res.json();
-      const text = (json?.candidates?.[0]?.content?.parts ?? [])
+      const candidate = json?.candidates?.[0];
+      const text = (candidate?.content?.parts ?? [])
         .map((part: { text?: string }) => part.text ?? '')
         .join('');
-      if (!text) throw new Error('empty gemini response');
+      if (!text) {
+        // Flash is a thinking model: reasoning tokens count against
+        // maxOutputTokens, so a budget that is too small returns MAX_TOKENS with
+        // no text at all rather than a short article.
+        const reason = candidate?.finishReason ?? 'unknown';
+        const thoughts = json?.usageMetadata?.thoughtsTokenCount ?? 0;
+        throw new Error(`empty gemini response (finishReason=${reason}, thoughts=${thoughts})`);
+      }
       return JSON.parse(text) as T;
     } catch (error) {
       lastError = error;
@@ -152,7 +165,9 @@ DATA:
 
 ${factSheet()}`;
 
-  const result = await callGemini<GeneratedArticle>(prompt, ARTICLE_SCHEMA, 8000);
+  // 24k, not 8k: a 700-1000 word article is ~2k tokens, but Flash spends a few
+  // thousand more on reasoning and both share this budget.
+  const result = await callGemini<GeneratedArticle>(prompt, ARTICLE_SCHEMA, 24000);
   return {
     ...result,
     tags: Array.isArray(result.tags)
