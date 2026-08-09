@@ -132,7 +132,13 @@ async function generateOne(payload: Payload, { draft }: { draft: boolean }) {
     keyword: topic.keyword,
     topicSource: topic.source,
     wordCount,
-    heroImageUrl: heroImageUrl ? `${SITE_URL}${heroImageUrl}` : null,
+    // Media URLs are absolute CDN links (see s3Storage generateFileURL); only
+    // legacy relative ones need the site prefix.
+    heroImageUrl: heroImageUrl
+      ? heroImageUrl.startsWith('http')
+        ? heroImageUrl
+        : `${SITE_URL}${heroImageUrl}`
+      : null,
   };
 }
 
