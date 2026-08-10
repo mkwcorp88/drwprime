@@ -161,18 +161,19 @@ function computeRange(
   const visitCols = visitTable.cols;
   const visitIdx = {
     tanggal: visitCols.findIndex((c) => c.id === 'B'),
-    pendapatan: visitCols.findIndex((c) => c.id === 'C'),
+    omsetProduk: visitCols.findIndex((c) => c.id === 'D'),
+    omsetTreatment: visitCols.findIndex((c) => c.id === 'G'),
     customerBaru: visitCols.findIndex((c) => c.id === 'J'),
     customerLama: visitCols.findIndex((c) => c.id === 'K'),
   };
 
   for (const row of visitTable.rows) {
-    if (!row.c || row.c.length < 4) continue;
+    if (!row.c || row.c.length < 5) continue;
     const dateKey = gvizDateToKey(cellStr(row.c[visitIdx.tanggal]));
     if (!dateKey || !entries.has(dateKey)) continue;
     const entry = entries.get(dateKey)!;
     entry.visit.visits += Math.round(cellNum(row.c[visitIdx.customerBaru]) + cellNum(row.c[visitIdx.customerLama]));
-    entry.visit.omzet += Math.round(cellNum(row.c[visitIdx.pendapatan]));
+    entry.visit.omzet += Math.round(cellNum(row.c[visitIdx.omsetProduk]) + cellNum(row.c[visitIdx.omsetTreatment]));
   }
 
   // --- Home Treatment ---
@@ -241,7 +242,7 @@ export async function GET(req: NextRequest) {
     }
 
     const [visitTable, htTable] = await Promise.all([
-      fetchSheet(GID_VISIT, 'A4:K369', 'select B, C, J, K'),
+      fetchSheet(GID_VISIT, 'A4:K369', 'select B, D, G, J, K'),
       fetchSheet(GID_HT, 'A3:M', 'select A, C, D, E, H, I, L'),
     ]);
 
