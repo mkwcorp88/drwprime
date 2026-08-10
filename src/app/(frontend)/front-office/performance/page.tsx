@@ -278,7 +278,7 @@ export default function PerformancePage() {
           <div className="mt-5 space-y-5">
             {/* Summary cards */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <SummaryCard label="Total Omzet" value={formatCurrency(totalOmzet)} color="emerald" />
+              <SummaryCard label="Total Omzet (Bruto)" value={formatCurrency(totalOmzet)} color="emerald" />
               <SummaryCard label="Total Kunjungan" value={formatNumber(totalVisits)} color="cyan" />
               <SummaryCard label="Rata² / Hari" value={formatNumber(avgDayVisits)} color="violet" />
               <SummaryCard label="Hari Aktif" value={`${daysWithActivity}/${chartData.length}`} color="amber" />
@@ -287,7 +287,7 @@ export default function PerformancePage() {
             {/* Omzet chart */}
             <Card className="fo-glass-card border-white/10 bg-transparent">
               <CardHeader>
-                <CardTitle className="text-white text-base">Omzet</CardTitle>
+                <CardTitle className="text-white text-base">Omzet (Bruto)</CardTitle>
               </CardHeader>
               <CardContent>
                 {chartData.length === 0 ? (
@@ -341,8 +341,8 @@ export default function PerformancePage() {
                         <th className="px-3 py-2">Tanggal</th>
                         <th className="px-3 py-2 text-right">Visit</th>
                         <th className="px-3 py-2 text-right">HT</th>
-                        <th className="px-3 py-2 text-right">Omzet Visit</th>
-                        <th className="px-3 py-2 text-right">Omzet HT</th>
+                        <th className="px-3 py-2 text-right">Omzet Visit (Bruto)</th>
+                        <th className="px-3 py-2 text-right">Omzet HT (Bruto)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -389,7 +389,7 @@ function DayCard({ title, date, result, showEmpty }: { title: string; date: stri
       ) : (
         <div className="divide-y divide-white/10">
           <StatRow label="Kunjungan" value={formatNumber(result.visits)} icon="users" color="cyan" />
-          <StatRow label="Omzet" value={formatCurrency(result.omzet)} icon="money" color="emerald" />
+          <StatRow label="Omzet (Bruto)" value={formatCurrency(result.omzet)} icon="money" color="emerald" />
         </div>
       )}
     </section>

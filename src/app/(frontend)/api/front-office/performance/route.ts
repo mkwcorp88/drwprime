@@ -129,11 +129,6 @@ function emptyResult(): DayResult {
   return { visits: 0, omzet: 0 };
 }
 
-function isOngkir(treatment: string): boolean {
-  const lower = treatment.toLowerCase().replace(/\s+/g, '');
-  return lower.includes('ongkir') || lower === 'ongkir';
-}
-
 function customerKey(rm: string, phone: string, name: string): string {
   const rmClean = rm.replace(/\s+/g, '').toLowerCase();
   if (rmClean) return `rm:${rmClean}`;
@@ -200,11 +195,8 @@ function computeRange(
     if (!dateKey || !entries.has(dateKey)) continue;
 
     const entry = entries.get(dateKey)!;
-    const treatmentText = cellStr(row.c[htIdx.treatment]) || '';
     const payment = Math.round(cellNum(row.c[htIdx.payment]));
-    if (!isOngkir(treatmentText)) {
-      entry.homeTreatment.omzet += payment;
-    }
+    entry.homeTreatment.omzet += payment;
 
     const key = customerKey(
       cellStr(row.c[htIdx.rm]),
