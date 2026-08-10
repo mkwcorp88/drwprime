@@ -59,38 +59,49 @@ export default function ReportProductDailyPage() {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState('');
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const fetchingRef = useRef(false);
+  const requestRef = useRef<AbortController | null>(null);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount || 0);
 
   const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    new Date(dateString).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   const fetchData = useCallback(async (dateFilter?: string, silent = false) => {
-    if (fetchingRef.current) return;
-    fetchingRef.current = true;
+    if (silent && requestRef.current) return;
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
     if (!silent) setLoading(true);
     setError('');
     try {
       const params = new URLSearchParams();
-      if (dateFilter) params.set('date', dateFilter);
-      const response = await fetch(`/api/front-office/product-daily?${params.toString()}`);
+      if (dateFilter) {
+        params.set('date', dateFilter);
+      } else {
+        params.set('scope', 'all');
+      }
+      const response = await fetch(`/api/front-office/product-daily?${params.toString()}`, { signal: controller.signal });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Gagal mengambil data');
       setData(result);
     } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') return;
       setError(e instanceof Error ? e.message : 'Terjadi kesalahan saat mengambil data');
     } finally {
-      if (!silent) setLoading(false);
-      fetchingRef.current = false;
+      if (requestRef.current === controller) {
+        if (!silent) setLoading(false);
+        requestRef.current = null;
+      }
     }
   }, []);
 
   useEffect(() => {
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
-    setSelectedDate(today);
-    fetchData(today);
+    fetchData();
+    return () => {
+      requestRef.current?.abort();
+      requestRef.current = null;
+    };
   }, [fetchData]);
 
   useEffect(() => {
@@ -109,6 +120,11 @@ export default function ReportProductDailyPage() {
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedDate(e.target.value);
     fetchData(e.target.value);
+  };
+
+  const handleShowAll = () => {
+    setSelectedDate('');
+    fetchData();
   };
 
   const paidOrders = data.orders.filter(o => o.paymentStatus === 'paid');
@@ -147,7 +163,7 @@ export default function ReportProductDailyPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `shipping-labels-${selectedDate}.pdf`;
+      a.download = `shipping-labels-${selectedDate || 'semua-transaksi'}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -191,11 +207,22 @@ export default function ReportProductDailyPage() {
             <h1 className="text-2xl font-bold">Laporan Penjualan Produk</h1>
             <p className="text-gray-400 text-sm mt-1">Label pengiriman tersedia untuk pesanan lunas</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleShowAll}
+              className={`rounded-lg border px-4 py-2 text-sm font-semibold transition-colors ${
+                selectedDate
+                  ? 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
+                  : 'border-amber-400/50 bg-amber-500/20 text-amber-300'
+              }`}
+            >
+              Semua Transaksi
+            </button>
             <input
               type="date"
               value={selectedDate}
               onChange={handleDateChange}
+              aria-label="Filter transaksi berdasarkan tanggal"
               className="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white"
             />
             <button
@@ -292,7 +319,12 @@ export default function ReportProductDailyPage() {
 
             <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
               <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-                <h2 className="text-white font-bold text-lg">Daftar Transaksi ({data.orders.length})</h2>
+                <div>
+                  <h2 className="text-white font-bold text-lg">Daftar Transaksi ({data.orders.length})</h2>
+                  <p className="mt-1 text-xs text-white/40">
+                    {selectedDate ? `Tanggal ${selectedDate.split('-').reverse().join('/')}` : 'Semua tanggal'}
+                  </p>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -377,7 +409,7 @@ export default function ReportProductDailyPage() {
                     {data.orders.length === 0 && (
                       <tr>
                         <td colSpan={9} className="px-6 py-12 text-center text-white/40">
-                          Belum ada transaksi untuk tanggal ini
+                          {selectedDate ? 'Belum ada transaksi untuk tanggal ini' : 'Belum ada transaksi produk'}
                         </td>
                       </tr>
                     )}

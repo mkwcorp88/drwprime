@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     await requireAdmin();
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
+    const showAll = searchParams.get('scope') === 'all';
 
     const where: Record<string, unknown> = {};
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
       const start = new Date(Date.UTC(y, m - 1, d - 1, 17, 0, 0, 0));
       const end = new Date(Date.UTC(y, m - 1, d, 17, 0, 0, 0));
       where.createdAt = { gte: start, lt: end };
-    } else {
+    } else if (!showAll) {
       const now = new Date();
       const utcHour = now.getUTCHours();
       const y = now.getUTCFullYear();
