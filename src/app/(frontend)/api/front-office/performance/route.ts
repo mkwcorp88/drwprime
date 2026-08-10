@@ -161,18 +161,18 @@ function computeRange(
   const visitCols = visitTable.cols;
   const visitIdx = {
     tanggal: visitCols.findIndex((c) => c.id === 'B'),
-    pendapatan: visitCols.findIndex((c) => c.id === 'C'),
+    omzetBruto: visitCols.findIndex((c) => c.id === 'F'),
     customerBaru: visitCols.findIndex((c) => c.id === 'J'),
     customerLama: visitCols.findIndex((c) => c.id === 'K'),
   };
 
   for (const row of visitTable.rows) {
-    if (!row.c || row.c.length < 4) continue;
+    if (!row.c || row.c.length < 5) continue;
     const dateKey = gvizDateToKey(cellStr(row.c[visitIdx.tanggal]));
     if (!dateKey || !entries.has(dateKey)) continue;
     const entry = entries.get(dateKey)!;
     entry.visit.visits += Math.round(cellNum(row.c[visitIdx.customerBaru]) + cellNum(row.c[visitIdx.customerLama]));
-    entry.visit.omzet += Math.round(cellNum(row.c[visitIdx.pendapatan]));
+    entry.visit.omzet += Math.round(cellNum(row.c[visitIdx.omzetBruto]));
   }
 
   // --- Home Treatment ---
@@ -182,6 +182,7 @@ function computeRange(
     customer: htCols.findIndex((c) => c.id === 'C'),
     phone: htCols.findIndex((c) => c.id === 'D'),
     rm: htCols.findIndex((c) => c.id === 'E'),
+    omzetBruto: htCols.findIndex((c) => c.id === 'F'),
     treatment: htCols.findIndex((c) => c.id === 'H'),
     payment: htCols.findIndex((c) => c.id === 'L'),
   };
@@ -190,13 +191,12 @@ function computeRange(
   for (const dk of targetDateKeys) htCustomers.set(dk, new Set());
 
   for (const row of htTable.rows) {
-    if (!row.c || row.c.length < 6) continue;
+    if (!row.c || row.c.length < 7) continue;
     const dateKey = gvizDateToKey(cellStr(row.c[htIdx.tanggal]));
     if (!dateKey || !entries.has(dateKey)) continue;
 
     const entry = entries.get(dateKey)!;
-    const payment = Math.round(cellNum(row.c[htIdx.payment]));
-    entry.homeTreatment.omzet += payment;
+    entry.homeTreatment.omzet += Math.round(cellNum(row.c[htIdx.omzetBruto]));
 
     const key = customerKey(
       cellStr(row.c[htIdx.rm]),
@@ -241,8 +241,8 @@ export async function GET(req: NextRequest) {
     }
 
     const [visitTable, htTable] = await Promise.all([
-      fetchSheet(GID_VISIT, 'A4:K369', 'select B, C, J, K'),
-      fetchSheet(GID_HT, 'A3:M', 'select A, C, D, E, H, L'),
+      fetchSheet(GID_VISIT, 'A4:K369', 'select B, C, F, J, K'),
+      fetchSheet(GID_HT, 'A3:M', 'select A, C, D, E, F, H, L'),
     ]);
 
     // --- Range mode ---
