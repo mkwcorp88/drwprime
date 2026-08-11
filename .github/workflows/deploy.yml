@@ -77,6 +77,10 @@ jobs:
     env:
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
       IMAGE_TAG: ${{ github.sha }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_URI: ${{ secrets.DATABASE_URI }}
+      PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -124,14 +128,14 @@ jobs:
               | node .github/scripts/resolve-coolify-resource.mjs service "$COOLIFY_APP_DOMAIN")"
 
             if [ -z "$service_uuid" ]; then
-              printf 'No Coolify application or service matched %s\n' "$COOLIFY_APP_DOMAIN" >&2
-              exit 1
+              bash .github/scripts/deploy-standalone.sh "$REGISTRY_HOST_PORT/drwprime:$IMAGE_TAG"
+              printf 'DEPLOY_CONTAINER_NAME=drwprime\n' >> "$GITHUB_ENV"
+            else
+              curl --fail-with-body --silent --show-error \
+                --request POST \
+                --header "Authorization: Bearer $COOLIFY_TOKEN" \
+                "$COOLIFY_API_URL/services/$service_uuid/restart?latest=true"
             fi
-
-            curl --fail-with-body --silent --show-error \
-              --request POST \
-              --header "Authorization: Bearer $COOLIFY_TOKEN" \
-              "$COOLIFY_API_URL/services/$service_uuid/restart?latest=true"
           fi
 
       - name: Wait for healthy container
@@ -139,7 +143,11 @@ jobs:
           expected_image_id="$(docker image inspect "$REGISTRY_HOST_PORT/drwprime:$IMAGE_TAG" --format '{{.Id}}')"
           last_cid=""
           for i in $(seq 1 18); do
-            cid="$(docker ps -a --latest --filter "ancestor=$expected_image_id" --format '{{.ID}}')"
+            if [ -n "${DEPLOY_CONTAINER_NAME:-}" ]; then
+              cid="$(docker ps -a --latest --filter "name=^/${DEPLOY_CONTAINER_NAME}$" --format '{{.ID}}')"
+            else
+              cid="$(docker ps -a --latest --filter "ancestor=$expected_image_id" --format '{{.ID}}')"
+            fi
             if [ -n "$cid" ]; then
               last_cid="$cid"
               image_id="$(docker inspect --format '{{.Image}}' "$cid")"
@@ -149,7 +157,8 @@ jobs:
                   docker logs --tail 200 "$cid" || true
                   exit 1
                 fi
-                if docker exec "$cid" node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+                if docker exec "$cid" node -e "fetch('http://127.0.0.1:3000/', { signal: AbortSignal.timeout(5000) }).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" \
+                  && curl --fail --silent --show-error --max-time 10 "https://$COOLIFY_APP_DOMAIN" >/dev/null; then
                   exit 0
                 fi
               fi
