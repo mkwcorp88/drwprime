@@ -13,9 +13,12 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 RUN npx prisma generate
+RUN npm run typecheck && npm run lint && npm run test
 
 ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ARG RELEASE_SHA=unknown
 ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+ENV RELEASE_SHA=${RELEASE_SHA}
 ENV NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
 ENV NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
 ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL="/admin"
@@ -48,7 +51,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 
 ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ARG RELEASE_SHA=unknown
 ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+ENV RELEASE_SHA=${RELEASE_SHA}
+LABEL org.opencontainers.image.revision=${RELEASE_SHA}
 ENV NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
 ENV NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
 ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL="/admin"
@@ -66,4 +72,6 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
 EXPOSE 3000
-CMD sh -c "npx prisma migrate deploy && npm run start"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health', { signal: AbortSignal.timeout(4000) }).then(async response => { const body = await response.json(); process.exit(response.ok && body.ok === true ? 0 : 1); }).catch(() => process.exit(1))"
+CMD ["npm", "run", "start"]

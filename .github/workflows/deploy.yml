@@ -1,22 +1,45 @@
-name: Deploy to VPS (Coolify)
+name: Deploy to VPS (manual)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: drwprime-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 env:
   REGISTRY: ghcr.io
   DEPLOY_IMAGE: ghcr.io/mkwcorp88/drwprime
-  LOCAL_IMAGE: 127.0.0.1:5555/drwprime
-  COOLIFY_API_URL: http://127.0.0.1:8000/api/v1
-  COOLIFY_APP_DOMAIN: drwprime.com
   REGISTRY_HOST_PORT: 127.0.0.1:5555
 
 jobs:
+  quality:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Require main branch
+        run: test "$GITHUB_REF" = refs/heads/main
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+
   build:
     name: Build & push
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 30
+    environment: Production
     permissions:
       contents: read
       packages: write
@@ -35,7 +58,6 @@ jobs:
           images: ${{ env.DEPLOY_IMAGE }}
           tags: |
             type=raw,value=${{ github.sha }}
-            type=raw,value=latest
 
       - uses: docker/build-push-action@v6
         with:
@@ -47,125 +69,38 @@ jobs:
           cache-to: type=registry,ref=${{ env.DEPLOY_IMAGE }}:buildcache,mode=max
           build-args: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsuZHJ3cHJpbWUuY29tJA
+            RELEASE_SHA=${{ github.sha }}
           secrets: |
             database_url=${{ secrets.DATABASE_URL }}
             database_uri=${{ secrets.DATABASE_URI }}
             payload_secret=${{ secrets.PAYLOAD_SECRET }}
             clerk_secret_key=${{ secrets.CLERK_SECRET_KEY }}
 
-  migrate:
-    name: Apply database migration
-    runs-on: self-hosted
-    needs: build
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm ci --ignore-scripts
-      - name: Apply Prisma migrations
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: npx --no-install prisma migrate deploy --schema prisma/schema.prisma
-
   deploy:
     name: Deploy
     runs-on: self-hosted
-    needs: [build, migrate]
+    needs: build
+    timeout-minutes: 20
+    environment: Production
+    permissions:
+      contents: read
+      packages: read
     env:
-      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
       IMAGE_TAG: ${{ github.sha }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      DATABASE_URI: ${{ secrets.DATABASE_URI }}
-      PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
-      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
 
       - name: Mirror to local registry
         run: |
+          set -euo pipefail
           printf '%s' "${{ github.token }}" | docker login "$REGISTRY" --username "${{ github.actor }}" --password-stdin
           docker pull "$DEPLOY_IMAGE:$IMAGE_TAG"
-          # Push via host port (127.0.0.1:5555), Coolify pulls via Docker network (drw-registry:5000)
-          docker tag "$DEPLOY_IMAGE:$IMAGE_TAG" "$REGISTRY_HOST_PORT/drwprime:latest"
           docker tag "$DEPLOY_IMAGE:$IMAGE_TAG" "$REGISTRY_HOST_PORT/drwprime:$IMAGE_TAG"
-          docker push "$REGISTRY_HOST_PORT/drwprime:latest"
           docker push "$REGISTRY_HOST_PORT/drwprime:$IMAGE_TAG"
 
-      - name: Update Coolify & deploy
+      - name: Migrate and deploy with rollback
         run: |
           set -euo pipefail
-
-          applications="$(curl --fail-with-body --silent --show-error \
-            --header "Authorization: Bearer $COOLIFY_TOKEN" \
-            "$COOLIFY_API_URL/applications")"
-
-          app_uuid="$(printf '%s' "$applications" \
-            | node .github/scripts/resolve-coolify-resource.mjs application "$COOLIFY_APP_DOMAIN")"
-
-          if [ -n "$app_uuid" ]; then
-            curl --fail-with-body --silent --show-error \
-              --request PATCH \
-              --header "Authorization: Bearer $COOLIFY_TOKEN" \
-              --header "Content-Type: application/json" \
-              --data "{\"docker_registry_image_name\":\"$LOCAL_IMAGE\",\"docker_registry_image_tag\":\"$IMAGE_TAG\"}" \
-              "$COOLIFY_API_URL/applications/$app_uuid"
-
-            curl --fail-with-body --silent --show-error \
-              --request POST \
-              --header "Authorization: Bearer $COOLIFY_TOKEN" \
-              "$COOLIFY_API_URL/deploy?uuid=$app_uuid&force=true"
-          else
-            services="$(curl --fail-with-body --silent --show-error \
-              --header "Authorization: Bearer $COOLIFY_TOKEN" \
-              "$COOLIFY_API_URL/services")"
-            service_uuid="$(printf '%s' "$services" \
-              | node .github/scripts/resolve-coolify-resource.mjs service "$COOLIFY_APP_DOMAIN")"
-
-            if [ -z "$service_uuid" ]; then
-              bash .github/scripts/deploy-standalone.sh "$REGISTRY_HOST_PORT/drwprime:$IMAGE_TAG"
-              printf 'DEPLOY_CONTAINER_NAME=drwprime\n' >> "$GITHUB_ENV"
-            else
-              curl --fail-with-body --silent --show-error \
-                --request POST \
-                --header "Authorization: Bearer $COOLIFY_TOKEN" \
-                "$COOLIFY_API_URL/services/$service_uuid/restart?latest=true"
-            fi
-          fi
-
-      - name: Wait for healthy container
-        run: |
-          expected_image_id="$(docker image inspect "$REGISTRY_HOST_PORT/drwprime:$IMAGE_TAG" --format '{{.Id}}')"
-          last_cid=""
-          for i in $(seq 1 18); do
-            if [ -n "${DEPLOY_CONTAINER_NAME:-}" ]; then
-              cid="$(docker ps -a --latest --filter "name=^/${DEPLOY_CONTAINER_NAME}$" --format '{{.ID}}')"
-            else
-              cid="$(docker ps -a --latest --filter "ancestor=$expected_image_id" --format '{{.ID}}')"
-            fi
-            if [ -n "$cid" ]; then
-              last_cid="$cid"
-              image_id="$(docker inspect --format '{{.Image}}' "$cid")"
-              state="$(docker inspect --format '{{.State.Status}}' "$cid")"
-              if [ "$image_id" = "$expected_image_id" ]; then
-                if [ "$state" != "running" ]; then
-                  docker logs --tail 200 "$cid" || true
-                  exit 1
-                fi
-                if docker exec "$cid" node -e "fetch('http://127.0.0.1:3000/', { signal: AbortSignal.timeout(5000) }).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" \
-                  && curl --fail --silent --show-error --max-time 10 "https://$COOLIFY_APP_DOMAIN" >/dev/null; then
-                  exit 0
-                fi
-              fi
-            fi
-            sleep 10
-          done
-          if [ -n "$last_cid" ]; then
-            docker logs --tail 200 "$last_cid" || true
-          fi
-          exit 1
+          bash .github/scripts/deploy-standalone.sh \
+            "$REGISTRY_HOST_PORT/drwprime:$IMAGE_TAG" \
+            "$IMAGE_TAG"

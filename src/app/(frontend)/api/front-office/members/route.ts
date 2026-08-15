@@ -131,7 +131,6 @@ export async function GET(req: NextRequest) {
 
     // Auto-sync DB: update any stale loyalty_level
     const staleUpdates = membersWithDetails
-      .filter(m => m.loyaltyLevel !== m.tier || m.loyaltyLevel !== m.loyaltyLevel) // filter actual mismatches
       .filter(m => {
         // Check if stored level differs from computed
         const stored = members.find(x => x.id === m.id);
@@ -143,7 +142,7 @@ export async function GET(req: NextRequest) {
         staleUpdates.map(m =>
           prisma.user.update({
             where: { id: m.id },
-            data: { loyaltyLevel: m.tier as any },
+            data: { loyaltyLevel: m.tier },
           })
         )
       );

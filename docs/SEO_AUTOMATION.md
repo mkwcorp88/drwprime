@@ -12,8 +12,8 @@ hanya hidup di `scripts/geo/lib/article.mjs`.
 ## 1. Ringkasan
 
 Dua job berjalan di **Cronicle .159** (`cronicle.mkwiro.online`), keduanya cuma `curl`
-ke endpoint di app drwprime — karena Cronicle dan container drwprime ada di box yang
-sama (`network_mode: host`).
+ke endpoint di app drwprime karena Cronicle dan container drwprime ada di box yang
+sama. Container drwprime memublikasikan port internal `3000` ke port host `5054`.
 
 | Job | Jadwal (WIB) | Endpoint | Fungsi |
 |---|---|---|---|

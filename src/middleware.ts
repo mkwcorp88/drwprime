@@ -30,6 +30,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/cms-auto-login',
   // SEO cron jobs (Cronicle .159) — guarded by CRON_SECRET Bearer, not Clerk.
   '/api/cron(.*)',
+  '/api/health',
   '/api/treatments(.*)',
   '/api/best-deals(.*)',
   '/api/blog(.*)',
