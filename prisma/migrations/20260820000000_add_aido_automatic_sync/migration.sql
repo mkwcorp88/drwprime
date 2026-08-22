@@ -17,7 +17,7 @@ WITH aggregate_totals AS (
   SELECT
     u."id",
     COALESCE((
-      SELECT SUM(r."final_price")
+      SELECT SUM(r."finalPrice")
       FROM "reservations" r
       WHERE r."userId" = u."id" AND r."status" = 'completed'
     ), 0) + COALESCE((
