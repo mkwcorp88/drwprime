@@ -85,3 +85,9 @@ post-cutover spending intentionally remains blocked to prevent duplicates.
 The authenticated AIDO response contract must still be verified before the
 canonical flag is enabled. Internal endpoints discovered from the web client
 are not a substitute for a vendor-supported API contract.
+
+## Review records
+
+- [`docs/AIDO_REVIEW_2026-08-21.md`](docs/AIDO_REVIEW_2026-08-21.md) records the
+  sanitized production review summary for the first manual import. Detailed
+  review artifacts with patient identifiers must stay outside the repository.
