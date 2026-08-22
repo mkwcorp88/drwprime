@@ -20,6 +20,15 @@ const TIER_LABEL: Record<string, string> = {
   Platinum: '💎 Platinum',
 };
 
+function getJakartaDate(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
 export default function SpendingScanPage() {
 
   const [scanning, setScanning] = useState(false);
@@ -33,7 +42,7 @@ export default function SpendingScanPage() {
 
   const [amount, setAmount] = useState('');
   const [treatment, setTreatment] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getJakartaDate);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
@@ -136,7 +145,7 @@ export default function SpendingScanPage() {
     setManualToken('');
     setAmount('');
     setTreatment('');
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(getJakartaDate());
   };
 
   return (
@@ -252,7 +261,7 @@ export default function SpendingScanPage() {
                       type="date"
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
-                      max={new Date().toISOString().split('T')[0]}
+                       max={getJakartaDate()}
                       className="w-full fo-glass-input rounded-lg px-3 py-2.5 text-sm [color-scheme:dark]"
                     />
                   </div>

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { ensureUniqueAffiliateCode } from '@/lib/affiliate';
 import { requireUser, handleAuthError } from '@/lib/auth';
@@ -36,6 +37,12 @@ export async function POST(req: Request) {
     if (normalizedPhone && !/^62\d{8,13}$/.test(normalizedPhone)) {
       return NextResponse.json({ error: 'Format nomor HP tidak valid' }, { status: 400 });
     }
+    if (normalizedPhone && !authUser.verifiedPhones.includes(normalizedPhone)) {
+      return NextResponse.json(
+        { error: 'Verifikasi nomor HP di akun terlebih dahulu' },
+        { status: 409 },
+      );
+    }
 
     const existingUser = await prisma.user.findUnique({
       where: { clerkUserId },
@@ -45,7 +52,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ user: existingUser });
     }
 
-    let walkInMember = null;
+    let walkInMember: { id: string; clerkUserId: string | null } | null = null;
 
     if (normalizedPhone) {
       walkInMember = await prisma.user.findUnique({
@@ -53,16 +60,10 @@ export async function POST(req: Request) {
         select: {
           id: true,
           clerkUserId: true,
-          hasAccount: true,
-          points: true,
-          totalSpending: true,
-          spendingRecords: true,
         },
       });
 
-      if (walkInMember && !walkInMember.clerkUserId) {
-        console.log(`[USER-LINK] Found walk-in member with phone ${normalizedPhone}, linking to Clerk user ${clerkUserId}`);
-      } else if (walkInMember) {
+      if (walkInMember?.clerkUserId) {
         return NextResponse.json(
           { error: 'Nomor HP ini sudah terdaftar di akun lain' },
           { status: 409 },
@@ -111,37 +112,22 @@ export async function POST(req: Request) {
     // isAdmin determined ONLY by hardcoded Clerk user ID list — never by email.
     const isAdmin = isHardcodedAdmin(clerkUserId);
 
-    let user;
-    if (walkInMember) {
-      user = await prisma.user.update({
-        where: { id: walkInMember.id },
-        data: {
-          clerkUserId,
-          email,
-          firstName: authUser.firstName || undefined,
-          lastName: lastName || undefined,
-          affiliateCode: affiliateCode || undefined,
-          isTeamLeader,
-          hasAccount: true,
-          isAdmin,
-        },
-      });
-      console.log(`[USER-LINK] Successfully linked walk-in member ${walkInMember.id} to Clerk user ${clerkUserId}`);
-    } else {
-      user = await prisma.user.create({
-        data: {
-          clerkUserId,
-          email,
-          firstName,
-          lastName,
-          phone: normalizedPhone,
-          affiliateCode,
-          isTeamLeader,
-          hasAccount: true,
-          isAdmin,
-        },
-      });
-    }
+    // A matching walk-in record may contain medical or financial data. Keep the
+    // phone unclaimed until profile completion supplies a second identity factor.
+    const user = await prisma.user.create({
+      data: {
+        clerkUserId,
+        email,
+        firstName,
+        lastName,
+        phone: walkInMember ? null : normalizedPhone,
+        affiliateCode,
+        isTeamLeader,
+        hasAccount: true,
+        isAdmin,
+        qrToken: randomUUID(),
+      },
+    });
 
     if (isTeamLeader && (preAssignedCode || referralCode)) {
       const codeToUpdate = preAssignedCode?.code || referralCode;
@@ -167,14 +153,17 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ user });
+    return NextResponse.json({
+      user,
+      identityVerificationRequired: Boolean(walkInMember),
+    });
   } catch (error) {
     if (error instanceof Error && error.name === 'AuthError') {
       return handleAuthError(error);
     }
     console.error('Error syncing user:', error);
     return NextResponse.json(
-      { error: 'Failed to sync user', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to sync user' },
       { status: 500 },
     );
   }

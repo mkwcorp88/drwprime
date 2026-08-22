@@ -1,10 +1,29 @@
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { normalizePhone } from '@/lib/phone';
 import { Prisma } from '@prisma/client';
 
 const GENDERS = ['Pria', 'Wanita'];
+
+class IdentityVerificationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'IdentityVerificationError';
+  }
+}
+
+function sameDate(left: Date | null, right: Date | null): boolean {
+  if (!left || !right) return false;
+  return left.toISOString().slice(0, 10) === right.toISOString().slice(0, 10);
+}
+
+function tierForSpending(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {
+  if (totalSpending >= 10_000_000) return 'Platinum';
+  if (totalSpending >= 5_000_000) return 'Gold';
+  if (totalSpending >= 1_000_000) return 'Silver';
+  return 'Bronze';
+}
 
 type ProfileUser = {
   firstName: string | null;
@@ -109,7 +128,7 @@ export async function PUT(req: Request) {
 
     if (!phone) {
       errors.phone = 'Nomor HP wajib diisi';
-    } else if (!/^[0-9]{8,13}$/.test(phone)) {
+    } else if (!/^62\d{8,13}$/.test(phone)) {
       errors.phone = 'Format nomor HP tidak valid';
     }
 
@@ -129,8 +148,10 @@ export async function PUT(req: Request) {
     if (!dateOfBirth) {
       errors.dateOfBirth = 'Tanggal lahir wajib diisi';
     } else {
-      dob = new Date(dateOfBirth);
-      if (Number.isNaN(dob.getTime())) {
+      dob = /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)
+        ? new Date(`${dateOfBirth}T00:00:00Z`)
+        : null;
+      if (!dob || Number.isNaN(dob.getTime()) || dob.toISOString().slice(0, 10) !== dateOfBirth) {
         errors.dateOfBirth = 'Tanggal lahir tidak valid';
       } else if (dob > new Date()) {
         errors.dateOfBirth = 'Tanggal lahir tidak boleh di masa depan';
@@ -150,7 +171,9 @@ export async function PUT(req: Request) {
       select: { 
         id: true,
         phone: true,
-        profileCompletedAt: true 
+        profileCompletedAt: true,
+        memberSince: true,
+        nomorRekamMedis: true,
       },
     });
 
@@ -158,109 +181,214 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'User not found', needsSync: true }, { status: 404 });
     }
 
-    // IMPORTANT: Check if there's a walk-in member with this phone that we should merge
     const isPhoneChanged = existing.phone !== phone;
     let walkInMember: {
       id: string;
       clerkUserId: string | null;
-      hasAccount: boolean;
-      points: number;
-      totalSpending: Prisma.Decimal;
-      memberSince: Date;
     } | null = null;
 
     if (isPhoneChanged && phone) {
+      const clerkUser = await currentUser();
+      const hasVerifiedPhone = clerkUser?.phoneNumbers.some((clerkPhone) => (
+        clerkPhone.verification?.status === 'verified'
+        && normalizePhone(clerkPhone.phoneNumber) === phone
+      ));
+      if (!hasVerifiedPhone) {
+        return NextResponse.json(
+          { error: 'Verifikasi nomor HP di akun terlebih dahulu.' },
+          { status: 409 }
+        );
+      }
+
       walkInMember = await prisma.user.findUnique({
         where: { phone },
         select: {
           id: true,
           clerkUserId: true,
-          hasAccount: true,
-          points: true,
-          totalSpending: true,
-          memberSince: true,
         },
       });
 
-      // Only merge if it's a walk-in member (no Clerk account)
       if (walkInMember && !walkInMember.clerkUserId && walkInMember.id !== existing.id) {
-        console.log(`[PROFILE-MERGE] Found walk-in member ${walkInMember.id} with phone ${phone}, merging to user ${existing.id}`);
-        
         const walkInId = walkInMember.id;
-        const walkInPoints = walkInMember.points;
-        const walkInSpending = Number(walkInMember.totalSpending);
-        const walkInMemberSince = walkInMember.memberSince;
-        
-        // Merge walk-in member data into current user account
-        await prisma.$transaction(async (tx) => {
-          // 1. Transfer all spending records from walk-in to current user
+        const user = await prisma.$transaction(async (tx) => {
+          await tx.$queryRaw`
+            SELECT "id"
+            FROM "users"
+            WHERE "id" IN (${Prisma.join([existing.id, walkInId])})
+            ORDER BY "id"
+            FOR UPDATE
+          `;
+
+          const [current, walkIn] = await Promise.all([
+            tx.user.findUnique({
+              where: { id: existing.id },
+              select: {
+                id: true,
+                nomorRekamMedis: true,
+                memberSince: true,
+                totalSpending: true,
+                loyaltyPoints: true,
+                totalReferrals: true,
+                totalEarnings: true,
+                qrToken: true,
+                lastTransactionAt: true,
+              },
+            }),
+            tx.user.findUnique({
+              where: { id: walkInId },
+              select: {
+                id: true,
+                clerkUserId: true,
+                points: true,
+                totalSpending: true,
+                loyaltyPoints: true,
+                totalReferrals: true,
+                totalEarnings: true,
+                memberSince: true,
+                nomorRekamMedis: true,
+                nik: true,
+                dateOfBirth: true,
+                qrToken: true,
+                lastTransactionAt: true,
+                _count: {
+                  select: {
+                    spendingRecords: true,
+                    riwayatTindakan: true,
+                    aidoPatientLinks: true,
+                    reservations: true,
+                    transactions: true,
+                    voucherRedemptions: true,
+                    eventRegistrations: true,
+                    bankAccounts: true,
+                    withdrawals: true,
+                  },
+                },
+              },
+            }),
+          ]);
+
+          if (!current || !walkIn || walkIn.clerkUserId) {
+            throw new IdentityVerificationError('Nomor HP telah diklaim akun lain.');
+          }
+
+          const hasSensitiveData = Boolean(
+            walkIn.nomorRekamMedis
+            || walkIn.nik
+            || walkIn.dateOfBirth
+            || walkIn.points !== 0
+            || Number(walkIn.totalSpending) !== 0
+            || Object.values(walkIn._count).some((count) => count > 0)
+          );
+          if (hasSensitiveData && !sameDate(walkIn.dateOfBirth, dob)) {
+            throw new IdentityVerificationError(
+              'Tanggal lahir tidak cocok. Hubungi admin untuk verifikasi data pasien.'
+            );
+          }
+          if (walkIn.nik && walkIn.nik !== nik) {
+            throw new IdentityVerificationError(
+              'NIK tidak cocok. Hubungi admin untuk verifikasi data pasien.'
+            );
+          }
+          if (
+            current.nomorRekamMedis
+            && walkIn.nomorRekamMedis
+            && current.nomorRekamMedis !== walkIn.nomorRekamMedis
+          ) {
+            throw new IdentityVerificationError(
+              'Data rekam medis berbeda. Hubungi admin untuk verifikasi.'
+            );
+          }
+
           await tx.spendingRecord.updateMany({
             where: { userId: walkInId },
             data: { userId: existing.id },
           });
-
-          // 2. Transfer all reservations from walk-in to current user
-          await tx.reservation.updateMany({
+          await tx.aidoPatientLink.updateMany({
+            where: { userId: walkInId },
+            data: { userId: existing.id },
+          });
+          await tx.riwayatTindakan.updateMany({
             where: { userId: walkInId },
             data: { userId: existing.id },
           });
 
-          // 3. Transfer referrals (if walk-in was a referrer)
+          if (walkIn.nomorRekamMedis) {
+            await tx.user.update({
+              where: { id: walkInId },
+              data: { nomorRekamMedis: null },
+            });
+          }
+
+          await tx.reservation.updateMany({
+            where: { userId: walkInId },
+            data: { userId: existing.id },
+          });
           await tx.reservation.updateMany({
             where: { referrerId: walkInId },
             data: { referrerId: existing.id },
           });
-
-          // 4. Transfer transactions
           await tx.transaction.updateMany({
             where: { userId: walkInId },
             data: { userId: existing.id },
           });
-
-          // 5. Transfer voucher redemptions
           await tx.voucherRedemption.updateMany({
             where: { userId: walkInId },
             data: { userId: existing.id },
           });
-
-          // 6. Transfer event registrations
           await tx.eventRegistration.updateMany({
             where: { userId: walkInId },
             data: { userId: existing.id },
           });
-
-          // 7. Transfer bank accounts
           await tx.bankAccount.updateMany({
             where: { userId: walkInId },
             data: { userId: existing.id },
           });
-
-          // 8. Transfer withdrawals
           await tx.withdrawal.updateMany({
             where: { userId: walkInId },
             data: { userId: existing.id },
           });
-
-          // 9. Update current user with merged data
-          await tx.user.update({
-            where: { id: existing.id },
-            data: {
-              points: { increment: walkInPoints },
-              totalSpending: { increment: walkInSpending },
-              // Keep the earlier memberSince date
-              memberSince: walkInMemberSince < new Date(existing.id) 
-                ? walkInMemberSince 
-                : undefined,
-            },
-          });
-
-          // 10. Delete the old walk-in member record
           await tx.user.delete({
             where: { id: walkInId },
           });
 
-          console.log(`[PROFILE-MERGE] Successfully merged walk-in member ${walkInId} into ${existing.id}`);
+          const mergedTotalSpending = Number(current.totalSpending) + Number(walkIn.totalSpending);
+          const lastTransactionAt = [current.lastTransactionAt, walkIn.lastTransactionAt]
+            .filter((date): date is Date => Boolean(date))
+            .sort((left, right) => right.getTime() - left.getTime())[0];
+          return tx.user.update({
+            where: { id: existing.id },
+            data: {
+              phone,
+              nik,
+              gender,
+              dateOfBirth: dob,
+              address,
+              city,
+              province,
+              profileCompletedAt: existing.profileCompletedAt ?? new Date(),
+              points: { increment: walkIn.points },
+              totalSpending: { increment: Number(walkIn.totalSpending) },
+              loyaltyPoints: { increment: walkIn.loyaltyPoints },
+              totalReferrals: { increment: walkIn.totalReferrals },
+              totalEarnings: { increment: Number(walkIn.totalEarnings) },
+              loyaltyLevel: tierForSpending(mergedTotalSpending),
+              nomorRekamMedis: current.nomorRekamMedis ?? walkIn.nomorRekamMedis,
+              qrToken: walkIn.qrToken ?? current.qrToken,
+              lastTransactionAt,
+              memberSince: walkIn.memberSince < current.memberSince
+                ? walkIn.memberSince
+                : undefined,
+            },
+            select: PROFILE_SELECT,
+          });
+        }, {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          maxWait: 5_000,
+          timeout: 30_000,
         });
+
+        console.log('[PROFILE-MERGE] Verified walk-in member merge completed');
+        return NextResponse.json({ profile: serializeProfile(user), merged: true });
       } else if (walkInMember && walkInMember.clerkUserId) {
         // Phone already belongs to another account with Clerk
         return NextResponse.json(
@@ -287,9 +415,18 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({ 
       profile: serializeProfile(user),
-      merged: !!walkInMember, // Tell frontend if merge happened
+      merged: false,
     });
   } catch (error) {
+    if (error instanceof IdentityVerificationError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Nomor HP atau NIK sudah terdaftar di akun lain.' },
+        { status: 409 },
+      );
+    }
     console.error('Error updating profile:', error);
     return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
   }

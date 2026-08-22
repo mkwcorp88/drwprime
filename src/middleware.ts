@@ -35,6 +35,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/categories(.*)',
   '/api/vouchers(.*)',
   '/api/webhooks(.*)',
+  // Authenticated with a dedicated bearer secret inside the route.
+  '/api/internal/aido-sync',
   // Clerk OAuth callbacks
   '/api/auth(.*)',
   // Public product commerce routes

@@ -66,6 +66,8 @@ model User {
   withdrawals       Withdrawal[]
   spendingRecords   SpendingRecord[]
   riwayatTindakan    RiwayatTindakan[]
+  aidoPatientLinks   AidoPatientLink[]
+  aidoIncomeRecords  AidoIncomeRecord[]
 
   @@index([phone])
   @@index([hasAccount])
@@ -200,14 +202,108 @@ model SpendingRecord {
   spendingDate      DateTime
   recordedByClerkId String?   // admin/FO who recorded
   source            String    @default("scan") // scan, manual
+  externalId         String?  @map("external_id")
+  registrationNumber String?  @map("registration_number")
 
   createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
 
   user              User      @relation(fields: [userId], references: [id])
 
+  @@unique([source, externalId])
   @@index([userId])
   @@index([spendingDate])
   @@map("spending_records")
+}
+
+// Stable mapping between an AIDO patient and a DRW Prime member.
+model AidoPatientLink {
+  id                       String   @id @default(cuid())
+  userId                   String   @map("user_id")
+  hospitalId               String   @map("hospital_id")
+  externalPatientId        String   @map("external_patient_id")
+  externalPatientNumericId String?  @map("external_patient_numeric_id")
+  mrNumber                 String?  @map("mr_number")
+  lastSyncedAt             DateTime @map("last_synced_at")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([hospitalId, externalPatientId])
+  @@unique([hospitalId, externalPatientNumericId])
+  @@index([userId])
+  @@index([hospitalId, mrNumber])
+  @@map("aido_patient_links")
+}
+
+// Complete AIDO income snapshot. Loyalty spending is a separate projection
+// because an income row can exist before its patient is safely matched.
+model AidoIncomeRecord {
+  id                       String   @id @default(cuid())
+  hospitalId               String   @map("hospital_id")
+  externalId               String   @map("external_id")
+  externalPatientId        String?  @map("external_patient_id")
+  externalPatientNumericId String?  @map("external_patient_numeric_id")
+  mrNumber                 String?  @map("mr_number")
+  patientName              String?  @map("patient_name")
+  registrationNumber       String?  @map("registration_number")
+  receiptNumber            String?  @map("receipt_number")
+  transactionDate          DateTime @map("transaction_date")
+  amount                   Decimal  @db.Decimal(14, 2)
+  treatment                String?
+  syncDate                 String   @map("sync_date")
+  matchStatus              String   @default("UNMATCHED") @map("match_status")
+  matchedUserId            String?  @map("matched_user_id")
+  firstSeenAt              DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt               DateTime @default(now()) @updatedAt @map("last_seen_at")
+
+  matchedUser User? @relation(fields: [matchedUserId], references: [id], onDelete: SetNull)
+
+  @@unique([hospitalId, externalId])
+  @@index([hospitalId, transactionDate])
+  @@index([hospitalId, syncDate, matchStatus])
+  @@index([matchedUserId])
+  @@map("aido_income_records")
+}
+
+// Contains counts and status only; patient identity is never written to sync logs.
+model AidoSyncRun {
+  id                  String    @id @default(cuid())
+  syncDate            String    @map("sync_date")
+  hospitalId          String?   @map("hospital_id")
+  mode                String    @default("scheduled")
+  status              String
+  patientsFetched     Int       @default(0) @map("patients_fetched")
+  patientsCreated     Int       @default(0) @map("patients_created")
+  patientsUpdated     Int       @default(0) @map("patients_updated")
+  patientConflicts    Int       @default(0) @map("patient_conflicts")
+  incomesFetched      Int       @default(0) @map("incomes_fetched")
+  incomesCreated      Int       @default(0) @map("incomes_created")
+  incomesUpdated      Int       @default(0) @map("incomes_updated")
+  incomesRemoved      Int       @default(0) @map("incomes_removed")
+  incomeLedgerCreated Int       @default(0) @map("income_ledger_created")
+  incomeLedgerUpdated Int       @default(0) @map("income_ledger_updated")
+  incomeLedgerRemoved Int       @default(0) @map("income_ledger_removed")
+  incomesMatched      Int       @default(0) @map("incomes_matched")
+  incomesUnmatched    Int       @default(0) @map("incomes_unmatched")
+  invalidRows         Int       @default(0) @map("invalid_rows")
+  errorMessage        String?   @map("error_message") @db.Text
+  startedAt           DateTime  @default(now()) @map("started_at")
+  finishedAt          DateTime? @map("finished_at")
+
+  @@index([syncDate, startedAt])
+  @@index([status])
+  @@map("aido_sync_runs")
+}
+
+model AidoSyncLock {
+  name        String   @id
+  owner       String?
+  lockedUntil DateTime @default(now()) @map("locked_until")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("aido_sync_locks")
 }
 
 // Voucher system

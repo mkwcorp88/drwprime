@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
+import { isAidoManagedSpendingDate } from '@/lib/aido/config';
 
 const TIER_THRESHOLDS = { SILVER: 1_000_000, GOLD: 5_000_000, PLATINUM: 10_000_000 };
 const RUPIAH_PER_POINT = 10_000; // Rp 10.000 = 1 poin
@@ -33,16 +34,24 @@ export async function POST(req: Request) {
 
     let spendingDate = new Date();
     if (dateInput) {
-      const parsed = new Date(dateInput);
+      const parsed = /^\d{4}-\d{2}-\d{2}$/.test(dateInput)
+        ? new Date(`${dateInput}T00:00:00+07:00`)
+        : new Date(dateInput);
       if (Number.isNaN(parsed.getTime())) {
         return NextResponse.json({ error: 'Tanggal tidak valid' }, { status: 400 });
       }
       spendingDate = parsed;
     }
+    if (isAidoManagedSpendingDate(spendingDate)) {
+      return NextResponse.json(
+        { error: 'Spending dicatat otomatis dari AIDO setelah cutover.' },
+        { status: 409 }
+      );
+    }
 
     const user = await prisma.user.findUnique({
       where: { qrToken: token },
-      select: { id: true },
+      select: { id: true, lastTransactionAt: true },
     });
 
     if (!user) {
@@ -51,8 +60,8 @@ export async function POST(req: Request) {
 
     const pointsEarned = Math.floor(amount / RUPIAH_PER_POINT);
 
-    const [, updatedUser] = await prisma.$transaction([
-      prisma.spendingRecord.create({
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      await tx.spendingRecord.create({
         data: {
           userId: user.id,
           amount,
@@ -62,35 +71,37 @@ export async function POST(req: Request) {
           source: 'scan',
           pointsEarned,
         },
-      }),
-      prisma.user.update({
+      });
+      const updated = await tx.user.update({
         where: { id: user.id },
-        data: { points: { increment: pointsEarned } },
-        select: { points: true },
-      }),
-    ]);
-
-    // Hitung ulang total spending member
-    const [reservations, spendingRecords] = await Promise.all([
-      prisma.reservation.findMany({
-        where: { userId: user.id, status: 'completed' },
-        select: { finalPrice: true },
-      }),
-      prisma.spendingRecord.findMany({
-        where: { userId: user.id },
-        select: { amount: true },
-      }),
-    ]);
-
-    const totalSpending =
-      reservations.reduce((sum, r) => sum + Number(r.finalPrice), 0) +
-      spendingRecords.reduce((sum, s) => sum + Number(s.amount), 0);
+        data: {
+          points: { increment: pointsEarned },
+          totalSpending: { increment: amount },
+        },
+        select: { points: true, totalSpending: true },
+      });
+      const totalSpending = Number(updated.totalSpending);
+      await tx.user.update({
+        where: { id: user.id },
+        data: { loyaltyLevel: computeTier(totalSpending) },
+      });
+      await tx.user.updateMany({
+        where: {
+          id: user.id,
+          OR: [{ lastTransactionAt: null }, { lastTransactionAt: { lt: spendingDate } }],
+        },
+        data: { lastTransactionAt: spendingDate },
+      });
+      return updated;
+    });
+    const totalSpending = Number(updatedUser.totalSpending);
+    const tier = computeTier(totalSpending);
 
     return NextResponse.json({
       success: true,
       message: 'Spending berhasil dicatat.',
       totalSpending,
-      tier: computeTier(totalSpending),
+      tier,
       pointsEarned,
       points: updatedUser.points,
     });

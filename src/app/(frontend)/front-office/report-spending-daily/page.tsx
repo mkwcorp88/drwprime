@@ -27,6 +27,13 @@ type DashboardData = {
   uploads: UploadItem[];
   customerSummaries: CustomerSummary[];
   scanRecords: ScanRecord[];
+  aidoRecords: AidoRecord[];
+  aidoSummary: {
+    totalRows: number;
+    totalPendapatan: number;
+    matchedRows: number;
+    unmatchedRows: number;
+  };
   totals: {
     totalPendapatan: number;
     totalKeuntungan: number;
@@ -40,6 +47,16 @@ type ScanRecord = {
   treatment: string | null;
   amount: number;
   spendingDate: string;
+};
+
+type AidoRecord = {
+  id: string;
+  namaPasien: string;
+  treatment: string | null;
+  amount: number;
+  transactionDate: string;
+  matchStatus: string;
+  matchedUserId: string | null;
 };
 
 export default function ReportSpendingDailyPage() {
@@ -56,6 +73,8 @@ export default function ReportSpendingDailyPage() {
     uploads: [],
     customerSummaries: [],
     scanRecords: [],
+    aidoRecords: [],
+    aidoSummary: { totalRows: 0, totalPendapatan: 0, matchedRows: 0, unmatchedRows: 0 },
     totals: { totalPendapatan: 0, totalKeuntungan: 0, totalKunjungan: 0 },
   });
 
@@ -93,6 +112,13 @@ export default function ReportSpendingDailyPage() {
         uploads: result.uploads || [],
         customerSummaries: result.customerSummaries || [],
         scanRecords: result.scanRecords || [],
+        aidoRecords: result.aidoRecords || [],
+        aidoSummary: result.aidoSummary || {
+          totalRows: 0,
+          totalPendapatan: 0,
+          matchedRows: 0,
+          unmatchedRows: 0,
+        },
         totals: result.totals || { totalPendapatan: 0, totalKeuntungan: 0, totalKunjungan: 0 },
       });
     } catch (e) {
@@ -104,7 +130,6 @@ export default function ReportSpendingDailyPage() {
 
   useEffect(() => {
     fetchData(selectedDate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   const handleUpload = async () => {
@@ -259,7 +284,7 @@ export default function ReportSpendingDailyPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
               <div className="fo-glass-card fo-fade-up fo-stagger-1 rounded-xl p-5 border-primary/35">
                 <p className="text-primary text-xs mb-1">Total Customer</p>
                 <p className="text-2xl font-bold text-white">{totalCustomer}</p>
@@ -276,6 +301,54 @@ export default function ReportSpendingDailyPage() {
                 <p className="text-yellow-300 text-xs mb-1">Total Kunjungan</p>
                 <p className="text-2xl font-bold text-white">{data.totals.totalKunjungan}</p>
               </div>
+              <div className="fo-glass-card fo-fade-up fo-stagger-4 rounded-xl p-5 border-cyan-500/35">
+                <p className="text-cyan-300 text-xs mb-1">Omzet AIDO</p>
+                <p className="text-xl font-bold text-white">{formatCurrency(data.aidoSummary.totalPendapatan)}</p>
+              </div>
+              <div className="fo-glass-card fo-fade-up fo-stagger-4 rounded-xl p-5 border-orange-500/35">
+                <p className="text-orange-300 text-xs mb-1">AIDO Perlu Review</p>
+                <p className="text-2xl font-bold text-white">{data.aidoSummary.unmatchedRows}</p>
+              </div>
+            </div>
+
+            <div className="fo-glass-card fo-fade-up fo-stagger-2 rounded-xl overflow-hidden mb-6">
+              <div className="p-4 border-b border-white/10 fo-glass-card-soft flex items-center justify-between gap-3">
+                <h3 className="text-white font-semibold">Income AIDO</h3>
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 whitespace-nowrap">
+                  {data.aidoSummary.matchedRows}/{data.aidoSummary.totalRows} terhubung ke member
+                </span>
+              </div>
+
+              {data.aidoRecords.length === 0 ? (
+                <div className="p-8 text-center text-white/60">Belum ada income AIDO</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="fo-glass-card-soft border-b border-white/10">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">No</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">Nama Pasien</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">Treatment</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">Nominal</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-white/70">Tanggal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/10">
+                      {data.aidoRecords.slice(0, 100).map((income, idx) => (
+                        <tr key={income.id} className="hover:bg-white/5 transition-colors">
+                          <td className="px-4 py-3 text-sm text-white/70">{idx + 1}</td>
+                          <td className="px-4 py-3 text-sm text-white">{income.namaPasien}</td>
+                          <td className="px-4 py-3 text-sm text-white/70">{income.treatment || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-cyan-200 font-semibold">{formatCurrency(income.amount)}</td>
+                          <td className="px-4 py-3 text-sm text-white/70">{income.matchStatus}</td>
+                          <td className="px-4 py-3 text-sm text-white/60 whitespace-nowrap">{formatDate(income.transactionDate)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             <div className="fo-glass-card fo-fade-up fo-stagger-2 rounded-xl overflow-hidden mb-6">

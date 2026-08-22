@@ -35,13 +35,6 @@ export async function GET(req: NextRequest) {
           hasAccount: true,
           points: true,
           totalSpending: true,
-          reservations: {
-            where: { status: 'completed' },
-            select: { finalPrice: true },
-          },
-          spendingRecords: {
-            select: { amount: true },
-          },
         },
       });
     } else if (token) {
@@ -56,13 +49,6 @@ export async function GET(req: NextRequest) {
           hasAccount: true,
           points: true,
           totalSpending: true,
-          reservations: {
-            where: { status: 'completed' },
-            select: { finalPrice: true },
-          },
-          spendingRecords: {
-            select: { amount: true },
-          },
         },
       });
     }
@@ -73,9 +59,7 @@ export async function GET(req: NextRequest) {
       }, { status: 404 });
     }
 
-    const reservationSpending = user.reservations.reduce((sum, r) => sum + Number(r.finalPrice), 0);
-    const scanSpending = user.spendingRecords.reduce((sum, s) => sum + Number(s.amount), 0);
-    const totalSpending = reservationSpending + scanSpending;
+    const totalSpending = Number(user.totalSpending);
 
     return NextResponse.json({
       member: {

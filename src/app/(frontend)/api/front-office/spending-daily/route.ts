@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import ExcelJS from 'exceljs';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
+import { isAidoManagedSpendingDate } from '@/lib/aido/config';
 
 type ParsedRow = {
   nomorInvoice: string;
@@ -19,6 +21,29 @@ type ParsedRow = {
   keuntungan: number;
 };
 
+type LinkedDailyRow = {
+  row: ParsedRow;
+  memberId: string;
+  externalId: string;
+  pointsEarned: number;
+};
+
+function normalizeName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
+}
+
+function sameDate(left: Date | null, right: Date | null): boolean {
+  return Boolean(left && right)
+    && left!.toISOString().slice(0, 10) === right!.toISOString().slice(0, 10);
+}
+
+function tierForSpending(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {
+  if (totalSpending >= 10_000_000) return 'Platinum';
+  if (totalSpending >= 5_000_000) return 'Gold';
+  if (totalSpending >= 1_000_000) return 'Silver';
+  return 'Bronze';
+}
+
 function normalizeHeader(value: unknown): string {
   return String(value ?? '')
     .trim()
@@ -26,14 +51,29 @@ function normalizeHeader(value: unknown): string {
     .replace(/\s+/g, ' ');
 }
 
-function toNumber(value: unknown): number {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+function toNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value === 'string') {
-    const cleaned = value.replace(/[^0-9,.-]/g, '').replace(',', '.');
-    const parsed = Number(cleaned);
-    return Number.isFinite(parsed) ? parsed : 0;
+    const compact = value.trim().replace(/[^0-9,.-]/g, '');
+    if (!compact) return null;
+    const commaCount = (compact.match(/,/g) || []).length;
+    const dotCount = (compact.match(/\./g) || []).length;
+    let normalized = compact;
+    if (commaCount > 0 && dotCount > 0) {
+      const decimalSeparator = compact.lastIndexOf(',') > compact.lastIndexOf('.') ? ',' : '.';
+      const thousandsSeparator = decimalSeparator === ',' ? /\./g : /,/g;
+      normalized = compact.replace(thousandsSeparator, '').replace(decimalSeparator, '.');
+    } else if (commaCount > 1 || (commaCount === 1 && /,\d{3}$/.test(compact))) {
+      normalized = compact.replace(/,/g, '');
+    } else if (dotCount > 1 || (dotCount === 1 && /\.\d{3}$/.test(compact))) {
+      normalized = compact.replace(/\./g, '');
+    } else if (commaCount === 1) {
+      normalized = compact.replace(',', '.');
+    }
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
   }
-  return 0;
+  return null;
 }
 
 function parseDateValue(value: unknown): Date | null {
@@ -57,7 +97,16 @@ function parseDateValue(value: unknown): Date | null {
 
     if (match) {
       const [, dd, mm, yyyy] = match;
-      const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+      const day = Number(dd);
+      const month = Number(mm);
+      const year = Number(yyyy);
+      const check = new Date(Date.UTC(year, month - 1, day));
+      if (
+        check.getUTCFullYear() !== year
+        || check.getUTCMonth() !== month - 1
+        || check.getUTCDate() !== day
+      ) return null;
+      const date = new Date(Date.UTC(year, month - 1, day));
       return Number.isNaN(date.getTime()) ? null : date;
     }
 
@@ -68,10 +117,74 @@ function parseDateValue(value: unknown): Date | null {
   return null;
 }
 
-function startOfDay(input: Date): Date {
-  const date = new Date(input);
-  date.setHours(0, 0, 0, 0);
-  return date;
+function parseDobValue(value: string): Date | null {
+  const trimmed = value.trim();
+  const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    const date = new Date(`${trimmed}T00:00:00Z`);
+    if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== trimmed) return null;
+    return date;
+  }
+  const indonesia = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (indonesia) {
+    const [, day, month, year] = indonesia;
+    const date = new Date(
+      `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00Z`,
+    );
+    if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`) {
+      return null;
+    }
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  return parseDateValue(value);
+}
+
+function startOfJakartaDay(input: Date): Date {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(input);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return new Date(`${values.year}-${values.month}-${values.day}T00:00:00+07:00`);
+}
+
+function formatJakartaDate(input: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(input);
+}
+
+async function recomputeLastTransactionAt(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  const [spending, reservation] = await Promise.all([
+    tx.spendingRecord.findFirst({
+      where: { userId },
+      orderBy: { spendingDate: 'desc' },
+      select: { spendingDate: true },
+    }),
+    tx.reservation.findFirst({
+      where: { userId, status: 'completed', completedAt: { not: null } },
+      orderBy: { completedAt: 'desc' },
+      select: { completedAt: true },
+    }),
+  ]);
+  const dates = [spending?.spendingDate, reservation?.completedAt]
+    .filter((date): date is Date => Boolean(date));
+  await tx.user.update({
+    where: { id: userId },
+    data: {
+      lastTransactionAt: dates.length > 0
+        ? new Date(Math.max(...dates.map((date) => date.getTime())))
+        : null,
+    },
+  });
 }
 
 export async function GET(req: NextRequest) {
@@ -87,9 +200,8 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: 'Format tanggal tidak valid' }, { status: 400 });
       }
 
-      const from = startOfDay(selectedDate);
-      const to = new Date(from);
-      to.setDate(to.getDate() + 1);
+       const from = startOfJakartaDay(selectedDate);
+       const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
       range = { gte: from, lt: to };
     }
 
@@ -112,7 +224,6 @@ export async function GET(req: NextRequest) {
         totalPendapatan: true,
         keuntungan: true,
       },
-      take: 1500,
     });
 
     const summaryMap = new Map<string, {
@@ -149,11 +260,54 @@ export async function GET(req: NextRequest) {
     }
 
     // Data hasil SCAN (sumber utama / real-time) — ikut digabung ke ringkasan
-    const scanWhere = range ? { spendingDate: range } : {};
+    const scanWhere = range
+      ? { spendingDate: range, source: 'scan' }
+      : { source: 'scan' };
+    const aidoWhere = {
+      ...(range ? { transactionDate: range } : {}),
+      ...(process.env.AIDO_HOSPITAL_ID?.trim()
+        ? { hospitalId: process.env.AIDO_HOSPITAL_ID.trim() }
+        : {}),
+    };
+    const aidoRows = await prisma.aidoIncomeRecord.findMany({
+      where: aidoWhere,
+      orderBy: { transactionDate: 'desc' },
+      select: {
+        id: true,
+        patientName: true,
+        treatment: true,
+        amount: true,
+        transactionDate: true,
+        matchStatus: true,
+        matchedUserId: true,
+      },
+    });
+
+    for (const income of aidoRows) {
+      const namaPasien = income.patientName?.trim() || 'Pasien AIDO';
+      const key = namaPasien.toLowerCase();
+      const pendapatan = Number(income.amount);
+      const current = summaryMap.get(key);
+      if (!current) {
+        summaryMap.set(key, {
+          namaPasien,
+          totalKunjungan: 1,
+          totalPendapatan: pendapatan,
+          totalKeuntungan: 0,
+          lastVisit: income.transactionDate,
+        });
+      } else {
+        current.totalKunjungan += 1;
+        current.totalPendapatan += pendapatan;
+        if (income.transactionDate > current.lastVisit) {
+          current.lastVisit = income.transactionDate;
+        }
+      }
+    }
+
     const scanRows = await prisma.spendingRecord.findMany({
       where: scanWhere,
       orderBy: { spendingDate: 'desc' },
-      take: 500,
       include: {
         user: { select: { firstName: true, lastName: true } },
       },
@@ -187,9 +341,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const customerSummaries = Array.from(summaryMap.values())
+    const allCustomerSummaries = Array.from(summaryMap.values())
       .sort((a, b) => b.totalPendapatan - a.totalPendapatan)
-      .slice(0, 100);
+    const customerSummaries = allCustomerSummaries.slice(0, 100);
 
     // Cari member yang cocok untuk setiap customer summary
     const customerNames = customerSummaries.map(s => s.namaPasien.trim());
@@ -224,7 +378,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const totals = summariesWithMember.reduce(
+    const totals = allCustomerSummaries.reduce(
       (acc, item) => {
         acc.totalPendapatan += item.totalPendapatan;
         acc.totalKeuntungan += item.totalKeuntungan;
@@ -248,7 +402,23 @@ export async function GET(req: NextRequest) {
       })),
       customerSummaries: summariesWithMember,
       totals,
+      summaryCount: allCustomerSummaries.length,
       scanRecords,
+      aidoRecords: aidoRows.map((income) => ({
+        id: income.id,
+        namaPasien: income.patientName || 'Pasien AIDO',
+        treatment: income.treatment,
+        amount: Number(income.amount),
+        transactionDate: income.transactionDate,
+        matchStatus: income.matchStatus,
+        matchedUserId: income.matchedUserId,
+      })),
+      aidoSummary: {
+        totalRows: aidoRows.length,
+        totalPendapatan: aidoRows.reduce((sum, income) => sum + Number(income.amount), 0),
+        matchedRows: aidoRows.filter((income) => income.matchStatus === 'MATCHED').length,
+        unmatchedRows: aidoRows.filter((income) => income.matchStatus !== 'MATCHED').length,
+      },
       selectedDate: dateParam,
     });
   } catch (error) {
@@ -325,32 +495,59 @@ export async function POST(req: NextRequest) {
     }
 
     const parsedRows: ParsedRow[] = [];
+    let invalidRows = 0;
 
     for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
       const row = worksheet.getRow(rowNumber);
       const nomorInvoice = String(row.getCell(colNomorInvoice).value ?? '').trim();
       const namaPasien = String(row.getCell(colNamaPasien).value ?? '').trim();
-      if (!nomorInvoice || !namaPasien) continue;
+      if (!nomorInvoice || !namaPasien) {
+        invalidRows += 1;
+        continue;
+      }
 
       const dateValue = row.getCell(colTanggalKunjungan).value;
       const parsedDate = parseDateValue(
         typeof dateValue === 'object' && dateValue && 'text' in dateValue ? dateValue.text : dateValue
       );
-      if (!parsedDate) continue;
+      const dob = colDob ? String(row.getCell(colDob).value ?? '').trim() || null : null;
+      const parsedDob = dob ? parseDobValue(dob) : null;
+      const totalPendapatan = toNumber(row.getCell(colTotalPendapatan).value);
+      const pendapatanTindakan = colPendapatanTindakan
+        ? toNumber(row.getCell(colPendapatanTindakan).value)
+        : 0;
+      const pendapatanObat = colPendapatanObat
+        ? toNumber(row.getCell(colPendapatanObat).value)
+        : 0;
+      const keuntungan = colKeuntungan
+        ? toNumber(row.getCell(colKeuntungan).value)
+        : 0;
+      if (
+        !parsedDate
+        || Boolean(dob && !parsedDob)
+        || totalPendapatan === null
+        || totalPendapatan < 0
+        || pendapatanTindakan === null
+        || pendapatanObat === null
+        || keuntungan === null
+      ) {
+        invalidRows += 1;
+        continue;
+      }
 
       parsedRows.push({
         nomorInvoice,
         nomorRegistrasi: colNomorRegistrasi ? String(row.getCell(colNomorRegistrasi).value ?? '').trim() || null : null,
         namaPasien,
-        dob: colDob ? String(row.getCell(colDob).value ?? '').trim() || null : null,
-        tanggalKunjungan: startOfDay(parsedDate),
+        dob,
+        tanggalKunjungan: startOfJakartaDay(parsedDate),
         dokter: colDokter ? String(row.getCell(colDokter).value ?? '').trim() || null : null,
         diagnosa: colDiagnosa ? String(row.getCell(colDiagnosa).value ?? '').trim() || null : null,
         status: colStatus ? String(row.getCell(colStatus).value ?? '').trim() || null : null,
-        totalPendapatan: toNumber(row.getCell(colTotalPendapatan).value),
-        pendapatanTindakan: colPendapatanTindakan ? toNumber(row.getCell(colPendapatanTindakan).value) : 0,
-        pendapatanObat: colPendapatanObat ? toNumber(row.getCell(colPendapatanObat).value) : 0,
-        keuntungan: colKeuntungan ? toNumber(row.getCell(colKeuntungan).value) : 0,
+        totalPendapatan,
+        pendapatanTindakan,
+        pendapatanObat,
+        keuntungan,
       });
     }
 
@@ -360,16 +557,53 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (invalidRows > 0) {
+      return NextResponse.json(
+        { error: 'File mengandung baris dengan tanggal atau nominal tidak valid.', invalidRows },
+        { status: 400 },
+      );
+    }
+    if (parsedRows.some((row) => isAidoManagedSpendingDate(row.tanggalKunjungan))) {
+      return NextResponse.json(
+        { error: 'Laporan setelah cutover disinkronkan otomatis dari AIDO.' },
+        { status: 409 }
+      );
+    }
+
+    const reportDateInput = String(formData.get('reportDate') || '').trim();
+    const reportDate = reportDateInput ? parseDateValue(reportDateInput) : parsedRows[0]?.tanggalKunjungan;
+    if (!reportDate) {
+      return NextResponse.json({ error: 'Tanggal report tidak valid' }, { status: 400 });
+    }
+    const normalizedReportDate = startOfJakartaDay(reportDate);
+    if (isAidoManagedSpendingDate(normalizedReportDate)) {
+      return NextResponse.json(
+        { error: 'Report setelah cutover disinkronkan otomatis dari AIDO.' },
+        { status: 409 },
+      );
+    }
+    const reportDateKey = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(normalizedReportDate);
 
     // --- MEMBER MATCHING ---
     // Collect all unique patient names
     const uniqueNames = [...new Set(parsedRows.map(r => r.namaPasien.trim()))];
     
     // Find matching members by name (case-insensitive)
-    const matchedMembers: Map<string, { id: string; firstName: string; lastName: string | null; phone: string | null }[]> = new Map();
+    const matchedMembers: Map<string, {
+      id: string;
+      firstName: string;
+      lastName: string | null;
+      phone: string | null;
+      dateOfBirth: Date | null;
+    }[]> = new Map();
     
     for (const name of uniqueNames) {
-      const nameLower = name.toLowerCase();
+      const nameLower = normalizeName(name);
       const users = await prisma.user.findMany({
         where: {
           OR: [
@@ -377,14 +611,14 @@ export async function POST(req: NextRequest) {
             { lastName: { contains: name, mode: 'insensitive' } },
           ],
         },
-        select: { id: true, firstName: true, lastName: true, phone: true },
+        select: { id: true, firstName: true, lastName: true, phone: true, dateOfBirth: true },
         take: 20,
       });
       
       // Filter: must match full name (both first+last combined)
       const matched = users.filter(u => {
-        const fullName = [u.firstName, u.lastName].filter(Boolean).join(' ').toLowerCase();
-        return fullName.includes(nameLower) || nameLower.includes(fullName);
+        const fullName = normalizeName([u.firstName, u.lastName].filter(Boolean).join(' '));
+        return fullName === nameLower;
       });
       
       if (matched.length > 0) {
@@ -392,11 +626,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Create SpendingRecords for matched members & update totalSpending + points
-    let linkedCount = 0;
+    const linkedRows: LinkedDailyRow[] = [];
     const needsConfirmation: { name: string; candidates: { id: string; firstName: string; lastName: string | null }[] }[] = [];
     let unmatchedCount = 0;
     const processedInvoices = new Set<string>();
+    let duplicateInvoices = 0;
 
     for (const row of parsedRows) {
       const matched = matchedMembers.get(row.namaPasien.trim());
@@ -406,77 +640,132 @@ export async function POST(req: NextRequest) {
       }
       
       // Skip duplicate invoice
-      const invoiceKey = `${row.nomorInvoice}_${row.namaPasien}`;
-      if (processedInvoices.has(invoiceKey)) continue;
+      const invoiceKey = row.nomorInvoice;
+      if (processedInvoices.has(invoiceKey)) {
+        duplicateInvoices += 1;
+        continue;
+      }
       processedInvoices.add(invoiceKey);
 
-      if (matched.length > 1) {
+      const rowDob = row.dob ? parseDobValue(row.dob) : null;
+      const eligible = rowDob
+        ? matched.filter((candidate) => sameDate(candidate.dateOfBirth, rowDob))
+        : [];
+      if (eligible.length === 0) {
         needsConfirmation.push({
           name: row.namaPasien,
           candidates: matched.map(m => ({ id: m.id, firstName: m.firstName, lastName: m.lastName })),
         });
         continue;
       }
-
-      const member = matched[0]; // Single match — auto-link
-      
-      try {
-        await prisma.spendingRecord.create({
-          data: {
-            userId: member.id,
-            amount: row.totalPendapatan,
-            treatment: `Kunjungan ${row.tanggalKunjungan.toLocaleDateString('id-ID')}`,
-            spendingDate: row.tanggalKunjungan,
-            source: 'front_office',
-          },
+      if (eligible.length > 1) {
+        needsConfirmation.push({
+          name: row.namaPasien,
+          candidates: eligible.map(m => ({ id: m.id, firstName: m.firstName, lastName: m.lastName })),
         });
-
-        const pointsEarned = Math.floor(row.totalPendapatan / 10000);
-        
-        await prisma.user.update({
-          where: { id: member.id },
-          data: {
-            totalSpending: { increment: row.totalPendapatan },
-            points: { increment: pointsEarned },
-            lastTransactionAt: new Date(),
-          },
-        });
-
-        linkedCount++;
-      } catch (err) {
-        console.error(`Failed to link spending for ${row.namaPasien}:`, err);
+        continue;
       }
+
+      const member = eligible[0];
+      const externalId = `daily:${reportDateKey}:${row.nomorInvoice}`;
+      const pointsEarned = Math.floor(row.totalPendapatan / 10000);
+      linkedRows.push({ row, memberId: member.id, externalId, pointsEarned });
+    }
+
+    if (duplicateInvoices > 0) {
+      return NextResponse.json(
+        { error: 'Nomor invoice duplikat ditemukan; upload dibatalkan.', duplicateInvoices },
+        { status: 400 },
+      );
     }
 
     // --- END MEMBER MATCHING ---
 
-    const reportDateInput = String(formData.get('reportDate') || '').trim();
-    const reportDate = reportDateInput ? parseDateValue(reportDateInput) : parsedRows[0]?.tanggalKunjungan;
-
-    if (!reportDate) {
-      return NextResponse.json({ error: 'Tanggal report tidak valid' }, { status: 400 });
-    }
-
     const totalPendapatan = parsedRows.reduce((sum, r) => sum + r.totalPendapatan, 0);
     const totalKeuntungan = parsedRows.reduce((sum, r) => sum + r.keuntungan, 0);
-    const normalizedReportDate = startOfDay(reportDate);
 
     const upload = await prisma.$transaction(async (tx) => {
-      // Jika sudah ada upload untuk tanggal yang sama → hapus dulu (replace, bukan duplikat)
       const existingUploads = await tx.dailySpendingUpload.findMany({
         where: {
           reportDate: normalizedReportDate,
         },
         select: { id: true },
       });
+      const existingRecords = await tx.spendingRecord.findMany({
+        where: {
+          source: 'daily-import',
+          externalId: { startsWith: `daily:${reportDateKey}:` },
+        },
+        select: { id: true, userId: true, amount: true, pointsEarned: true },
+      });
+      const reversedByUser = new Map<string, { amount: number; points: number }>();
+      for (const record of existingRecords) {
+        const current = reversedByUser.get(record.userId) || { amount: 0, points: 0 };
+        current.amount += Number(record.amount);
+        current.points += record.pointsEarned;
+        reversedByUser.set(record.userId, current);
+      }
+
+      if (existingRecords.length > 0) {
+        await tx.spendingRecord.deleteMany({
+          where: { id: { in: existingRecords.map((record) => record.id) } },
+        });
+        for (const [userId, delta] of reversedByUser) {
+          const user = await tx.user.findUniqueOrThrow({
+            where: { id: userId },
+            select: { totalSpending: true },
+          });
+          const totalSpending = Number(user.totalSpending) - delta.amount;
+          if (totalSpending < 0) throw new Error('NEGATIVE_MEMBER_TOTAL');
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              totalSpending: { decrement: delta.amount },
+              points: { decrement: delta.points },
+              loyaltyLevel: tierForSpending(totalSpending),
+            },
+          });
+          await recomputeLastTransactionAt(tx, userId);
+        }
+      }
 
       if (existingUploads.length > 0) {
-        await tx.dailySpendingUpload.deleteMany({
-          where: { reportDate: normalizedReportDate },
-        });
+        await tx.dailySpendingUpload.deleteMany({ where: { reportDate: normalizedReportDate } });
       }
 
       const isReplace = existingUploads.length > 0;
+
+      let linkedCount = 0;
+      for (const linked of linkedRows) {
+        const current = await tx.user.findUniqueOrThrow({
+          where: { id: linked.memberId },
+          select: { totalSpending: true, lastTransactionAt: true },
+        });
+        const totalSpending = Number(current.totalSpending) + linked.row.totalPendapatan;
+        await tx.spendingRecord.create({
+          data: {
+            userId: linked.memberId,
+            amount: linked.row.totalPendapatan,
+            treatment: `Kunjungan ${linked.row.tanggalKunjungan.toLocaleDateString('id-ID')}`,
+            spendingDate: linked.row.tanggalKunjungan,
+            source: 'daily-import',
+            externalId: linked.externalId,
+            pointsEarned: linked.pointsEarned,
+          },
+        });
+        await tx.user.update({
+          where: { id: linked.memberId },
+          data: {
+            totalSpending: { increment: linked.row.totalPendapatan },
+            points: { increment: linked.pointsEarned },
+            loyaltyLevel: tierForSpending(totalSpending),
+            lastTransactionAt: !current.lastTransactionAt || linked.row.tanggalKunjungan > current.lastTransactionAt
+              ? linked.row.tanggalKunjungan
+              : undefined,
+          },
+        });
+        linkedCount += 1;
+      }
 
       const createdUpload = await tx.dailySpendingUpload.create({
         data: {
@@ -508,7 +797,7 @@ export async function POST(req: NextRequest) {
         skipDuplicates: true,
       });
 
-      return { ...createdUpload, isReplace };
+      return { ...createdUpload, isReplace, linkedCount };
     });
 
     const message = upload.isReplace
@@ -529,7 +818,7 @@ export async function POST(req: NextRequest) {
         createdAt: upload.createdAt,
       },
       memberMatching: {
-        linked: linkedCount,
+         linked: upload.linkedCount,
         needsConfirmation: needsConfirmation.length > 0 ? needsConfirmation : undefined,
         unmatched: unmatchedCount,
       },
@@ -553,39 +842,91 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get('id');
     const all = searchParams.get('all') === 'true';
 
-    if (all) {
-      // Hapus semua riwayat upload (entri ikut terhapus via cascade)
-      const result = await prisma.dailySpendingUpload.deleteMany({});
-      return NextResponse.json({
-        success: true,
-        deletedCount: result.count,
-        message: `Semua riwayat upload dihapus (${result.count} upload).`,
-      });
-    }
-
-    if (!id) {
+    if (!all && !id) {
       return NextResponse.json({ error: 'Parameter id wajib diisi' }, { status: 400 });
     }
 
-    const existing = await prisma.dailySpendingUpload.findUnique({
-      where: { id },
-      select: { id: true },
-    });
+    const result = await prisma.$transaction(async (tx) => {
+      const uploads = all
+        ? await tx.dailySpendingUpload.findMany({
+            select: {
+              id: true,
+              reportDate: true,
+              entries: { select: { nomorInvoice: true } },
+            },
+          })
+        : await tx.dailySpendingUpload.findUnique({
+            where: { id: id! },
+            select: {
+              id: true,
+              reportDate: true,
+              entries: { select: { nomorInvoice: true } },
+            },
+          }).then((upload) => upload ? [upload] : []);
 
-    if (!existing) {
-      return NextResponse.json({ error: 'Upload tidak ditemukan' }, { status: 404 });
-    }
+      if (!all && uploads.length === 0) {
+        throw new Error('UPLOAD_NOT_FOUND');
+      }
 
-    // Entri terhapus otomatis via onDelete: Cascade
-    await prisma.dailySpendingUpload.delete({ where: { id } });
+      const externalIds = uploads.flatMap((upload) => {
+        const dateKey = formatJakartaDate(upload.reportDate);
+        return upload.entries.map((entry) => `daily:${dateKey}:${entry.nomorInvoice}`);
+      });
+      const records = externalIds.length > 0
+        ? await tx.spendingRecord.findMany({
+            where: { source: 'daily-import', externalId: { in: externalIds } },
+            select: { id: true, userId: true, amount: true, pointsEarned: true },
+          })
+        : [];
+      const byUser = new Map<string, { amount: number; points: number }>();
+      for (const record of records) {
+        const current = byUser.get(record.userId) || { amount: 0, points: 0 };
+        current.amount += Number(record.amount);
+        current.points += record.pointsEarned;
+        byUser.set(record.userId, current);
+      }
+
+      if (records.length > 0) {
+        await tx.spendingRecord.deleteMany({ where: { id: { in: records.map((record) => record.id) } } });
+        for (const [userId, delta] of byUser) {
+          const user = await tx.user.findUniqueOrThrow({
+            where: { id: userId },
+            select: { totalSpending: true },
+          });
+          const totalSpending = Number(user.totalSpending) - delta.amount;
+          if (totalSpending < 0) throw new Error('NEGATIVE_MEMBER_TOTAL');
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              totalSpending: { decrement: delta.amount },
+              points: { decrement: delta.points },
+              loyaltyLevel: tierForSpending(totalSpending),
+            },
+          });
+          await recomputeLastTransactionAt(tx, userId);
+        }
+      }
+
+      const deleted = all
+        ? await tx.dailySpendingUpload.deleteMany({})
+        : await tx.dailySpendingUpload.delete({ where: { id: id! } }).then(() => ({ count: 1 }));
+      return { uploads: deleted.count, records: records.length };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     return NextResponse.json({
       success: true,
-      message: 'Upload berhasil dihapus.',
+      deletedCount: result.uploads,
+      reversedSpendingRecords: result.records,
+      message: all
+        ? `Semua riwayat upload dihapus (${result.uploads} upload).`
+        : 'Upload berhasil dihapus.',
     });
   } catch (error) {
     if (error instanceof Error && error.name === 'AuthError') {
       return handleAuthError(error);
+    }
+    if (error instanceof Error && error.message === 'UPLOAD_NOT_FOUND') {
+      return NextResponse.json({ error: 'Upload tidak ditemukan' }, { status: 404 });
     }
     console.error('[FO SPENDING DAILY] DELETE error:', error);
     return NextResponse.json(

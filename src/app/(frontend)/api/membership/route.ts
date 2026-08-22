@@ -127,21 +127,7 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const completedReservations = user.reservations.filter(
-      (r) => r.status === 'completed'
-    );
-
-    const reservationSpending = completedReservations.reduce(
-      (sum, r) => sum + Number(r.finalPrice),
-      0
-    );
-
-    const scanSpending = user.spendingRecords.reduce(
-      (sum, s) => sum + Number(s.amount),
-      0
-    );
-
-    const totalSpending = reservationSpending + scanSpending;
+    const totalSpending = Number(user.totalSpending);
 
     const tierData = computeTier(totalSpending);
 
@@ -149,7 +135,7 @@ export async function GET() {
       membership: {
         ...tierData,
         totalSpending,
-        memberSince: user.createdAt,
+        memberSince: user.memberSince,
         isTeamLeader: user.isTeamLeader,
         points: user.points,
         pointHistory: user.spendingRecords

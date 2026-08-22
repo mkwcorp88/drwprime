@@ -77,6 +77,17 @@ NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 
 # Database
 DATABASE_URL="postgresql://user:password@host/database"
+
+# AIDO daily sync (server-side secrets; see AIDO_SYNC.md)
+AIDO_EMAIL=
+AIDO_PASSWORD=
+AIDO_HOSPITAL_ID=
+AIDO_HOSPITAL_GROUP_ID=
+AIDO_SYNC_SECRET=
+AIDO_SYNC_CUTOVER_DATE=YYYY-MM-DD
+AIDO_SYNC_CANONICAL_SPENDING=false
+AIDO_SYNC_IMPORT_REVENUE=true
+AIDO_SYNC_RECONCILE_MISSING=false
 ```
 
 ## 📦 Installation

@@ -1,6 +1,8 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { calculateCommission } from '@/lib/policies/commission';
-import { calculateSpendingPoints, getLoyaltyTier } from '@/lib/policies/loyalty';
+import { calculateSpendingPoints } from '@/lib/policies/loyalty';
+import { isAidoManagedSpendingDate } from '@/lib/aido/config';
 
 /**
  * Reservation state machine — ALL mutation must go through this module.
@@ -28,6 +30,13 @@ export class ReservationError extends Error {
   }
 }
 
+function tierForSpending(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {
+  if (totalSpending >= 10_000_000) return 'Platinum';
+  if (totalSpending >= 5_000_000) return 'Gold';
+  if (totalSpending >= 1_000_000) return 'Silver';
+  return 'Bronze';
+}
+
 export async function confirmReservation(reservationId: string) {
   return transitionStatus(reservationId, 'confirmed');
 }
@@ -36,20 +45,32 @@ export async function completeReservation(
   reservationId: string,
   options: { finalPrice?: number; adminNotes?: string } = {},
 ) {
-  const reservation = await transitionStatus(reservationId, 'completed');
+  const completedAt = new Date();
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.reservation.findUnique({ where: { id: reservationId } });
+    if (!current) {
+      throw new ReservationError('Reservation not found', 'NOT_FOUND');
+    }
+    if (current.status !== 'confirmed') {
+      throw new ReservationError(
+        `Cannot transition from ${current.status} to completed`,
+        'INVALID_TRANSITION',
+      );
+    }
 
-  const finalPrice = options.finalPrice !== undefined
-    ? options.finalPrice
-    : Number(reservation.finalPrice);
+    const finalPrice = options.finalPrice !== undefined
+      ? options.finalPrice
+      : Number(current.finalPrice);
+    if (!Number.isFinite(finalPrice) || finalPrice <= 0) {
+      throw new ReservationError('Final price is invalid', 'INVALID_PRICE');
+    }
 
-  // Recalculate commission based on final price
-  const commissionAmount = calculateCommission(finalPrice);
-
-  await prisma.$transaction(async (tx) => {
-    await tx.reservation.update({
+    const commissionAmount = calculateCommission(finalPrice);
+    const reservation = await tx.reservation.update({
       where: { id: reservationId },
       data: {
-        completedAt: new Date(),
+        status: 'completed',
+        completedAt,
         finalPrice,
         commissionAmount,
         adminNotes: options.adminNotes ?? null,
@@ -57,30 +78,30 @@ export async function completeReservation(
     });
 
     // Award spending points to the user
-    if (reservation.userId) {
+    if (current.userId && !isAidoManagedSpendingDate(completedAt)) {
       const pointsEarned = calculateSpendingPoints(finalPrice);
-      if (pointsEarned > 0) {
-        const user = await tx.user.findUnique({
-          where: { id: reservation.userId },
-          select: { points: true, loyaltyPoints: true },
+      const user = await tx.user.findUnique({
+        where: { id: current.userId },
+        select: { points: true, totalSpending: true },
+      });
+
+      if (user) {
+        const newTotalSpending = Number(user.totalSpending) + finalPrice;
+        await tx.user.update({
+          where: { id: current.userId },
+          data: {
+            points: { increment: pointsEarned },
+            totalSpending: { increment: finalPrice },
+            loyaltyPoints: { increment: pointsEarned },
+            loyaltyLevel: tierForSpending(newTotalSpending),
+            lastTransactionAt: completedAt,
+          },
         });
 
-        if (user) {
-          const newLoyaltyPoints = user.loyaltyPoints + pointsEarned;
-          await tx.user.update({
-            where: { id: reservation.userId },
-            data: {
-              points: { increment: pointsEarned },
-              totalSpending: { increment: finalPrice },
-              loyaltyPoints: { increment: pointsEarned },
-              loyaltyLevel: getLoyaltyTier(newLoyaltyPoints),
-              lastTransactionAt: new Date(),
-            },
-          });
-
+        if (pointsEarned > 0) {
           await tx.transaction.create({
             data: {
-              userId: reservation.userId,
+              userId: current.userId,
               type: 'points_earned',
               amount: finalPrice,
               points: pointsEarned,
@@ -93,12 +114,11 @@ export async function completeReservation(
     }
 
     // Pay commission to referrer
-    if (reservation.referrerId && commissionAmount > 0) {
-      await payCommissionTx(tx, reservationId, reservation.referrerId, commissionAmount);
+    if (current.referrerId && commissionAmount > 0) {
+      await payCommissionTx(tx, reservationId, current.referrerId, commissionAmount);
     }
-  });
-
-  return reservation;
+    return reservation;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function cancelReservation(reservationId: string) {
@@ -121,11 +141,18 @@ export async function addReferrer(
 
   const reservation = await prisma.reservation.findUnique({
     where: { id: reservationId },
-    select: { userId: true, status: true, finalPrice: true, commissionPaid: true },
+    select: { userId: true, status: true, finalPrice: true, commissionPaid: true, referrerId: true },
   });
 
   if (!reservation) {
     throw new ReservationError('Reservasi tidak ditemukan', 'NOT_FOUND');
+  }
+
+  if (reservation.commissionPaid) {
+    throw new ReservationError('Komisi reservasi sudah dibayarkan', 'COMMISSION_PAID');
+  }
+  if (reservation.referrerId && reservation.referrerId !== referrer.id) {
+    throw new ReservationError('Affiliate reservasi sudah ditetapkan', 'REFERRER_ASSIGNED');
   }
 
   if (reservation.userId === referrer.id) {
@@ -161,32 +188,32 @@ async function transitionStatus(
   reservationId: string,
   targetStatus: ReservationStatus,
 ) {
-  const current = await prisma.reservation.findUnique({
-    where: { id: reservationId },
-  });
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.reservation.findUnique({ where: { id: reservationId } });
+    if (!current) {
+      throw new ReservationError('Reservation not found', 'NOT_FOUND');
+    }
 
-  if (!current) {
-    throw new ReservationError('Reservation not found', 'NOT_FOUND');
-  }
+    const allowed = VALID_TRANSITIONS[current.status as ReservationStatus];
+    if (!allowed || !allowed.includes(targetStatus)) {
+      throw new ReservationError(
+        `Cannot transition from ${current.status} to ${targetStatus}`,
+        'INVALID_TRANSITION',
+      );
+    }
 
-  const allowed = VALID_TRANSITIONS[current.status as ReservationStatus];
-  if (!allowed || !allowed.includes(targetStatus)) {
-    throw new ReservationError(
-      `Cannot transition from ${current.status} to ${targetStatus}`,
-      'INVALID_TRANSITION',
-    );
-  }
+    const result = await tx.reservation.updateMany({
+      where: { id: reservationId, status: current.status },
+      data: { status: targetStatus },
+    });
+    if (result.count !== 1) {
+      throw new ReservationError('Reservation was changed by another request', 'CONCURRENT_UPDATE');
+    }
 
-  const reservation = await prisma.reservation.update({
-    where: { id: reservationId },
-    data: { status: targetStatus },
-  });
-
-  console.log(
-    `[RESERVATION] ${current.status} -> ${targetStatus}: ${reservationId}`,
-  );
-
-  return reservation;
+    const reservation = await tx.reservation.findUniqueOrThrow({ where: { id: reservationId } });
+    console.log(`[RESERVATION] ${current.status} -> ${targetStatus}: ${reservationId}`);
+    return reservation;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function payCommissionTx(

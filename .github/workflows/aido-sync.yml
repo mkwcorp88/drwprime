@@ -1,0 +1,74 @@
+name: Daily AIDO Sync
+
+concurrency:
+  group: aido-sync-production
+  cancel-in-progress: false
+
+on:
+  schedule:
+    # GitHub cron uses UTC. 19:00 UTC is 02:00 WIB on the next day.
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: Optional report date (YYYY-MM-DD); defaults to yesterday in WIB
+        required: false
+        type: string
+      dry_run:
+        description: Validate access and source data without updating patients or spending
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  sync:
+    name: Sync previous day
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger protected sync endpoint
+        env:
+          SYNC_SECRET: ${{ secrets.AIDO_SYNC_SECRET }}
+          SYNC_BASE_URL: https://drwprime.com
+          SYNC_DATE: ${{ inputs.date || '' }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          set -euo pipefail
+          url="$SYNC_BASE_URL/api/internal/aido-sync?dryRun=$DRY_RUN"
+          if [ -n "$SYNC_DATE" ]; then
+            url="$url&date=$SYNC_DATE"
+          fi
+          max_dates=1
+          if [ -z "$SYNC_DATE" ] && [ "$DRY_RUN" = "false" ]; then
+            max_dates=3
+          fi
+
+          for batch in $(seq 1 "$max_dates"); do
+            response=""
+            succeeded=false
+            for attempt in 1 2 3; do
+              if response=$(curl --fail-with-body --silent --show-error \
+                --connect-timeout 30 \
+                --max-time 900 \
+                --request POST \
+                --header "Authorization: Bearer $SYNC_SECRET" \
+                --header "X-Aido-Sync-Mode: github-schedule" \
+                "$url"); then
+                succeeded=true
+                break
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                sleep $((attempt * 300))
+              fi
+            done
+
+            printf '%s\n' "$response"
+            if [ "$succeeded" != "true" ]; then
+              exit 1
+            fi
+            if [ "$SYNC_DATE" != "" ] || [ "$DRY_RUN" = "true" ]; then
+              break
+            fi
+            if printf '%s' "$response" | jq -e '.skipped == true' >/dev/null; then
+              break
+            fi
+          done

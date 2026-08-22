@@ -2,6 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { isHardcodedAdmin } from '@/lib/admin';
 import { prisma } from '@/lib/prisma';
+import { normalizePhone } from '@/lib/phone';
 
 export type AuthUser = {
   clerkUserId: string;
@@ -10,6 +11,7 @@ export type AuthUser = {
   firstName: string | null;
   lastName: string | null;
   primaryPhone: string | null;
+  verifiedPhones: string[];
 };
 
 /**
@@ -42,6 +44,10 @@ export async function requireUser(): Promise<AuthUser> {
   }
 
   const isAdmin = isHardcodedAdmin(userId) || (await isDbAdmin(userId));
+  const verifiedPhones = clerkUser.phoneNumbers
+    .filter((phone) => phone.verification?.status === 'verified')
+    .map((phone) => normalizePhone(phone.phoneNumber))
+    .filter((phone) => /^62\d{8,13}$/.test(phone));
 
   return {
     clerkUserId: userId,
@@ -50,6 +56,7 @@ export async function requireUser(): Promise<AuthUser> {
     firstName: clerkUser.firstName ?? null,
     lastName: clerkUser.lastName ?? null,
     primaryPhone: clerkUser.phoneNumbers[0]?.phoneNumber ?? null,
+    verifiedPhones,
   };
 }
 

@@ -1,5 +1,9 @@
 name: Deploy to VPS (Coolify)
 
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 on:
   push:
     branches: [main]
@@ -10,7 +14,7 @@ env:
   DEPLOY_IMAGE: ghcr.io/mkwcorp88/drwprime
   LOCAL_IMAGE: 127.0.0.1:5555/drwprime
   COOLIFY_API_URL: http://127.0.0.1:8000/api/v1
-  COOLIFY_APP_UUID: k79t06olv0zwlwpdy3n4gpdm
+  COOLIFY_APP_UUID: nnmld8bulwmuf4bit1cdxbta
   REGISTRY_HOST_PORT: 127.0.0.1:5555
 
 jobs:

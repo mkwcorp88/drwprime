@@ -163,6 +163,49 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
     }
 
+    if (currentReservation.status === 'completed') {
+      const immutableFields = [
+        patientName,
+        patientEmail,
+        patientPhone,
+        reservationDate,
+        reservationTime,
+        treatmentId,
+        finalPrice,
+        affiliateCode,
+      ];
+      if (immutableFields.some((value) => value !== undefined)) {
+        return NextResponse.json(
+          { error: 'Data utama reservasi yang sudah selesai tidak dapat diubah.' },
+          { status: 409 },
+        );
+      }
+    }
+
+    if (status !== undefined && status !== currentReservation.status) {
+      return NextResponse.json(
+        { error: 'Perubahan status harus melalui endpoint state machine.' },
+        { status: 409 },
+      );
+    }
+    if (
+      currentReservation.status === 'completed'
+      && finalPrice !== undefined
+      && Number(finalPrice) !== Number(currentReservation.finalPrice)
+    ) {
+      return NextResponse.json(
+        { error: 'Harga reservasi yang sudah selesai tidak dapat diubah.' },
+        { status: 409 },
+      );
+    }
+    if (currentReservation.status === 'completed' && affiliateCode !== undefined) {
+      return NextResponse.json(
+        { error: 'Affiliate reservasi selesai tidak dapat diubah.' },
+        { status: 409 },
+      );
+    }
+    if (status === 'completed') delete updateData.completedAt;
+
     if (affiliateCode !== undefined && affiliateCode !== null && affiliateCode !== '') {
       const referrer = await prisma.user.findFirst({
         where: { affiliateCode: affiliateCode.toUpperCase() },
@@ -209,6 +252,13 @@ export async function DELETE(req: Request) {
 
     if (!reservation) {
       return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
+    }
+
+    if (reservation.status === 'completed' || reservation.commissionPaid) {
+      return NextResponse.json(
+        { error: 'Reservasi yang sudah diproses tidak dapat dihapus.' },
+        { status: 409 },
+      );
     }
 
     await prisma.reservation.delete({ where: { id: reservationId } });

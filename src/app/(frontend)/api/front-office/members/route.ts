@@ -43,7 +43,14 @@ export async function GET(req: NextRequest) {
     }
 
     if (tierFilter && ['Bronze', 'Silver', 'Gold', 'Platinum'].includes(tierFilter)) {
-      where.loyaltyLevel = tierFilter;
+      if (tierFilter === 'Bronze') where.totalSpending = { lt: TIER_THRESHOLDS.Silver };
+      if (tierFilter === 'Silver') {
+        where.totalSpending = { gte: TIER_THRESHOLDS.Silver, lt: TIER_THRESHOLDS.Gold };
+      }
+      if (tierFilter === 'Gold') {
+        where.totalSpending = { gte: TIER_THRESHOLDS.Gold, lt: TIER_THRESHOLDS.Platinum };
+      }
+      if (tierFilter === 'Platinum') where.totalSpending = { gte: TIER_THRESHOLDS.Platinum };
     }
 
     const orderBy: Prisma.UserOrderByWithRelationInput = {};
@@ -130,20 +137,16 @@ export async function GET(req: NextRequest) {
     }});
 
     // Auto-sync DB: update any stale loyalty_level
-    const staleUpdates = membersWithDetails
-      .filter(m => m.loyaltyLevel !== m.tier || m.loyaltyLevel !== m.loyaltyLevel) // filter actual mismatches
-      .filter(m => {
-        // Check if stored level differs from computed
-        const stored = members.find(x => x.id === m.id);
-        return stored && stored.loyaltyLevel !== m.tier;
-      });
+    const staleUpdates = members.filter(
+      (member) => member.loyaltyLevel !== computeTier(Number(member.totalSpending))
+    );
     
     if (staleUpdates.length > 0) {
       await Promise.all(
-        staleUpdates.map(m =>
+        staleUpdates.map((member) =>
           prisma.user.update({
-            where: { id: m.id },
-            data: { loyaltyLevel: m.tier as any },
+            where: { id: member.id },
+            data: { loyaltyLevel: computeTier(Number(member.totalSpending)) },
           })
         )
       );

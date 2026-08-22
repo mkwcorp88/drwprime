@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { normalizePhone } from '@/lib/phone';
 import { randomUUID } from 'crypto';
+import { isAidoManagedSpendingDate } from '@/lib/aido/config';
 import {
   sendSpendingNotification,
   sendTierUpgradeNotification,
@@ -27,7 +28,6 @@ export async function POST(req: NextRequest) {
   try {
     // Check admin authorization
     await requireAdmin();
-
     const { userId } = await auth();
     const body = await req.json();
     const { phone, firstName, lastName, amount, treatment, date } = body;
@@ -60,11 +60,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate date
-    const spendingDate = date ? new Date(date) : new Date();
+    const spendingDate = date
+      ? /^\d{4}-\d{2}-\d{2}$/.test(date)
+        ? new Date(`${date}T00:00:00+07:00`)
+        : new Date(date)
+      : new Date();
     if (isNaN(spendingDate.getTime())) {
       return NextResponse.json(
         { error: 'Format tanggal tidak valid' },
         { status: 400 }
+      );
+    }
+    if (isAidoManagedSpendingDate(spendingDate)) {
+      return NextResponse.json(
+        { error: 'Spending dicatat otomatis dari AIDO setelah cutover.' },
+        { status: 409 }
       );
     }
 
@@ -79,9 +89,10 @@ export async function POST(req: NextRequest) {
         firstName: true,
         lastName: true,
         phone: true,
-        email: true,
-        points: true,
-        totalSpending: true,
+             email: true,
+             points: true,
+             totalSpending: true,
+             lastTransactionAt: true,
         hasAccount: true,
         qrToken: true,
         spendingRecords: { select: { id: true }, take: 1 },
@@ -115,7 +126,8 @@ export async function POST(req: NextRequest) {
           phone: true,
           email: true,
           points: true,
-          totalSpending: true,
+        totalSpending: true,
+        lastTransactionAt: true,
           hasAccount: true,
           qrToken: true,
           spendingRecords: { select: { id: true }, take: 1 },
@@ -140,7 +152,8 @@ export async function POST(req: NextRequest) {
             phone: true,
             email: true,
             points: true,
-            totalSpending: true,
+        totalSpending: true,
+        lastTransactionAt: true,
             hasAccount: true,
             qrToken: true,
             spendingRecords: { select: { id: true }, take: 1 },
@@ -156,8 +169,8 @@ export async function POST(req: NextRequest) {
     const oldTier = computeMemberTier(oldTotalSpending);
 
     // Create spending record & update member points in a transaction
-    const [spendingRecord, updatedUser] = await prisma.$transaction([
-      prisma.spendingRecord.create({
+    const [spendingRecord, updatedUser] = await prisma.$transaction(async (tx) => {
+      const created = await tx.spendingRecord.create({
         data: {
           userId: member.id,
           amount,
@@ -167,13 +180,12 @@ export async function POST(req: NextRequest) {
           recordedByClerkId: userId ?? null,
           source: 'front_office',
         },
-      }),
-      prisma.user.update({
+      });
+      const updated = await tx.user.update({
         where: { id: member.id },
         data: {
           points: { increment: pointsEarned },
           totalSpending: { increment: amount },
-          lastTransactionAt: spendingDate,
         },
         select: {
           id: true,
@@ -186,8 +198,21 @@ export async function POST(req: NextRequest) {
           hasAccount: true,
           qrToken: true,
         },
-      }),
-    ]);
+      });
+      const newTotalSpending = Number(updated.totalSpending);
+      const newTier = computeMemberTier(newTotalSpending);
+      await tx.user.updateMany({
+        where: {
+          id: member.id,
+          OR: [{ lastTransactionAt: null }, { lastTransactionAt: { lt: spendingDate } }],
+        },
+        data: { lastTransactionAt: spendingDate },
+      });
+      if (newTier !== oldTier) {
+        await tx.user.update({ where: { id: member.id }, data: { loyaltyLevel: newTier } });
+      }
+      return [created, updated] as const;
+    });
 
     const newTotalSpending = Number(updatedUser.totalSpending);
     const newTier = computeMemberTier(newTotalSpending);
