@@ -25,10 +25,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'File gambar wajib diisi' }, { status: 400 });
     }
 
-    if (!productId || typeof productId !== 'string') {
-      return NextResponse.json({ error: 'Product ID wajib diisi' }, { status: 400 });
-    }
-
     if (!ALLOWED_TYPES.has(file.type)) {
       return NextResponse.json({ error: 'Format gambar tidak didukung. Gunakan JPG, PNG, atau WEBP' }, { status: 400 });
     }
@@ -41,12 +37,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Upload belum aktif' }, { status: 500 });
     }
 
+    const safeName = sanitizeFileName(file.name || 'product-image');
+
+    if (!productId || typeof productId !== 'string') {
+      const key = `products/temp/${Date.now()}-${safeName}`;
+      const uploaded = await uploadPublicObject(key, file);
+      return NextResponse.json({ url: uploaded.url, pathname: uploaded.pathname });
+    }
+
     const existing = await prisma.product.findUnique({ where: { id: productId } });
     if (!existing) {
       return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
     }
 
-    const safeName = sanitizeFileName(file.name || 'product-image');
     const key = `products/${productId}/${Date.now()}-${safeName}`;
     const uploaded = await uploadPublicObject(key, file);
 

@@ -5,6 +5,8 @@ import ExcelJS from 'exceljs';
 import { Hourglass } from '@/components/LoadingScreen';
 
 interface CompletedProfile {
+  id: string;
+  nomorRekamMedis: string | null;
   firstName: string;
   lastName: string;
   email: string;
@@ -27,29 +29,31 @@ interface CompletedProfile {
   lastReservation: { date: string; treatment: string; status: string } | null;
 }
 
+interface TimelineItem {
+  date: string;
+  type: 'tindakan' | 'spending';
+  description: string;
+  amount?: number;
+}
+
 export default function CompletedProfilesPage() {
   const [profiles, setProfiles] = useState<CompletedProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState<CompletedProfile | null>(null);
   const [activeTab, setActiveTab] = useState<'profil' | 'riwayat'>('profil');
-  const [riwayatTindakan, setRiwayatTindakan] = useState<any[]>([]);
-  const [timeline, setTimeline] = useState<any[]>([]);
+  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [riwayatSummary, setRiwayatSummary] = useState<{ medicalCount: number; spendingCount: number; totalSpending: number; points: number } | null>(null);
   const [loadingRiwayat, setLoadingRiwayat] = useState(false);
   const [totalMembers, setTotalMembers] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const limit = 20;
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const [tierFilter, setTierFilter] = useState('');
   const [sortBy, setSortBy] = useState('rm');
 
-  useEffect(() => {
-    fetchProfiles(currentPage, debouncedSearch, tierFilter, sortBy);
-  }, [currentPage, debouncedSearch, tierFilter, sortBy]);
-
-  const fetchProfiles = async (page: number, search: string, tier: string, sort: string) => {
+  const fetchProfiles = useCallback(async (page: number, search: string, tier: string, sort: string) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -69,7 +73,11 @@ export default function CompletedProfilesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [limit]);
+
+  useEffect(() => {
+    fetchProfiles(currentPage, debouncedSearch, tierFilter, sortBy);
+  }, [currentPage, debouncedSearch, tierFilter, sortBy, fetchProfiles]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -324,19 +332,18 @@ export default function CompletedProfilesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {profiles.map((p, index) => (
+                    {profiles.map((p) => (
                       <tr
-                        key={`${p.email}-${index}`}
+                        key={p.id}
                         onClick={() => {
                           setSelectedProfile(p);
                           setActiveTab('profil');
-                          const uid = (p as any).id;
-                          if (uid) fetchRiwayatTindakan(uid);
+                          fetchRiwayatTindakan(p.id);
                         }}
                         className="hover:bg-white/[0.03] transition-colors cursor-pointer group"
                       >
                         <td className="px-5 py-3.5 text-sm text-white/60 font-mono group-hover:text-white/90 transition-colors">
-                          {(p as any).nomorRekamMedis || '-'}
+                          {p.nomorRekamMedis || '-'}
                         </td>
                         <td className="px-5 py-3.5 text-sm text-white font-medium whitespace-nowrap">
                           {p.firstName} {p.lastName}
@@ -407,8 +414,7 @@ export default function CompletedProfilesPage() {
                 <button
                   onClick={() => {
                     setActiveTab('riwayat');
-                    const uid = (selectedProfile as any).id;
-                    if (uid && timeline.length === 0) fetchRiwayatTindakan(uid);
+                    if (timeline.length === 0) fetchRiwayatTindakan(selectedProfile.id);
                   }}
                   className={`text-sm font-bold pb-1.5 border-b-2 transition-colors ${
                     activeTab === 'riwayat'
@@ -471,12 +477,12 @@ export default function CompletedProfilesPage() {
               </div>
 
               {/* Medical Record */}
-              {(selectedProfile as any).nomorRekamMedis && (
+              {selectedProfile.nomorRekamMedis && (
               <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-4 space-y-3">
                 <h4 className="text-primary font-bold text-[11px] uppercase tracking-widest">Rekam Medis</h4>
                 <div>
                   <p className="text-white/30 text-[10px] uppercase tracking-wider mb-1">No. RM</p>
-                  <p className="text-white font-mono font-bold text-lg">{(selectedProfile as any).nomorRekamMedis}</p>
+                  <p className="text-white font-mono font-bold text-lg">{selectedProfile.nomorRekamMedis}</p>
                 </div>
               </div>
               )}
@@ -567,7 +573,7 @@ export default function CompletedProfilesPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {timeline.map((item: any, idx: number) => (
+                  {timeline.map((item, idx) => (
                     <div key={idx} className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-3 flex items-center gap-3">
                       <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
                         item.type === 'spending' ? 'bg-green-500/15' : 'bg-blue-500/15'

@@ -63,7 +63,7 @@ Website resmi klinik kecantikan **DRW Prime** dengan sistem affiliate marketing 
 - **Authentication**: Clerk
 - **Database**: PostgreSQL
 - **ORM**: Prisma 5.22.0
-- **Deployment**: Vercel
+- **Deployment**: Docker standalone di VPS
 - **Scripts**: TypeScript / Python 3.x
 
 ## 🔐 Environment Variables
@@ -401,13 +401,17 @@ pip install psycopg2-binary python-dotenv
 
 ## 🚀 Deployment
 
-Project ini di-deploy di **Vercel** dan terhubung ke GitHub untuk auto-deployment setiap push ke branch `main`.
+Production berjalan sebagai container Docker standalone di VPS. Push ke branch
+`main` diproses oleh webhook VPS, sedangkan GitHub Actions hanya menjadi jalur
+deploy manual agar satu commit tidak di-deploy dua kali.
+
+Panduan lengkap: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ```bash
 # Build for production
 npm run build
 
-# Test build locally
+# Jalankan production server dari hasil build
 npm start
 ```
 

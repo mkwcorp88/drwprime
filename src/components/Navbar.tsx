@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
+import AnnouncementTicker from './AnnouncementTicker';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,6 +31,7 @@ export default function Navbar() {
 
   return (
     <nav className="hidden lg:block fixed top-0 w-full bg-black/95 backdrop-blur-md z-50 border-b border-primary/20">
+      <AnnouncementTicker />
       <div className="max-w-[1440px] mx-auto px-4 xl:px-6 flex justify-between items-center gap-4 py-4">
         <Link href="/" className="shrink-0 pr-2">
           <Image 
@@ -122,11 +124,21 @@ export default function Navbar() {
             )}
             {isAdmin && (
               <li>
-                <Link 
-                  href="/front-office" 
+                <Link
+                  href="/front-office"
                   className="text-primary hover:text-primary/80 transition-colors duration-300 text-[13px] xl:text-sm font-medium tracking-normal xl:tracking-wide whitespace-nowrap"
                 >
                   FRONT OFFICE
+                </Link>
+              </li>
+            )}
+            {isAdmin && (
+              <li>
+                <Link
+                  href="/admin/seo"
+                  className="text-primary hover:text-primary/80 transition-colors duration-300 text-[13px] xl:text-sm font-medium tracking-normal xl:tracking-wide whitespace-nowrap"
+                >
+                  SEO
                 </Link>
               </li>
             )}
@@ -269,12 +281,23 @@ export default function Navbar() {
               )}
               {isAdmin && (
                 <li>
-                  <Link 
+                  <Link
                     href="/front-office"
                     onClick={() => setIsOpen(false)}
                     className="block px-5 py-3 text-primary hover:text-primary/80 hover:bg-primary/10 transition-colors duration-300 text-sm font-medium tracking-wide"
                   >
                     FRONT OFFICE
+                  </Link>
+                </li>
+              )}
+              {isAdmin && (
+                <li>
+                  <Link
+                    href="/admin/seo"
+                    onClick={() => setIsOpen(false)}
+                    className="block px-5 py-3 text-primary hover:text-primary/80 hover:bg-primary/10 transition-colors duration-300 text-sm font-medium tracking-wide"
+                  >
+                    SEO
                   </Link>
                 </li>
               )}

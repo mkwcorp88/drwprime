@@ -5,7 +5,11 @@ import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
 
-export default function MobileHeader() {
+interface MobileHeaderProps {
+  embedded?: boolean;
+}
+
+export default function MobileHeader({ embedded = false }: MobileHeaderProps) {
   const { user } = useUser();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -18,7 +22,7 @@ export default function MobileHeader() {
   const profileAlt = user?.firstName || "User";
 
   return (
-    <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-black border-b border-primary/10">
+    <header className={`lg:hidden ${embedded ? 'w-full' : 'fixed top-0 left-0 right-0 z-50'} bg-black border-b border-primary/10`}>
       <div className="px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo & Brand */}

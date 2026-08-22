@@ -644,6 +644,8 @@ model Product {
   usageInstructions String?            @db.Text @map("usage_instructions")
   ctaText           String?            @map("cta_text")
 
+  classification    String?            @map("classification")
+
   sortOrder         Int                @default(0) @map("sort_order")
   isActive          Boolean            @default(true) @map("is_active")
 
@@ -686,6 +688,36 @@ model ProductPromotion {
   @@map("product_promotions")
 }
 
+model ProductGalleryBanner {
+  id              String    @id @default(cuid())
+  title           String
+  imageDesktopUrl String    @map("image_desktop_url")
+  imageDesktopKey String    @map("image_desktop_key")
+  imageMobileUrl  String?   @map("image_mobile_url")
+  imageMobileKey  String?   @map("image_mobile_key")
+  imageAlt        String    @map("image_alt")
+  heading         String?
+  description     String?
+  ctaText         String?   @map("cta_text")
+  ctaLink         String?   @map("cta_link")
+  sortOrder       Int       @default(0) @map("sort_order")
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([isActive, sortOrder])
+  @@map("product_gallery_banners")
+}
+
+model RunningTextSetting {
+  id        String   @id
+  text      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("running_text_settings")
+}
+
 model BlogPost {
   id                    String    @id @default(cuid())
   title                 String
@@ -724,4 +756,20 @@ model RiwayatTindakan {
   @@index([userId])
   @@index([tanggalKunjungan])
   @@map("riwayat_tindakan")
+}
+
+// SEO audit history — written by the /api/cron/seo-audit job (Cronicle .159),
+// read by /admin/seo. `checks` and `rankings` are stored as JSON because the
+// shape of an audit evolves faster than a migration cycle.
+model SeoAuditRun {
+  id          String   @id @default(cuid())
+  runAt       DateTime @default(now()) @map("run_at")
+  ok          Boolean  @default(false)
+  healthScore Int      @map("health_score")
+  checks      Json
+  rankings    Json
+  notes       String?
+
+  @@index([runAt])
+  @@map("seo_audit_runs")
 }

@@ -1,9 +1,10 @@
-import { getActiveProducts, getActiveCategories } from '@/lib/products/catalog';
+import { getActiveProducts, getActiveCategories, getActiveBanners } from '@/lib/products/catalog';
 import { resolveEffectivePrice } from '@/lib/products/pricing';
 import ProductGalleryClient from './components/ProductGalleryClient';
 import MobileLayout from '@/components/MobileLayout';
 import Navbar from '@/components/Navbar';
 import type { CatalogProduct, CatalogCategory } from '@/features/product-commerce/types';
+import type { GalleryBanner } from './components/ProductGalleryBannerSlider';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 60;
@@ -11,11 +12,13 @@ export const revalidate = 60;
 export default async function ProductGalleryPage() {
   let products: CatalogProduct[] = [];
   let categories: CatalogCategory[] = [];
+  let banners: GalleryBanner[] = [];
 
   try {
-    const [rawProducts, rawCategories] = await Promise.all([
+    const [rawProducts, rawCategories, rawBanners] = await Promise.all([
       getActiveProducts(),
       getActiveCategories(),
+      getActiveBanners(),
     ]);
 
     const now = new Date();
@@ -32,6 +35,7 @@ export default async function ProductGalleryPage() {
         category: product.category.name,
         categoryId: product.category.slug,
         categoryName: product.category.name,
+        classification: product.classification,
         benefits: product.benefits,
         caraPakai: product.usageInstructions,
         cta: product.ctaText,
@@ -49,15 +53,26 @@ export default async function ProductGalleryPage() {
       id: c.slug,
       name: c.name,
     }));
+
+    banners = (rawBanners || []).map((b) => ({
+      id: b.id,
+      imageDesktopUrl: b.imageDesktopUrl,
+      imageMobileUrl: b.imageMobileUrl,
+      imageAlt: b.imageAlt,
+      heading: b.heading,
+      description: b.description,
+      ctaText: b.ctaText,
+      ctaLink: b.ctaLink,
+    }));
   } catch (error) {
     console.error('[PRODUCT GALLERY] Server data fetch error:', error);
   }
 
   return (
-    <MobileLayout showHeader={false} showBottomNav={false}>
+    <MobileLayout showHeader={true} showBottomNav={true}>
       <Navbar />
-      <main className="pt-16 lg:pt-24">
-        <ProductGalleryClient initialProducts={products} initialCategories={categories} />
+      <main className="pt-16 lg:pt-[88px]">
+        <ProductGalleryClient initialProducts={products} initialCategories={categories} banners={banners} />
       </main>
     </MobileLayout>
   );

@@ -4,15 +4,21 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   quality:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - run: npm ci --ignore-scripts
       - run: npx prisma generate
       - name: TypeCheck
@@ -22,4 +28,10 @@ jobs:
       - name: Test
         run: npm run test
       - name: Build check
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:1/ci?connect_timeout=1
+          DATABASE_URI: postgresql://ci:ci@127.0.0.1:1/ci?connect_timeout=1
+          PAYLOAD_SECRET: ci-only-payload-secret-not-for-production
+          CLERK_SECRET_KEY: sk_test_ci_only_not_a_real_secret
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_live_Y2xlcmsuZHJ3cHJpbWUuY29tJA
         run: npm run build

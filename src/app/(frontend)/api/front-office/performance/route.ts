@@ -7,6 +7,8 @@ const GID_VISIT = 907106318;
 const GID_HT = 527981502;
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 
+const VALID_RANGES = new Set(['7d', '30d']);
+
 // --------------- helpers ---------------
 
 function getJakartaDateKey(date: Date): string {
@@ -25,6 +27,13 @@ function getJakartaDateKey(date: Date): string {
 
 function isValidDateKey(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && !isNaN(new Date(value).getTime());
+}
+
+function addDays(dateKey: string, delta: number): string {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + delta);
+  return getJakartaDateKey(date);
 }
 
 // Convert GViz Date(year, month, day) → YYYY-MM-DD
@@ -103,24 +112,24 @@ async function fetchSheet(gid: number, range: string, query: string): Promise<Gv
   return parseGvizResponse(text);
 }
 
-// --------------- main handler ---------------
+// --------------- domain ---------------
 
 interface DayResult {
   visits: number;
   omzet: number;
 }
 
+interface DayEntry {
+  date: string;
+  visit: DayResult;
+  homeTreatment: DayResult;
+}
+
 function emptyResult(): DayResult {
   return { visits: 0, omzet: 0 };
 }
 
-function isOngkir(treatment: string): boolean {
-  const lower = treatment.toLowerCase().replace(/\s+/g, '');
-  return lower.includes('ongkir') || lower === 'ongkir';
-}
-
 function customerKey(rm: string, phone: string, name: string): string {
-  // Priority: RM > phone > name
   const rmClean = rm.replace(/\s+/g, '').toLowerCase();
   if (rmClean) return `rm:${rmClean}`;
 
@@ -130,15 +139,98 @@ function customerKey(rm: string, phone: string, name: string): string {
   return `name:${name.replace(/\s+/g, ' ').trim().toLowerCase()}`;
 }
 
+function buildRangeKeys(endDateKey: string, days: number): string[] {
+  const keys: string[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    keys.push(addDays(endDateKey, -i));
+  }
+  return keys;
+}
+
+function computeRange(
+  visitTable: GvizTable,
+  htTable: GvizTable,
+  targetDateKeys: Set<string>,
+): Map<string, DayEntry> {
+  const entries = new Map<string, DayEntry>();
+  for (const dk of targetDateKeys) {
+    entries.set(dk, { date: dk, visit: emptyResult(), homeTreatment: emptyResult() });
+  }
+
+  // --- Visit Klinik ---
+  const visitCols = visitTable.cols;
+  const visitIdx = {
+    tanggal: visitCols.findIndex((c) => c.id === 'B'),
+    omsetProduk: visitCols.findIndex((c) => c.id === 'D'),
+    omsetTreatment: visitCols.findIndex((c) => c.id === 'G'),
+    customerBaru: visitCols.findIndex((c) => c.id === 'J'),
+    customerLama: visitCols.findIndex((c) => c.id === 'K'),
+  };
+
+  for (const row of visitTable.rows) {
+    if (!row.c || row.c.length < 5) continue;
+    const dateKey = gvizDateToKey(cellStr(row.c[visitIdx.tanggal]));
+    if (!dateKey || !entries.has(dateKey)) continue;
+    const entry = entries.get(dateKey)!;
+    entry.visit.visits += Math.round(cellNum(row.c[visitIdx.customerBaru]) + cellNum(row.c[visitIdx.customerLama]));
+    entry.visit.omzet += Math.round(cellNum(row.c[visitIdx.omsetProduk]) + cellNum(row.c[visitIdx.omsetTreatment]));
+  }
+
+  // --- Home Treatment ---
+  const htCols = htTable.cols;
+  const htIdx = {
+    tanggal: htCols.findIndex((c) => c.id === 'A'),
+    customer: htCols.findIndex((c) => c.id === 'C'),
+    phone: htCols.findIndex((c) => c.id === 'D'),
+    rm: htCols.findIndex((c) => c.id === 'E'),
+    treatment: htCols.findIndex((c) => c.id === 'H'),
+    omzetBruto: htCols.findIndex((c) => c.id === 'I'),
+    payment: htCols.findIndex((c) => c.id === 'L'),
+  };
+
+  const htCustomers = new Map<string, Set<string>>();
+  for (const dk of targetDateKeys) htCustomers.set(dk, new Set());
+
+  for (const row of htTable.rows) {
+    if (!row.c || row.c.length < 7) continue;
+    const dateKey = gvizDateToKey(cellStr(row.c[htIdx.tanggal]));
+    if (!dateKey || !entries.has(dateKey)) continue;
+
+    const entry = entries.get(dateKey)!;
+    entry.homeTreatment.omzet += Math.round(cellNum(row.c[htIdx.omzetBruto]));
+
+    const key = customerKey(
+      cellStr(row.c[htIdx.rm]),
+      cellStr(row.c[htIdx.phone]),
+      cellStr(row.c[htIdx.customer]),
+    );
+    htCustomers.get(dateKey)!.add(key);
+  }
+
+  for (const [dk, customers] of htCustomers) {
+    const entry = entries.get(dk);
+    if (entry) entry.homeTreatment.visits = customers.size;
+  }
+
+  return entries;
+}
+
+// --------------- main handler ---------------
+
 export async function GET(req: NextRequest) {
   try {
     await requireAdmin();
 
     const { searchParams } = req.nextUrl;
+    const range = searchParams.get('range');
     const dateParam = searchParams.get('date') || getJakartaDateKey(new Date());
 
     if (!isValidDateKey(dateParam)) {
       return NextResponse.json({ error: 'Format tanggal harus YYYY-MM-DD.' }, { status: 400 });
+    }
+
+    if (range && !VALID_RANGES.has(range)) {
+      return NextResponse.json({ error: 'range harus 7d atau 30d.' }, { status: 400 });
     }
 
     const now = new Date();
@@ -149,83 +241,42 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Tidak dapat melihat tanggal yang belum terjadi.' }, { status: 400 });
     }
 
-    // Fetch both sheets in parallel
     const [visitTable, htTable] = await Promise.all([
-      fetchSheet(GID_VISIT, 'A4:K369', 'select B, C, J, K'),
-      fetchSheet(GID_HT, 'A3:M', 'select A, C, D, E, H, L'),
+      fetchSheet(GID_VISIT, 'A4:K369', 'select B, D, G, J, K'),
+      fetchSheet(GID_HT, 'A3:M', 'select A, C, D, E, H, I, L'),
     ]);
 
-    // --- Visit Klinik ---
-    const visitCols = visitTable.cols;
-    const visitIdx = {
-      tanggal: visitCols.findIndex((c) => c.id === 'B'),
-      pendapatan: visitCols.findIndex((c) => c.id === 'C'),
-      customerBaru: visitCols.findIndex((c) => c.id === 'J'),
-      customerLama: visitCols.findIndex((c) => c.id === 'K'),
-    };
+    // --- Range mode ---
+    if (range === '7d' || range === '30d') {
+      const days = range === '7d' ? 7 : 30;
+      const rangeKeys = buildRangeKeys(dateParam, days);
+      const entries = computeRange(visitTable, htTable, new Set(rangeKeys));
+      const daysList: DayEntry[] = rangeKeys.map((dk) => entries.get(dk)!);
 
-    const visitResult = emptyResult();
-
-    for (const row of visitTable.rows) {
-      if (!row.c || row.c.length < 4) continue;
-
-      const dateKey = gvizDateToKey(cellStr(row.c[visitIdx.tanggal]));
-      if (dateKey !== dateParam) continue;
-
-      visitResult.visits += Math.round(cellNum(row.c[visitIdx.customerBaru]) + cellNum(row.c[visitIdx.customerLama]));
-      visitResult.omzet += Math.round(cellNum(row.c[visitIdx.pendapatan]));
-    }
-
-    // --- Home Treatment ---
-    const htCols = htTable.cols;
-    const htIdx = {
-      tanggal: htCols.findIndex((c) => c.id === 'A'),
-      customer: htCols.findIndex((c) => c.id === 'C'),
-      phone: htCols.findIndex((c) => c.id === 'D'),
-      rm: htCols.findIndex((c) => c.id === 'E'),
-      treatment: htCols.findIndex((c) => c.id === 'H'),
-      payment: htCols.findIndex((c) => c.id === 'L'),
-    };
-
-    const htResult = emptyResult();
-    const htCustomers = new Set<string>();
-
-    for (const row of htTable.rows) {
-      if (!row.c || row.c.length < 6) continue;
-
-      const dateKey = gvizDateToKey(cellStr(row.c[htIdx.tanggal]));
-      if (dateKey !== dateParam) continue;
-
-      const treatmentText = cellStr(row.c[htIdx.treatment]) || '';
-
-      // Skip ongkir rows from omzet but still count as part of the visit
-      const payment = Math.round(cellNum(row.c[htIdx.payment]));
-      const isOng = isOngkir(treatmentText);
-      if (!isOng) {
-        htResult.omzet += payment;
-      }
-
-      // Unique customer tracking
-      const key = customerKey(
-        cellStr(row.c[htIdx.rm]),
-        cellStr(row.c[htIdx.phone]),
-        cellStr(row.c[htIdx.customer]),
+      return NextResponse.json(
+        {
+          range,
+          date: dateParam,
+          days: daysList,
+          generatedAt: new Date().toISOString(),
+        },
+        { headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
       );
-      htCustomers.add(key);
     }
 
-    htResult.visits = htCustomers.size;
+    // --- Single day mode ---
+    const singleSet = new Set([dateParam]);
+    const entryMap = computeRange(visitTable, htTable, singleSet);
+    const entry = entryMap.get(dateParam)!;
 
     return NextResponse.json(
       {
         date: dateParam,
-        visit: visitResult,
-        homeTreatment: htResult,
+        visit: entry.visit,
+        homeTreatment: entry.homeTreatment,
         generatedAt: new Date().toISOString(),
       },
-      {
-        headers: { 'Cache-Control': 'private, no-store, max-age=0' },
-      }
+      { headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
     );
   } catch (error) {
     if (error instanceof Error && error.name === 'AuthError') {
@@ -234,7 +285,7 @@ export async function GET(req: NextRequest) {
     console.error('[FO PERFORMANCE] GET error:', error);
     return NextResponse.json(
       { error: 'Terjadi kesalahan saat mengambil data performance.' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

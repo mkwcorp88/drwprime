@@ -52,12 +52,25 @@ export default buildConfig({
   sharp,
   plugins: [
     // Media is stored in self-hosted MinIO (S3-compatible) on the VPS.
-    // Payload keeps serving files through its own /cms-api/media/file route,
-    // so stored DB urls stay relative and need no rewrite.
+    //
+    // Files are served straight from the CDN, NOT proxied through Payload's
+    // /cms-api/media/file route: that route re-fetches each object through the
+    // AWS SDK and this MinIO build answers it with an opaque S3ServiceException,
+    // which made every blog cover on the live site return 500. The bucket is
+    // already anonymous-readable ("download"), so proxying bought no access
+    // control anyway — this is both correct and one less hop.
     s3Storage({
       enabled: true,
       collections: {
-        [Media.slug]: true,
+        [Media.slug]: {
+          disablePayloadAccessControl: true,
+          generateFileURL: ({ filename, prefix }) =>
+            [
+              process.env.S3_PUBLIC_BASE || 'https://cdn.drwskincare.com/drwprime',
+              ...(prefix ? [prefix] : []),
+              encodeURIComponent(filename),
+            ].join('/'),
+        },
       },
       bucket: process.env.S3_BUCKET || 'drwprime',
       config: {

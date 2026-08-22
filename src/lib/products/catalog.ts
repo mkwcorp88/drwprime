@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import type { Product, ProductCategory, ProductPromotion } from '@prisma/client';
+import type { Product, ProductCategory, ProductPromotion, ProductGalleryBanner } from '@prisma/client';
 
 export type CatalogProduct = Product & {
   category: ProductCategory;
@@ -67,5 +67,12 @@ export async function getPromotionsByProductId(productId: string): Promise<Produ
   return prisma.productPromotion.findMany({
     where: { productId },
     orderBy: { startsAt: 'desc' },
+  });
+}
+
+export async function getActiveBanners(): Promise<ProductGalleryBanner[]> {
+  return prisma.productGalleryBanner.findMany({
+    where: { isActive: true },
+    orderBy: { sortOrder: 'asc' },
   });
 }

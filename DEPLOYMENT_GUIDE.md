@@ -1,5 +1,9 @@
 # 🚀 DEPLOYMENT GUIDE - Walk-in Member & Auto-Merge Feature
 
+> Catatan: checklist fitur di dokumen ini tetap berlaku, tetapi langkah deployment
+> Vercel sudah tidak digunakan. Ikuti [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+> untuk proses production saat ini.
+
 ## ✅ Status: READY FOR PRODUCTION
 
 **Version:** 1.1.0  

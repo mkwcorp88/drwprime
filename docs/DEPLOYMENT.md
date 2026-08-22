@@ -1,0 +1,117 @@
+# DRW Prime Deployment
+
+Production runs as the standalone Docker container `drwprime` on the VPS. It is
+attached to the `coolify` network and publishes container port `3000` on host
+loopback port `127.0.0.1:5054`. Host Nginx proxies `drwprime.com` to that port
+using `/etc/nginx/sites-enabled/drwprime.com`; Coolify no longer owns this
+application.
+
+## Deployment Paths
+
+The automatic path is the VPS webhook dispatcher:
+
+1. A push to `main` reaches the webhook receiver.
+2. `/opt/git/deploy-dispatch.sh` updates `/opt/git/drwprime-work`.
+3. `/opt/git/deploy-drwprime.sh` builds the immutable commit image. The Docker
+   builder runs typecheck, lint, and tests before the image can be produced.
+4. The server invokes `.github/scripts/deploy-standalone.sh` from that checkout.
+
+`.github/workflows/deploy.yml` is a manual recovery path. It builds the same
+commit in GitHub Actions, mirrors it to the VPS registry, and invokes the same
+standalone deploy script. It intentionally has no `push` trigger so the webhook
+and GitHub Actions cannot deploy the same commit concurrently.
+
+Runtime configuration is stored only on the VPS in `/opt/git/drwprime.env`.
+Never copy that file or its values into the repository or GitHub Actions logs.
+
+## Safety Model
+
+`npm run build` only builds the Next.js application. It never migrates or seeds
+a database.
+
+The standalone deploy script performs these steps under an exclusive lock:
+
+1. Apply pending Prisma migrations once from the target image.
+2. Start an isolated candidate container and check `/api/health`.
+3. Confirm the candidate homepage renders, then stop and retain the current
+   container as `drwprime-previous`.
+4. Start the target image as `drwprime` with the declared network, port, logging,
+   restart policy, and VPS environment file.
+5. Verify the immutable image identity, Prisma and Payload database readiness,
+   required runtime configuration, release SHA, public health endpoint, and
+   public homepage.
+6. Restore the previous container automatically when the swap or health checks
+   fail.
+
+The stopped previous container is retained until the next successful deployment.
+Database migrations are not automatically reversible, so migrations must follow
+the expand/contract pattern and remain compatible with the previous application
+release during rollout. Migration execution is capped at five minutes by default;
+override `DRWPRIME_MIGRATION_TIMEOUT` only for a reviewed long-running migration.
+
+Seeding is always explicit:
+
+```bash
+npm run db:seed
+```
+
+## VPS Bootstrap
+
+The VPS build wrapper must pass the release SHA into Docker:
+
+```bash
+docker build \
+  --build-arg "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}" \
+  --build-arg "RELEASE_SHA=${TAG}" \
+  ... \
+  --tag "${IMAGE}:${TAG}" \
+  .
+```
+
+After pushing the immutable image, it must delegate migration and container
+replacement to the checked-in script:
+
+```bash
+bash "${SRC}/.github/scripts/deploy-standalone.sh" "${IMAGE}:${TAG}" "${TAG}"
+```
+
+The wrapper remains responsible only for fetching source, building, and pushing
+the image. It must not remove or recreate the production container itself.
+
+## Verification
+
+Run the local quality gate before deployment:
+
+```bash
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
+
+Production readiness:
+
+```bash
+curl --fail --silent --show-error https://drwprime.com/api/health
+```
+
+The response must contain `"ok":true` and the expected `release` commit SHA.
+
+To validate an image through migration and isolated candidate readiness without
+swapping production, set `DRWPRIME_PREFLIGHT_ONLY=true` when invoking the deploy
+script.
+
+## Manual Container Rollback
+
+The deploy script performs this automatically on rollout failure. For a later
+regression, restore the retained container on the VPS:
+
+```bash
+docker rm -f drwprime
+docker rename drwprime-previous drwprime
+docker start drwprime
+curl --fail --silent --show-error http://127.0.0.1:5054/
+```
+
+This restores application code only. Review migration compatibility before any
+manual rollback.

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   try {
     await requireAdmin();
     const body = await req.json();
-    const { name, slug, categoryId, description, price, size, headline, imageUrl, imageKey, imageAlt, benefits, usageInstructions, ctaText, sortOrder, isActive } = body;
+    const { name, slug, categoryId, description, price, size, headline, imageUrl, imageKey, imageAlt, benefits, usageInstructions, ctaText, classification, sortOrder, isActive } = body;
 
     if (!name?.trim() || !slug?.trim() || !categoryId || !description?.trim()) {
       return NextResponse.json({ error: 'Nama, slug, kategori, dan deskripsi wajib diisi' }, { status: 400 });
@@ -51,6 +51,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Kategori tidak ditemukan' }, { status: 400 });
     }
 
+    const allowedClassifications = ['acne', 'brightening', 'antiaging'];
+    const classificationValue = classification?.trim() || null;
+    if (classificationValue && !allowedClassifications.includes(classificationValue)) {
+      return NextResponse.json({ error: 'Klasifikasi tidak valid' }, { status: 400 });
+    }
+
     const product = await prisma.product.create({
       data: {
         name: name.trim(),
@@ -66,6 +72,7 @@ export async function POST(req: NextRequest) {
         benefits: Array.isArray(benefits) ? benefits.filter(Boolean) : [],
         usageInstructions: usageInstructions?.trim() || null,
         ctaText: ctaText?.trim() || null,
+        classification: classification?.trim() || null,
         sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
         isActive: isActive ?? true,
       },
@@ -87,7 +94,7 @@ export async function PUT(req: NextRequest) {
   try {
     await requireAdmin();
     const body = await req.json();
-    const { id, name, slug, categoryId, description, price, size, headline, imageUrl, imageKey, imageAlt, benefits, usageInstructions, ctaText, sortOrder, isActive } = body;
+    const { id, name, slug, categoryId, description, price, size, headline, imageUrl, imageKey, imageAlt, benefits, usageInstructions, ctaText, classification, sortOrder, isActive } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Product ID wajib diisi' }, { status: 400 });
@@ -128,6 +135,14 @@ export async function PUT(req: NextRequest) {
     if (benefits !== undefined) updateData.benefits = Array.isArray(benefits) ? benefits.filter(Boolean) : [];
     if (usageInstructions !== undefined) updateData.usageInstructions = usageInstructions?.trim() || null;
     if (ctaText !== undefined) updateData.ctaText = ctaText?.trim() || null;
+    if (classification !== undefined) {
+      const allowedClassifications = ['acne', 'brightening', 'antiaging'];
+      const val = classification?.trim() || null;
+      if (val && !allowedClassifications.includes(val)) {
+        return NextResponse.json({ error: 'Klasifikasi tidak valid' }, { status: 400 });
+      }
+      updateData.classification = val;
+    }
     if (sortOrder !== undefined) updateData.sortOrder = Number.isFinite(sortOrder) ? sortOrder : 0;
     if (isActive !== undefined) updateData.isActive = isActive;
 
