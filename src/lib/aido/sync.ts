@@ -12,7 +12,7 @@ import {
 import {
   AidoIncome,
   AidoPatient,
-  getJakartaDateRange,
+  getAidoReportDateRange,
   mapAidoIncome,
   mapAidoPatient,
 } from '@/lib/aido/mapping';
@@ -20,6 +20,7 @@ import { prisma } from '@/lib/prisma';
 
 const LOCK_NAME = 'aido-daily-sync';
 const INCOME_SOURCE = 'aido-income';
+const SYNC_TRANSACTION_OPTIONS = { maxWait: 60_000, timeout: 180_000 };
 
 const syncUserSelect = {
   id: true,
@@ -356,7 +357,7 @@ async function syncPatient(
             lastSyncedAt: new Date(),
           },
         });
-      });
+      }, SYNC_TRANSACTION_OPTIONS);
       return {
         created: false,
         updated: !blocked && (Object.keys(data).length > 0 || linkChanged),
@@ -433,7 +434,7 @@ async function syncPatient(
             lastSyncedAt: new Date(),
           },
         });
-      });
+      }, SYNC_TRANSACTION_OPTIONS);
       return { created: false, updated: true, conflict };
     }
 
@@ -462,7 +463,7 @@ async function syncPatient(
           lastSyncedAt: new Date(),
         },
       });
-    });
+    }, SYNC_TRANSACTION_OPTIONS);
     return { created: true, updated: false, conflict: false };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -726,7 +727,7 @@ async function syncIncomeLedger(
     if (!changed) return 'unchanged';
     await tx.aidoIncomeRecord.update({ where: { id: existing.id }, data });
     return 'updated';
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }, { ...SYNC_TRANSACTION_OPTIONS, isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 async function syncIncome(
@@ -810,7 +811,7 @@ async function syncIncome(
     await recomputeLastTransactionAt(tx, existing.userId);
     await recomputeLastTransactionAt(tx, userId);
     return 'updated';
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }, { ...SYNC_TRANSACTION_OPTIONS, isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 async function removeMissingIncomeRecords(
@@ -819,7 +820,7 @@ async function removeMissingIncomeRecords(
   seenExternalIds: Set<string>,
   owner: string,
 ): Promise<number> {
-  const range = getJakartaDateRange(date);
+  const range = getAidoReportDateRange(date);
   const existingRecords = await prisma.spendingRecord.findMany({
     where: {
       source: INCOME_SOURCE,
@@ -850,7 +851,7 @@ async function removeMissingIncomeRecords(
       await updateUserTotals(tx, record.userId, -Number(record.amount), -record.pointsEarned);
       await recomputeLastTransactionAt(tx, record.userId);
       return true;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { ...SYNC_TRANSACTION_OPTIONS, isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (didRemove) removed += 1;
   }
 
@@ -863,7 +864,7 @@ async function removeMissingIncomeLedgerRecords(
   seenExternalIds: Set<string>,
   owner: string,
 ): Promise<number> {
-  const range = getJakartaDateRange(date);
+  const range = getAidoReportDateRange(date);
   const existingRecords = await prisma.aidoIncomeRecord.findMany({
     where: {
       hospitalId,
@@ -890,7 +891,7 @@ async function removeMissingIncomeLedgerRecords(
 
       await tx.aidoIncomeRecord.delete({ where: { id: record.id } });
       return true;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { ...SYNC_TRANSACTION_OPTIONS, isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (didRemove) removed += 1;
   }
 
@@ -964,7 +965,8 @@ export async function runAidoSync(options: {
     ]);
 
     const mappedPatients = rawPatients.map(mapAidoPatient);
-    const incomeRange = getJakartaDateRange(options.date);
+    // AIDO report dates are UTC calendar dates even though the schedule is Jakarta-based.
+    const incomeRange = getAidoReportDateRange(options.date);
     const mappedIncome = rawIncome.map((row) => {
       const income = mapAidoIncome(row);
       if (

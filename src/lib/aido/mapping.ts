@@ -306,3 +306,10 @@ export function getJakartaDateRange(date: string): { start: Date; end: Date } {
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return { start, end };
 }
+
+export function getAidoReportDateRange(date: string): { start: Date; end: Date } {
+  if (!isValidSyncDate(date)) throw new Error('Invalid sync date');
+  const start = new Date(`${date}T00:00:00.000Z`);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
+}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getAidoReportDateRange,
   getJakartaDateRange,
   getPreviousJakartaDate,
   mapAidoIncome,
@@ -114,5 +115,11 @@ describe('AIDO normalization and schedule dates', () => {
     const range = getJakartaDateRange('2026-08-20');
     expect(range.start.toISOString()).toBe('2026-08-19T17:00:00.000Z');
     expect(range.end.toISOString()).toBe('2026-08-20T17:00:00.000Z');
+  });
+
+  it('creates the UTC calendar range used by AIDO reports', () => {
+    const range = getAidoReportDateRange('2026-08-21');
+    expect(range.start.toISOString()).toBe('2026-08-21T00:00:00.000Z');
+    expect(range.end.toISOString()).toBe('2026-08-22T00:00:00.000Z');
   });
 });

@@ -38,6 +38,16 @@ describe('AIDO pagination validation', () => {
     await expect(createClient().getAllPatients(session)).resolves.toHaveLength(2);
   });
 
+  it('prefers the nested source total when the top-level total is zero', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      status: 200,
+      totalData: 0,
+      data: { totalData: 2, patients: [{ uuid: 'one' }, { uuid: 'two' }] },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+
+    await expect(createClient().getAllPatients(session)).resolves.toHaveLength(2);
+  });
+
   it('fails closed when the source total is missing', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
       status: 200,

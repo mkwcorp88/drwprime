@@ -245,7 +245,7 @@ export class AidoClient {
       }
       const rows = readArray(response, options.rowPaths);
       if (!rows) throw new AidoRequestError(options.endpoint);
-      const total = readCount(response, ['totalData', 'data.totalData', 'data.total']);
+      const total = readCount(response, ['data.totalData', 'data.total', 'totalData']);
       if (total === null) throw new AidoRequestError(options.endpoint);
       if (expectedTotal !== null && total !== expectedTotal) throw new AidoRequestError(options.endpoint);
       expectedTotal = total;
