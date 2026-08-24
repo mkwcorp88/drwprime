@@ -53,10 +53,10 @@ export default function Navbar() {
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('click', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('click', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [adminMenuOpen]);
@@ -80,8 +80,8 @@ export default function Navbar() {
   return (
     <nav className="hidden lg:block fixed top-0 w-full bg-black/95 backdrop-blur-md z-50 border-b border-primary/20">
       <AnnouncementTicker />
-      <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 overflow-hidden px-4 py-4 xl:px-6">
-        <Link href="/" className="relative z-10 shrink-0 bg-black pr-3">
+      <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 xl:px-6">
+        <Link href="/" className="relative z-10 shrink-0 pr-3">
           <Image
             src="/drwprime-logo.png"
             alt="DRW Prime Logo"
@@ -91,7 +91,7 @@ export default function Navbar() {
           />
         </Link>
 
-        <ul className="hidden min-w-0 flex-1 items-center justify-end gap-3 overflow-hidden xl:flex 2xl:gap-4">
+        <ul className="hidden min-w-0 flex-1 items-center justify-end gap-3 overflow-visible xl:flex 2xl:gap-4">
           {PUBLIC_LINKS.map((item) => (
             <li key={item.href}>
               <Link href={item.href} className={linkClass}>
@@ -107,7 +107,7 @@ export default function Navbar() {
               </Link>
             </li>
             {hasWorkspaceMenu && (
-              <li ref={adminMenuRef} className="relative">
+              <li ref={adminMenuRef} className="relative z-30">
                 <button
                   type="button"
                   onClick={() => setAdminMenuOpen((open) => !open)}
@@ -123,7 +123,8 @@ export default function Navbar() {
                 {adminMenuOpen && (
                   <div
                     role="menu"
-                    className="absolute right-0 top-full z-20 mt-3 min-w-[180px] rounded-lg border border-primary/20 bg-black/98 py-2 shadow-xl"
+                    onClick={(event) => event.stopPropagation()}
+                    className="absolute right-0 top-full z-[80] mt-2 min-w-[200px] rounded-lg border border-primary/20 bg-black py-2 shadow-xl"
                   >
                     {isAffiliate && (
                       <Link
