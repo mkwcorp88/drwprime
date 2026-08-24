@@ -5,6 +5,8 @@ import { ensureUniqueAffiliateCode } from '@/lib/affiliate';
 import { requireUser, handleAuthError } from '@/lib/auth';
 import { isHardcodedAdmin } from '@/lib/admin';
 import { normalizePhone } from '@/lib/phone';
+import { calculateCommission } from '@/lib/policies/commission';
+import { payCommissionTx } from '@/lib/services/reservation';
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -139,18 +141,24 @@ export async function POST(req: Request) {
 
       console.log(`[AFFILIATE] Updated PreClaimAffiliateCode status to claimed for: ${codeToUpdate}`);
 
-      const pendingReservations = await prisma.reservation.findMany({
-        where: { referredBy: codeToUpdate, referrerId: null },
-      });
-
-      if (pendingReservations.length > 0) {
-        await prisma.reservation.updateMany({
+      await prisma.$transaction(async (tx) => {
+        const pendingReservations = await tx.reservation.findMany({
           where: { referredBy: codeToUpdate, referrerId: null },
-          data: { referrerId: user.id },
         });
-
-        console.log(`[AFFILIATE] Transferred ${pendingReservations.length} pending reservations to user ${user.id}`);
-      }
+        for (const reservation of pendingReservations) {
+          const commissionAmount = calculateCommission(Number(reservation.finalPrice));
+          const assigned = await tx.reservation.updateMany({
+            where: { id: reservation.id, referrerId: null, commissionPaid: false },
+            data: { referrerId: user.id, commissionAmount },
+          });
+          if (assigned.count !== 1) continue;
+          const current = await tx.reservation.findUniqueOrThrow({ where: { id: reservation.id } });
+          if (current.status === 'completed') {
+            await payCommissionTx(tx, reservation.id, user.id, commissionAmount);
+          }
+        }
+        console.log(`[AFFILIATE] Transferred ${pendingReservations.length} reservations to user ${user.id}`);
+      });
     }
 
     return NextResponse.json({

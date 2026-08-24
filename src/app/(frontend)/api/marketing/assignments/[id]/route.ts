@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { isValidType, isValidStatus, isValidPriority } from '@/lib/marketing';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 // GET - Single assignment with comments
 export async function GET(
@@ -9,10 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const { id } = await params;
     const assignment = await prisma.marketingAssignment.findUnique({
@@ -26,6 +23,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, assignment });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') return handleAuthError(error);
     console.error('[MARKETING] Error fetching assignment:', error);
     return NextResponse.json({ error: 'Gagal memuat assignment' }, { status: 500 });
   }
@@ -37,10 +35,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const { id } = await params;
     const existing = await prisma.marketingAssignment.findUnique({ where: { id } });
@@ -107,6 +102,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, assignment });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') return handleAuthError(error);
     console.error('[MARKETING] Error updating assignment:', error);
     return NextResponse.json({ error: 'Gagal memperbarui assignment' }, { status: 500 });
   }
@@ -118,10 +114,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const { id } = await params;
     const existing = await prisma.marketingAssignment.findUnique({ where: { id } });
@@ -132,6 +125,7 @@ export async function DELETE(
     await prisma.marketingAssignment.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') return handleAuthError(error);
     console.error('[MARKETING] Error deleting assignment:', error);
     return NextResponse.json({ error: 'Gagal menghapus assignment' }, { status: 500 });
   }

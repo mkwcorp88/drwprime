@@ -51,10 +51,17 @@ export async function POST(req: Request) {
     if (ikey) {
       const dup = await prisma.productOrder.findUnique({ where: { idempotencyKey: ikey } });
       if (dup) {
+        if (!dup.paymentUrl) {
+          return NextResponse.json(
+            { error: 'Sesi pembayaran sedang dibuat. Silakan coba lagi sebentar.' },
+            { status: 409 },
+          );
+        }
         return NextResponse.json({
           success: true,
           paymentUrl: dup.paymentUrl,
           invoiceNumber: dup.invoiceNumber,
+          publicToken: dup.publicToken,
           duplicate: true,
         });
       }
@@ -109,7 +116,7 @@ export async function POST(req: Request) {
 
     const invoiceNumber = generateInvoiceNumber();
     const publicToken = generatePublicToken();
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || (req.headers.get('x-forwarded-host') ? `https://${req.headers.get('x-forwarded-host')}` : process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://drwprime.com');
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://drwprime.com';
     const returnUrl = `${appUrl}/product-gallery/order/${publicToken}`;
     const notificationUrl = `${appUrl}/api/products/doku/notification`;
     const dummyPaymentUrl = `${appUrl}/payment/${publicToken}`;
@@ -118,55 +125,64 @@ export async function POST(req: Request) {
     let paymentUrl: string;
     let dokuTokenId: string | null = null;
 
-    if (useDummy) {
-      paymentUrl = dummyPaymentUrl;
-      console.log(`[DUMMY DOKU] Using dummy payment URL for ${invoiceNumber}`);
-    } else {
-      const dokuResponse = await createCheckoutPayment({
-        invoiceNumber,
-        amount: totalAmount,
-        items: orderItems.map(oi => ({
-          name: oi.productName,
-          price: oi.productPrice,
-          quantity: oi.quantity,
-        })),
-        customerName: customerName.trim(),
-        customerEmail: customerEmail?.trim() || `${customerPhone}@guest.drwprime.com`,
-        customerPhone,
-        notificationUrl,
-        returnUrl,
+    // Persist the invoice before external I/O so a fast DOKU callback always
+    // has a local order to update and the idempotency key is reserved.
+    try {
+      await prisma.productOrder.create({
+        data: {
+          invoiceNumber, publicToken, idempotencyKey: ikey,
+          customerName: customerName.trim(), customerPhone,
+          customerEmail: customerEmail?.trim() || null,
+          shippingAddress: shippingAddress?.trim() || null,
+          shippingCity: shippingCity?.trim() || null,
+          shippingProvince: shippingProvince?.trim() || null,
+          shippingPostal: shippingPostal?.trim() || null,
+          notes: notes?.trim() || null,
+          totalAmount, listSubtotal, discountAmount, currency: 'IDR', pricingVersion,
+          paymentStatus: 'pending', orderStatus: 'pending',
+          items: { create: orderItems },
+        },
       });
-      paymentUrl = dokuResponse.response.payment.url;
-      dokuTokenId = dokuResponse.response.payment.token_id;
+    } catch (error) {
+      if (ikey) {
+        const duplicate = await prisma.productOrder.findUnique({ where: { idempotencyKey: ikey } });
+        if (duplicate) {
+          if (!duplicate.paymentUrl) {
+            return NextResponse.json(
+              { error: 'Sesi pembayaran sedang dibuat. Silakan coba lagi sebentar.' },
+              { status: 409 },
+            );
+          }
+          return NextResponse.json({
+            success: true, paymentUrl: duplicate.paymentUrl,
+            invoiceNumber: duplicate.invoiceNumber, publicToken: duplicate.publicToken, duplicate: true,
+          });
+        }
+      }
+      throw error;
     }
 
-    await prisma.productOrder.create({
-      data: {
-        invoiceNumber,
-        publicToken,
-        idempotencyKey: ikey,
-        customerName: customerName.trim(),
-        customerPhone,
-        customerEmail: customerEmail?.trim() || null,
-        shippingAddress: shippingAddress?.trim() || null,
-        shippingCity: shippingCity?.trim() || null,
-        shippingProvince: shippingProvince?.trim() || null,
-        shippingPostal: shippingPostal?.trim() || null,
-        notes: notes?.trim() || null,
-        totalAmount,
-        listSubtotal,
-        discountAmount,
-        currency: 'IDR',
-        pricingVersion,
-        paymentStatus: 'pending',
-        orderStatus: 'pending',
-        paymentUrl,
-        dokuTokenId,
-        items: {
-          create: orderItems,
-        },
-      },
-    });
+    try {
+      if (useDummy) {
+        paymentUrl = dummyPaymentUrl;
+        console.log(`[DUMMY DOKU] Using dummy payment URL for ${invoiceNumber}`);
+      } else {
+        const dokuResponse = await createCheckoutPayment({
+          invoiceNumber, amount: totalAmount,
+          items: orderItems.map(oi => ({ name: oi.productName, price: oi.productPrice, quantity: oi.quantity })),
+          customerName: customerName.trim(),
+          customerEmail: customerEmail?.trim() || `${customerPhone}@guest.drwprime.com`, customerPhone,
+          notificationUrl, returnUrl,
+        });
+        paymentUrl = dokuResponse.response.payment.url;
+        dokuTokenId = dokuResponse.response.payment.token_id;
+      }
+      await prisma.productOrder.update({ where: { invoiceNumber }, data: { paymentUrl, dokuTokenId } });
+    } catch (error) {
+      // The provider may have accepted the request before a network failure.
+      // Leave the order pending so a verified callback can still settle it.
+      throw error;
+    }
 
     return NextResponse.json({
       success: true,

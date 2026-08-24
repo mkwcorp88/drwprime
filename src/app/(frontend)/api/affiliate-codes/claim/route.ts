@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { calculateCommission } from '@/lib/policies/commission';
+import { payCommissionTx } from '@/lib/services/reservation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -75,35 +77,27 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // User exists - claim the code immediately
-    // Update user's affiliate code
-    await prisma.user.update({
-      where: { id: targetUser.id },
-      data: {
-        affiliateCode: code.code
-      }
-    });
+    const updatedCode = await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: targetUser.id }, data: { affiliateCode: code.code } });
 
-    // Transfer pending reservations to this user
-    await prisma.reservation.updateMany({
-      where: {
-        referredBy: code.code,
-        referrerId: null
-      },
-      data: {
-        referrerId: targetUser.id
+      const reservations = await tx.reservation.findMany({ where: { referredBy: code.code, referrerId: null } });
+      for (const reservation of reservations) {
+        const commissionAmount = calculateCommission(Number(reservation.finalPrice));
+        const assigned = await tx.reservation.updateMany({
+          where: { id: reservation.id, referrerId: null, commissionPaid: false },
+          data: { referrerId: targetUser.id, commissionAmount },
+        });
+        if (assigned.count !== 1) continue;
+        const current = await tx.reservation.findUniqueOrThrow({ where: { id: reservation.id } });
+        if (current.status === 'completed') {
+          await payCommissionTx(tx, reservation.id, targetUser.id, commissionAmount);
+        }
       }
-    });
 
-    // Update PreClaimAffiliateCode status
-    const updatedCode = await prisma.preClaimAffiliateCode.update({
-      where: { id: codeId },
-      data: {
-        status: 'claimed',
-        claimedBy: targetUser.id,
-        claimedAt: new Date(),
-        assignedEmail: email
-      }
+      return tx.preClaimAffiliateCode.update({
+        where: { id: codeId },
+        data: { status: 'claimed', claimedBy: targetUser.id, claimedAt: new Date(), assignedEmail: email },
+      });
     });
 
     return NextResponse.json({

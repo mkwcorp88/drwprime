@@ -15,6 +15,7 @@ function generateAffiliateCode(): string {
 // GET - List all pre-claim codes
 export async function GET(req: Request) {
   try {
+    await requireAdmin();
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'all';
 
@@ -75,6 +76,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ codes: codesWithStats });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') {
+      return handleAuthError(error);
+    }
     console.error('Error fetching affiliate codes:', error);
     return NextResponse.json(
       { error: 'Failed to fetch affiliate codes' },

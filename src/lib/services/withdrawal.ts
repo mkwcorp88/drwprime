@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 
 export class WithdrawalError extends Error {
@@ -51,7 +52,7 @@ export async function createWithdrawal(
 
     console.log(`[WITHDRAWAL] Created: ${withdrawal.id} — Rp ${amount}`);
     return withdrawal;
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function approveWithdrawal(withdrawalId: string, processedBy: string) {
@@ -80,7 +81,7 @@ export async function approveWithdrawal(withdrawalId: string, processedBy: strin
         processedBy,
       },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function rejectWithdrawal(
@@ -108,5 +109,5 @@ export async function rejectWithdrawal(
         adminNotes: reason ?? null,
       },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }

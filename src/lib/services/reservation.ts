@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { calculateCommission } from '@/lib/policies/commission';
+import { calculateCommission, calculateCommissionPoints } from '@/lib/policies/commission';
 import { calculateSpendingPoints } from '@/lib/policies/loyalty';
 import { isAidoManagedSpendingDate } from '@/lib/aido/config';
 
@@ -139,47 +139,28 @@ export async function addReferrer(
     throw new ReservationError('Kode affiliate tidak ditemukan', 'NOT_FOUND');
   }
 
-  const reservation = await prisma.reservation.findUnique({
-    where: { id: reservationId },
-    select: { userId: true, status: true, finalPrice: true, commissionPaid: true, referrerId: true },
-  });
+  return prisma.$transaction(async (tx) => {
+    const reservation = await tx.reservation.findUnique({ where: { id: reservationId } });
+    if (!reservation) throw new ReservationError('Reservasi tidak ditemukan', 'NOT_FOUND');
+    if (reservation.commissionPaid) throw new ReservationError('Komisi reservasi sudah dibayarkan', 'COMMISSION_PAID');
+    if (reservation.referrerId && reservation.referrerId !== referrer.id) {
+      throw new ReservationError('Affiliate reservasi sudah ditetapkan', 'REFERRER_ASSIGNED');
+    }
+    if (reservation.userId === referrer.id) {
+      throw new ReservationError('Tidak bisa menggunakan kode affiliate sendiri', 'SELF_REFERRAL');
+    }
 
-  if (!reservation) {
-    throw new ReservationError('Reservasi tidak ditemukan', 'NOT_FOUND');
-  }
-
-  if (reservation.commissionPaid) {
-    throw new ReservationError('Komisi reservasi sudah dibayarkan', 'COMMISSION_PAID');
-  }
-  if (reservation.referrerId && reservation.referrerId !== referrer.id) {
-    throw new ReservationError('Affiliate reservasi sudah ditetapkan', 'REFERRER_ASSIGNED');
-  }
-
-  if (reservation.userId === referrer.id) {
-    throw new ReservationError(
-      'Tidak bisa menggunakan kode affiliate sendiri',
-      'SELF_REFERRAL',
-    );
-  }
-
-  const commissionAmount = calculateCommission(Number(reservation.finalPrice));
-
-  await prisma.$transaction(async (tx) => {
-    await tx.reservation.update({
-      where: { id: reservationId },
-      data: {
-        referredBy: code,
-        referrerId: referrer.id,
-        commissionAmount,
-      },
+    const commissionAmount = calculateCommission(Number(reservation.finalPrice));
+    const claimed = await tx.reservation.updateMany({
+      where: { id: reservationId, commissionPaid: false, referrerId: reservation.referrerId },
+      data: { referredBy: code, referrerId: referrer.id, commissionAmount },
     });
-
-    if (reservation.status === 'completed' && !reservation.commissionPaid) {
+    if (claimed.count !== 1) throw new ReservationError('Reservasi diubah oleh request lain', 'CONCURRENT_UPDATE');
+    if (reservation.status === 'completed') {
       await payCommissionTx(tx, reservationId, referrer.id, commissionAmount);
     }
-  });
-
-  return { referrerId: referrer.id, commissionAmount };
+    return { referrerId: referrer.id, commissionAmount };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 // --- Internal helpers ---
@@ -225,7 +206,13 @@ export async function payCommissionTx(
   referrerId: string,
   commissionAmount: number,
 ) {
-  const points = calculateCommission(commissionAmount);
+  const claimed = await tx.reservation.updateMany({
+    where: { id: reservationId, commissionPaid: false, referrerId },
+    data: { commissionPaid: true },
+  });
+  if (claimed.count !== 1) return false;
+
+  const points = calculateCommissionPoints(commissionAmount);
 
   await tx.user.update({
     where: { id: referrerId },
@@ -247,12 +234,8 @@ export async function payCommissionTx(
     },
   });
 
-  await tx.reservation.update({
-    where: { id: reservationId },
-    data: { commissionPaid: true },
-  });
-
   console.log(`[COMMISSION] Paid Rp ${commissionAmount} to ${referrerId}`);
+  return true;
 }
 
 export { type ReservationStatus };

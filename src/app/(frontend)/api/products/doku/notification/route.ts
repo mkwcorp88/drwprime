@@ -74,9 +74,15 @@ export async function POST(request: NextRequest) {
     const { paymentStatus, orderStatus } = mapDokuStatus(transactionStatus);
     const paymentType = channelId || transactionType || 'doku';
 
-    // Prevent status regression
-    const terminalStatuses = ['paid', 'refunded'];
-    if (terminalStatuses.includes(order.paymentStatus) && !terminalStatuses.includes(paymentStatus)) {
+    const allowedTransitions: Record<string, string[]> = {
+      pending: ['pending', 'paid', 'failed', 'expired', 'cancelled', 'refunded'],
+      paid: ['paid', 'refunded'],
+      failed: ['failed'],
+      expired: ['expired'],
+      cancelled: ['cancelled'],
+      refunded: ['refunded'],
+    };
+    if (!allowedTransitions[order.paymentStatus]?.includes(paymentStatus)) {
       console.warn('[DOKU Notification] Preventing regression:', {
         from: order.paymentStatus,
         to: paymentStatus,

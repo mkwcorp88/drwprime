@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { calculateCommission } from '@/lib/policies/commission';
+import { payCommissionTx } from '@/lib/services/reservation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -98,10 +100,11 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Update all reservations to remove referrer
+      // Preserve paid referral history; unpaid reservations follow the code.
       await prisma.reservation.updateMany({
         where: {
-          referredBy: code.code
+          referredBy: code.code,
+          commissionPaid: false,
         },
         data: {
           referrerId: null
@@ -134,13 +137,21 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Transfer all reservations to new owner
-    await prisma.reservation.updateMany({
-      where: {
-        referredBy: code.code
-      },
-      data: {
-        referrerId: newOwner.id
+    await prisma.$transaction(async (tx) => {
+      const unpaidReservations = await tx.reservation.findMany({
+        where: { referredBy: code.code, commissionPaid: false },
+      });
+      for (const reservation of unpaidReservations) {
+        const commissionAmount = calculateCommission(Number(reservation.finalPrice));
+        const assigned = await tx.reservation.updateMany({
+          where: { id: reservation.id, commissionPaid: false },
+          data: { referrerId: newOwner.id, commissionAmount },
+        });
+        if (assigned.count !== 1) continue;
+        const current = await tx.reservation.findUniqueOrThrow({ where: { id: reservation.id } });
+        if (current.status === 'completed') {
+          await payCommissionTx(tx, reservation.id, newOwner.id, commissionAmount);
+        }
       }
     });
 

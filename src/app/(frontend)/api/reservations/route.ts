@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { calculateCommission, calculateLoyaltyPoints } from '@/lib/affiliate';
+import { calculateCommission } from '@/lib/affiliate';
 import { sendReservationToAdminWhatsApp } from '@/lib/whatsapp';
 import { normalizePhone } from '@/lib/phone';
 
@@ -119,29 +119,6 @@ export async function POST(req: Request) {
       });
     } catch (whatsAppError) {
       console.error('[WHATSAPP] Failed to send reservation notification:', whatsAppError);
-    }
-
-    // Only add loyalty points and transaction if user is logged in
-    if (user) {
-      const loyaltyPoints = calculateLoyaltyPoints(Number(treatment.price));
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          loyaltyPoints: { increment: loyaltyPoints }
-        }
-      });
-
-      // Create transaction record
-      await prisma.transaction.create({
-        data: {
-          userId: user.id,
-          type: 'points_earned',
-          amount: treatment.price,
-          points: loyaltyPoints,
-          description: `Earned ${loyaltyPoints} loyalty points from reservation`,
-          referenceId: reservation.id
-        }
-      });
     }
 
     return NextResponse.json({ reservation });

@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 // GET - Aggregate stats for the marketing dashboard overview
 export async function GET() {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const [total, byStatus, byType, byPriority, overdue, avgProgress] = await Promise.all([
       prisma.marketingAssignment.count(),
@@ -48,6 +45,7 @@ export async function GET() {
       },
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') return handleAuthError(error);
     console.error('[MARKETING] Error building stats:', error);
     return NextResponse.json({ error: 'Gagal memuat statistik' }, { status: 500 });
   }

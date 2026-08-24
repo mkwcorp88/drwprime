@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
+import { approveWithdrawal, rejectWithdrawal, WithdrawalError } from '@/lib/services/withdrawal';
 
 // GET - Get all withdrawal requests
 export async function GET(req: NextRequest) {
   try {
     await requireAdmin();
-    const { userId } = await auth();
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'all';
@@ -58,8 +57,7 @@ export async function GET(req: NextRequest) {
 // PATCH - Update withdrawal status
 export async function PATCH(req: NextRequest) {
   try {
-    await requireAdmin();
-    const { userId } = await auth();
+    const { clerkUserId: userId } = await requireAdmin();
 
     const body = await req.json();
     const { withdrawalId, status, adminNotes } = body;
@@ -67,42 +65,16 @@ export async function PATCH(req: NextRequest) {
     if (!withdrawalId || !status) {
       return NextResponse.json({ error: 'withdrawalId dan status harus diisi' }, { status: 400 });
     }
-
-    // Get withdrawal
-    const withdrawal = await prisma.withdrawal.findUnique({
-      where: { id: withdrawalId },
-      include: {
-        user: true,
-        bankAccount: true
-      }
-    });
-
-    if (!withdrawal) {
-      return NextResponse.json({ error: 'Penarikan tidak ditemukan' }, { status: 404 });
+    if (status !== 'approved' && status !== 'rejected') {
+      return NextResponse.json({ error: 'Status harus approved atau rejected' }, { status: 400 });
     }
 
-    // If status is being changed to rejected, return the money to user
-    if (status === 'rejected' && withdrawal.status === 'pending') {
-      await prisma.user.update({
-        where: { id: withdrawal.userId },
-        data: {
-          totalEarnings: {
-            increment: parseFloat(withdrawal.amount.toString())
-          }
-        }
-      });
-      console.log(`[FO WITHDRAWAL] Returned ${withdrawal.amount} to user ${withdrawal.user.email} due to rejection`);
-    }
+    const updatedWithdrawal = status === 'approved'
+      ? await approveWithdrawal(withdrawalId, userId)
+      : await rejectWithdrawal(withdrawalId, userId, adminNotes);
 
-    // Update withdrawal
-    const updatedWithdrawal = await prisma.withdrawal.update({
-      where: { id: withdrawalId },
-      data: {
-        status,
-        adminNotes: adminNotes || withdrawal.adminNotes,
-        processedDate: new Date(),
-        processedBy: userId
-      },
+    const withdrawalWithDetails = await prisma.withdrawal.findUnique({
+      where: { id: updatedWithdrawal.id },
       include: {
         user: true,
         bankAccount: true
@@ -113,12 +85,15 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      withdrawal: updatedWithdrawal
+      withdrawal: withdrawalWithDetails
     }, { status: 200 });
 
   } catch (error) {
     if (error instanceof Error && error.name === 'AuthError') {
       return handleAuthError(error);
+    }
+    if (error instanceof WithdrawalError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error('[FO WITHDRAWAL] Error updating withdrawal:', error);
     return NextResponse.json(

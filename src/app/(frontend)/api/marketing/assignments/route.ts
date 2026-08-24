@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { currentUser } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { isValidType, isValidStatus, isValidPriority } from '@/lib/marketing';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 // GET - List assignments with optional filters
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { clerkUserId: userId } = await requireAdmin();
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
@@ -39,6 +37,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ success: true, assignments });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') return handleAuthError(error);
     console.error('[MARKETING] Error listing assignments:', error);
     return NextResponse.json({ error: 'Gagal memuat assignment' }, { status: 500 });
   }
@@ -47,10 +46,7 @@ export async function GET(req: NextRequest) {
 // POST - Create a new assignment
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { clerkUserId: userId } = await requireAdmin();
 
     const user = await currentUser();
     const requesterName =
@@ -112,6 +108,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, assignment }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') return handleAuthError(error);
     console.error('[MARKETING] Error creating assignment:', error);
     return NextResponse.json({ error: 'Gagal membuat assignment' }, { status: 500 });
   }

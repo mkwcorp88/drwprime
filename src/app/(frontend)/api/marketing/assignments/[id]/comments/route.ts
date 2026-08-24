@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { currentUser } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
 
 // POST - Add a comment to an assignment
 export async function POST(
@@ -8,10 +9,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { clerkUserId: userId } = await requireAdmin();
 
     const { id } = await params;
     const assignment = await prisma.marketingAssignment.findUnique({ where: { id } });
@@ -41,6 +39,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, comment }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AuthError') return handleAuthError(error);
     console.error('[MARKETING] Error adding comment:', error);
     return NextResponse.json({ error: 'Gagal menambahkan komentar' }, { status: 500 });
   }
