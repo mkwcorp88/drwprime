@@ -12,59 +12,58 @@ datasource db {
 
 // User/Member model - unified for both app users and walk-in customers
 model User {
-  id                String         @id @default(cuid())
-  clerkUserId       String?        @unique @map("clerk_user_id") // NULL for walk-in customers
-  email             String?        // Not unique - can be null for walk-in
-  firstName         String         @map("first_name") // Required even for walk-in
-  lastName          String?        @map("last_name")
+  id          String  @id @default(cuid())
+  clerkUserId String? @unique @map("clerk_user_id") // NULL for walk-in customers
+  email       String? // Not unique - can be null for walk-in
+  firstName   String  @map("first_name") // Required even for walk-in
+  lastName    String? @map("last_name")
 
   // Personal info (member profile completion)
-  phone             String?        @unique // Collected when the member completes their profile
-  nomorRekamMedis   String?        @unique @map("nomor_rekam_medis") // Linked to AIDO patient MR number
-  nik               String?        @unique // Nomor Induk Kependudukan (KTP)
-  gender            String?        // "Pria" | "Wanita"
-  dateOfBirth       DateTime?      @map("date_of_birth") @db.Date
-  address           String?
-  city              String?
-  province          String?
-  postalCode        String?        @map("postal_code")
-  profileCompletedAt DateTime?     @map("profile_completed_at") // Set when member completes their profile
+  phone              String?   @unique // Collected when the member completes their profile
+  nomorRekamMedis    String?   @unique @map("nomor_rekam_medis") // Linked to AIDO patient MR number
+  nik                String?   @unique // Nomor Induk Kependudukan (KTP)
+  gender             String? // "Pria" | "Wanita"
+  dateOfBirth        DateTime? @map("date_of_birth") @db.Date
+  address            String?
+  city               String?
+  province           String?
+  postalCode         String?   @map("postal_code")
+  profileCompletedAt DateTime? @map("profile_completed_at") // Set when member completes their profile
 
-  qrToken           String?        @unique @map("qr_token") // Auto-generated for ALL members (including walk-in)
+  qrToken String? @unique @map("qr_token") // Auto-generated for ALL members (including walk-in)
 
   // Membership flags & data
-  hasAccount        Boolean        @default(false) @map("has_account") // TRUE if signed up via app
-  memberSince       DateTime       @default(now()) @map("member_since")
-  totalSpending     Decimal        @default(0) @db.Decimal(15, 2) @map("total_spending") // Denormalized for performance
-  lastTransactionAt DateTime?      @map("last_transaction_at") // Last spending/reservation date
+  hasAccount        Boolean   @default(false) @map("has_account") // TRUE if signed up via app
+  memberSince       DateTime  @default(now()) @map("member_since")
+  totalSpending     Decimal   @default(0) @map("total_spending") @db.Decimal(15, 2) // Denormalized for performance
+  lastTransactionAt DateTime? @map("last_transaction_at") // Last spending/reservation date
 
   // Affiliate system
-  affiliateCode     String?        @map("affiliate_code") // NULL for walk-in customers
-  isTeamLeader      Boolean        @default(false) @map("is_team_leader")
-  affiliateCodeUpdatedAt DateTime?  @map("affiliate_code_updated_at")
-  affiliateCodeHistory String[]     @default([]) @map("affiliate_code_history")
-  
+  affiliateCode          String?   @map("affiliate_code") // NULL for walk-in customers
+  isTeamLeader           Boolean   @default(false) @map("is_team_leader")
+  affiliateCodeUpdatedAt DateTime? @map("affiliate_code_updated_at")
+  affiliateCodeHistory   String[]  @default([]) @map("affiliate_code_history")
+
   // Admin & points
-  isAdmin           Boolean        @default(false) @map("is_admin")
-  points            Int            @default(0) // Spending-based points (1 per 10k)
-  loyaltyPoints     Int            @default(0) @map("loyalty_points") // Reservation-based points (legacy)
-  loyaltyLevel      String         @default("Bronze") @map("loyalty_level") // Bronze, Silver, Gold, Platinum (legacy)
-  totalReferrals    Int            @default(0) @map("total_referrals")
-  totalEarnings     Decimal        @default(0) @db.Decimal(10, 2) @map("total_earnings")
-  
-  
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
-  
+  isAdmin        Boolean @default(false) @map("is_admin")
+  points         Int     @default(0) // Spending-based points (1 per 10k)
+  loyaltyPoints  Int     @default(0) @map("loyalty_points") // Reservation-based points (legacy)
+  loyaltyLevel   String  @default("Bronze") @map("loyalty_level") // Bronze, Silver, Gold, Platinum (legacy)
+  totalReferrals Int     @default(0) @map("total_referrals")
+  totalEarnings  Decimal @default(0) @map("total_earnings") @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relations
-  reservations      Reservation[]
-  referrals         Reservation[]  @relation("ReferredBy")
-  transactions      Transaction[]
+  reservations       Reservation[]
+  referrals          Reservation[]       @relation("ReferredBy")
+  transactions       Transaction[]
   voucherRedemptions VoucherRedemption[]
   eventRegistrations EventRegistration[]
-  bankAccounts      BankAccount[]
-  withdrawals       Withdrawal[]
-  spendingRecords   SpendingRecord[]
+  bankAccounts       BankAccount[]
+  withdrawals        Withdrawal[]
+  spendingRecords    SpendingRecord[]
   riwayatTindakan    RiwayatTindakan[]
   aidoPatientLinks   AidoPatientLink[]
   aidoIncomeRecords  AidoIncomeRecord[]
@@ -78,137 +77,137 @@ model User {
 
 // Pre-claim affiliate codes - codes created by admin that can be claimed later
 model PreClaimAffiliateCode {
-  id              String    @id @default(cuid())
-  code            String    @unique // The affiliate code (e.g., AFMRCH1)
-  assignedEmail   String?   // Email assigned by FO for ownership
-  claimedBy       String?   // User ID who claimed this code
-  claimedAt       DateTime? // When the code was claimed
-  usageCount      Int       @default(0) // How many times used in reservations
-  status          String    @default("unclaimed") // unclaimed, claimed
-  notes           String?   // Admin notes about this code
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  createdBy       String?   // Admin who created this code
+  id            String    @id @default(cuid())
+  code          String    @unique // The affiliate code (e.g., AFMRCH1)
+  assignedEmail String? // Email assigned by FO for ownership
+  claimedBy     String? // User ID who claimed this code
+  claimedAt     DateTime? // When the code was claimed
+  usageCount    Int       @default(0) // How many times used in reservations
+  status        String    @default("unclaimed") // unclaimed, claimed
+  notes         String? // Admin notes about this code
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String? // Admin who created this code
 
   @@map("pre_claim_affiliate_codes")
 }
 
 // Treatment categories and items
 model TreatmentCategory {
-  id          String      @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
-  slug        String      @unique
+  slug        String  @unique
   description String?
   image       String?
-  order       Int         @default(0)
-  active      Boolean     @default(true)
-  
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  
-  treatments  Treatment[]
+  order       Int     @default(0)
+  active      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  treatments Treatment[]
 
   @@map("treatment_categories")
 }
 
 model Treatment {
-  id              String            @id @default(cuid())
-  categoryId      String
-  name            String
-  slug            String            @unique
-  description     String?
-  price           Decimal           @db.Decimal(10, 2)
-  duration        Int?              // in minutes
-  image           String?
-  benefits        String[]
-  active          Boolean           @default(true)
-  
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  
-  category        TreatmentCategory @relation(fields: [categoryId], references: [id])
-  reservations    Reservation[]
+  id          String   @id @default(cuid())
+  categoryId  String
+  name        String
+  slug        String   @unique
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  duration    Int? // in minutes
+  image       String?
+  benefits    String[]
+  active      Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category     TreatmentCategory @relation(fields: [categoryId], references: [id])
+  reservations Reservation[]
 
   @@map("treatments")
 }
 
 // Reservation system
 model Reservation {
-  id              String    @id @default(cuid())
-  userId          String?   // Nullable for guest reservations
-  treatmentId     String
-  referredBy      String?   // Affiliate code of referrer
-  referrerId      String?   // User ID of referrer
-  
+  id          String  @id @default(cuid())
+  userId      String? // Nullable for guest reservations
+  treatmentId String
+  referredBy  String? // Affiliate code of referrer
+  referrerId  String? // User ID of referrer
+
   // Patient info
-  patientName     String
-  patientEmail    String
-  patientPhone    String
-  patientNotes    String?
-  
+  patientName  String
+  patientEmail String
+  patientPhone String
+  patientNotes String?
+
   // Reservation details
   reservationDate DateTime
   reservationTime String
-  status          String    @default("pending") // pending, confirmed, completed, cancelled
-  
+  status          String   @default("pending") // pending, confirmed, completed, cancelled
+
   // Pricing
-  originalPrice   Decimal   @db.Decimal(10, 2)
-  finalPrice      Decimal   @db.Decimal(10, 2)
-  discountAmount  Decimal   @default(0) @db.Decimal(10, 2)
-  
+  originalPrice  Decimal @db.Decimal(10, 2)
+  finalPrice     Decimal @db.Decimal(10, 2)
+  discountAmount Decimal @default(0) @db.Decimal(10, 2)
+
   // Affiliate commission
-  commissionAmount Decimal  @default(0) @db.Decimal(10, 2)
-  commissionPaid   Boolean  @default(false)
-  
+  commissionAmount Decimal @default(0) @db.Decimal(10, 2)
+  commissionPaid   Boolean @default(false)
+
   // Admin notes
-  adminNotes      String?
-  completedAt     DateTime?
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  user            User?     @relation(fields: [userId], references: [id])
-  treatment       Treatment @relation(fields: [treatmentId], references: [id])
-  referrer        User?     @relation("ReferredBy", fields: [referrerId], references: [id])
+  adminNotes  String?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User?     @relation(fields: [userId], references: [id])
+  treatment Treatment @relation(fields: [treatmentId], references: [id])
+  referrer  User?     @relation("ReferredBy", fields: [referrerId], references: [id])
 
   @@map("reservations")
 }
 
 // Transaction history
 model Transaction {
-  id              String    @id @default(cuid())
-  userId          String
-  type            String    // commission, voucher_redeem, points_earned
-  amount          Decimal   @db.Decimal(10, 2)
-  points          Int       @default(0)
-  description     String
-  referenceId     String?   // ID of related reservation/voucher/etc
-  
-  createdAt       DateTime  @default(now())
-  
-  user            User      @relation(fields: [userId], references: [id])
+  id          String  @id @default(cuid())
+  userId      String
+  type        String // commission, voucher_redeem, points_earned
+  amount      Decimal @db.Decimal(10, 2)
+  points      Int     @default(0)
+  description String
+  referenceId String? // ID of related reservation/voucher/etc
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 
   @@map("transactions")
 }
 
 // Spending recorded via QR scan by front office (links spending to member account)
 model SpendingRecord {
-  id                String    @id @default(cuid())
-  userId            String
-  amount            Decimal   @db.Decimal(12, 2)
-  treatment         String?   // treatment name / keterangan
-  pointsEarned      Int       @default(0) // poin yang diperoleh dari spending ini
-  spendingDate      DateTime
-  recordedByClerkId String?   // admin/FO who recorded
-  source            String    @default("scan") // scan, manual
+  id                 String   @id @default(cuid())
+  userId             String
+  amount             Decimal  @db.Decimal(12, 2)
+  treatment          String? // treatment name / keterangan
+  pointsEarned       Int      @default(0) // poin yang diperoleh dari spending ini
+  spendingDate       DateTime
+  recordedByClerkId  String? // admin/FO who recorded
+  source             String   @default("scan") // scan, manual
   externalId         String?  @map("external_id")
   registrationNumber String?  @map("registration_number")
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  user              User      @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([source, externalId])
   @@index([userId])
@@ -308,71 +307,71 @@ model AidoSyncLock {
 
 // Voucher system
 model Voucher {
-  id              String      @id @default(cuid())
-  title           String
-  description     String?
-  category        String      // Treatment, Product, Service
-  discount        String      // "50%", "100%"
-  pointsCost      Int
-  availableCount  Int
-  image           String?
-  active          Boolean     @default(true)
-  
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  
-  redemptions     VoucherRedemption[]
+  id             String  @id @default(cuid())
+  title          String
+  description    String?
+  category       String // Treatment, Product, Service
+  discount       String // "50%", "100%"
+  pointsCost     Int
+  availableCount Int
+  image          String?
+  active         Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  redemptions VoucherRedemption[]
 
   @@map("vouchers")
 }
 
 model VoucherRedemption {
-  id          String    @id @default(cuid())
-  userId      String
-  voucherId   String
-  code        String    @unique // Generated redemption code
-  status      String    @default("active") // active, used, expired
-  usedAt      DateTime?
-  
-  createdAt   DateTime  @default(now())
-  expiresAt   DateTime
-  
-  user        User      @relation(fields: [userId], references: [id])
-  voucher     Voucher   @relation(fields: [voucherId], references: [id])
+  id        String    @id @default(cuid())
+  userId    String
+  voucherId String
+  code      String    @unique // Generated redemption code
+  status    String    @default("active") // active, used, expired
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user    User    @relation(fields: [userId], references: [id])
+  voucher Voucher @relation(fields: [voucherId], references: [id])
 
   @@map("voucher_redemptions")
 }
 
 // Event system
 model Event {
-  id              String      @id @default(cuid())
-  title           String
-  description     String
-  date            DateTime
-  loyaltyLevel    String      // All Members, Silver, Gold, Platinum
-  image           String?
-  totalSlots      Int
-  availableSlots  Int
-  active          Boolean     @default(true)
-  
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  
-  registrations   EventRegistration[]
+  id             String   @id @default(cuid())
+  title          String
+  description    String
+  date           DateTime
+  loyaltyLevel   String // All Members, Silver, Gold, Platinum
+  image          String?
+  totalSlots     Int
+  availableSlots Int
+  active         Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  registrations EventRegistration[]
 
   @@map("events")
 }
 
 model EventRegistration {
-  id          String    @id @default(cuid())
-  userId      String
-  eventId     String
-  status      String    @default("registered") // registered, attended, cancelled
-  
-  createdAt   DateTime  @default(now())
-  
-  user        User      @relation(fields: [userId], references: [id])
-  event       Event     @relation(fields: [eventId], references: [id])
+  id      String @id @default(cuid())
+  userId  String
+  eventId String
+  status  String @default("registered") // registered, attended, cancelled
+
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
 
   @@unique([userId, eventId])
   @@map("event_registrations")
@@ -380,62 +379,62 @@ model EventRegistration {
 
 // Bank Account - Store user's bank/e-wallet info
 model BankAccount {
-  id              String    @id @default(cuid())
-  userId          String
-  accountType     String    // "bank" or "ewallet"
-  bankName        String    // Mandiri, BRI, BCA, BSI, CIMBNIAGA, BPD DIY, DANA, GOPAY, SHOPEEPAY, OVO
-  accountNumber   String
-  accountName     String
-  isDefault       Boolean   @default(false)
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  user            User      @relation(fields: [userId], references: [id])
-  withdrawals     Withdrawal[]
+  id            String  @id @default(cuid())
+  userId        String
+  accountType   String // "bank" or "ewallet"
+  bankName      String // Mandiri, BRI, BCA, BSI, CIMBNIAGA, BPD DIY, DANA, GOPAY, SHOPEEPAY, OVO
+  accountNumber String
+  accountName   String
+  isDefault     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id])
+  withdrawals Withdrawal[]
 
   @@map("bank_accounts")
 }
 
 // Daily spending report upload for membership enrichment
 model DailySpendingUpload {
-  id               String              @id @default(cuid())
-  reportDate       DateTime
-  sourceFileName   String
+  id                String   @id @default(cuid())
+  reportDate        DateTime
+  sourceFileName    String
   uploadedByClerkId String?
-  totalRows        Int                 @default(0)
-  totalPendapatan  Decimal             @default(0) @db.Decimal(14, 2)
-  totalKeuntungan  Decimal             @default(0) @db.Decimal(14, 2)
+  totalRows         Int      @default(0)
+  totalPendapatan   Decimal  @default(0) @db.Decimal(14, 2)
+  totalKeuntungan   Decimal  @default(0) @db.Decimal(14, 2)
 
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  entries          DailySpendingEntry[]
+  entries DailySpendingEntry[]
 
   @@index([reportDate])
   @@map("daily_spending_uploads")
 }
 
 model DailySpendingEntry {
-  id                 String             @id @default(cuid())
-  uploadId           String
-  nomorInvoice       String
-  nomorRegistrasi    String?
-  namaPasien         String
-  dob                String?
-  tanggalKunjungan   DateTime
-  dokter             String?
-  diagnosa           String?
-  status             String?
+  id               String   @id @default(cuid())
+  uploadId         String
+  nomorInvoice     String
+  nomorRegistrasi  String?
+  namaPasien       String
+  dob              String?
+  tanggalKunjungan DateTime
+  dokter           String?
+  diagnosa         String?
+  status           String?
 
-  totalPendapatan    Decimal            @default(0) @db.Decimal(14, 2)
-  pendapatanTindakan Decimal            @default(0) @db.Decimal(14, 2)
-  pendapatanObat     Decimal            @default(0) @db.Decimal(14, 2)
-  keuntungan         Decimal            @default(0) @db.Decimal(14, 2)
+  totalPendapatan    Decimal @default(0) @db.Decimal(14, 2)
+  pendapatanTindakan Decimal @default(0) @db.Decimal(14, 2)
+  pendapatanObat     Decimal @default(0) @db.Decimal(14, 2)
+  keuntungan         Decimal @default(0) @db.Decimal(14, 2)
 
-  createdAt          DateTime           @default(now())
+  createdAt DateTime @default(now())
 
-  upload             DailySpendingUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  upload DailySpendingUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
 
   @@unique([uploadId, nomorInvoice])
   @@index([tanggalKunjungan])
@@ -468,21 +467,21 @@ model BestDealPromo {
 
 // Withdrawal Request - Commission withdrawal by affiliators
 model Withdrawal {
-  id              String    @id @default(cuid())
-  userId          String
-  bankAccountId   String
-  amount          Decimal   @db.Decimal(10, 2)
-  status          String    @default("pending") // pending, approved, rejected, completed
-  requestDate     DateTime  @default(now())
-  processedDate   DateTime?
-  processedBy     String?   // Admin user ID who processed
-  adminNotes      String?
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  user            User         @relation(fields: [userId], references: [id])
-  bankAccount     BankAccount  @relation(fields: [bankAccountId], references: [id])
+  id            String    @id @default(cuid())
+  userId        String
+  bankAccountId String
+  amount        Decimal   @db.Decimal(10, 2)
+  status        String    @default("pending") // pending, approved, rejected, completed
+  requestDate   DateTime  @default(now())
+  processedDate DateTime?
+  processedBy   String? // Admin user ID who processed
+  adminNotes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id])
+  bankAccount BankAccount @relation(fields: [bankAccountId], references: [id])
 
   @@map("withdrawals")
 }
@@ -491,13 +490,13 @@ model Withdrawal {
 // Assignment/task tracker for the marketing subdomain: request desain,
 // project rebranding, konten, campaign, dll.
 model MarketingAssignment {
-  id           String   @id @default(cuid())
-  title        String
-  type         String   @default("design_request") // design_request, rebranding, content, campaign, social_media, other
-  description  String?  @db.Text
-  status       String   @default("todo") // todo, in_progress, review, done, cancelled
-  priority     String   @default("medium") // low, medium, high, urgent
-  progress     Int      @default(0) // 0-100
+  id          String  @id @default(cuid())
+  title       String
+  type        String  @default("design_request") // design_request, rebranding, content, campaign, social_media, other
+  description String? @db.Text
+  status      String  @default("todo") // todo, in_progress, review, done, cancelled
+  priority    String  @default("medium") // low, medium, high, urgent
+  progress    Int     @default(0) // 0-100
 
   // Assignee (PIC) — stored as Clerk user id + snapshot for display
   assigneeClerkId String? @map("assignee_clerk_id")
@@ -508,17 +507,17 @@ model MarketingAssignment {
   requesterClerkId String? @map("requester_clerk_id")
   requesterName    String? @map("requester_name")
 
-  dueDate      DateTime? @map("due_date")
-  startedAt    DateTime? @map("started_at")
-  completedAt  DateTime? @map("completed_at")
+  dueDate     DateTime? @map("due_date")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
 
-  tags         String[] @default([])
-  attachments  String[] @default([]) // list of file/link URLs
+  tags        String[] @default([])
+  attachments String[] @default([]) // list of file/link URLs
 
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  comments     MarketingComment[]
+  comments MarketingComment[]
 
   @@index([status, priority])
   @@index([assigneeClerkId])
@@ -527,15 +526,15 @@ model MarketingAssignment {
 }
 
 model MarketingComment {
-  id            String   @id @default(cuid())
-  assignmentId  String   @map("assignment_id")
-  authorClerkId String?  @map("author_clerk_id")
-  authorName    String?  @map("author_name")
-  body          String   @db.Text
+  id            String  @id @default(cuid())
+  assignmentId  String  @map("assignment_id")
+  authorClerkId String? @map("author_clerk_id")
+  authorName    String? @map("author_name")
+  body          String  @db.Text
 
-  createdAt     DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  assignment    MarketingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  assignment MarketingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
   @@index([assignmentId])
   @@map("marketing_comments")
@@ -544,35 +543,35 @@ model MarketingComment {
 // Blog posts for treatment education content
 // Product Daily Order - tracks product purchases via DOKU checkout
 model ProductOrder {
-  id                String    @id @default(cuid())
-  invoiceNumber     String    @unique @map("invoice_number")
-  publicToken       String    @unique @map("public_token")
-  idempotencyKey    String?   @unique @map("idempotency_key")
-  customerName      String    @map("customer_name")
-  customerPhone     String    @map("customer_phone")
-  customerEmail     String?   @map("customer_email")
-  notes             String?
-  shippingAddress   String?   @map("shipping_address")
-  shippingCity      String?   @map("shipping_city")
-  shippingProvince  String?   @map("shipping_province")
-  shippingPostal    String?   @map("shipping_postal")
-  totalAmount       Decimal   @db.Decimal(12, 2) @map("total_amount")
-  listSubtotal      Decimal   @db.Decimal(12, 2) @map("list_subtotal")
-  discountAmount    Decimal   @default(0) @db.Decimal(12, 2) @map("discount_amount")
-  currency          String    @default("IDR")
-  pricingVersion    Int       @default(1) @map("pricing_version")
-  paymentStatus     String    @default("pending") @map("payment_status") // pending, paid, failed, expired, cancelled, refunded
-  orderStatus       String    @default("pending") @map("order_status") // pending, processing, completed, cancelled, refunded
-  paymentUrl        String?   @map("payment_url")
-  dokuTokenId       String?   @map("doku_token_id")
-  paymentType       String?   @map("payment_type")
-  paidAt            DateTime? @map("paid_at")
-  metadata          Json?     // DOKU notification data
+  id               String    @id @default(cuid())
+  invoiceNumber    String    @unique @map("invoice_number")
+  publicToken      String    @unique @map("public_token")
+  idempotencyKey   String?   @unique @map("idempotency_key")
+  customerName     String    @map("customer_name")
+  customerPhone    String    @map("customer_phone")
+  customerEmail    String?   @map("customer_email")
+  notes            String?
+  shippingAddress  String?   @map("shipping_address")
+  shippingCity     String?   @map("shipping_city")
+  shippingProvince String?   @map("shipping_province")
+  shippingPostal   String?   @map("shipping_postal")
+  totalAmount      Decimal   @map("total_amount") @db.Decimal(12, 2)
+  listSubtotal     Decimal   @map("list_subtotal") @db.Decimal(12, 2)
+  discountAmount   Decimal   @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  currency         String    @default("IDR")
+  pricingVersion   Int       @default(1) @map("pricing_version")
+  paymentStatus    String    @default("pending") @map("payment_status") // pending, paid, failed, expired, cancelled, refunded
+  orderStatus      String    @default("pending") @map("order_status") // pending, processing, completed, cancelled, refunded
+  paymentUrl       String?   @map("payment_url")
+  dokuTokenId      String?   @map("doku_token_id")
+  paymentType      String?   @map("payment_type")
+  paidAt           DateTime? @map("paid_at")
+  metadata         Json? // DOKU notification data
 
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  items             ProductOrderItem[]
+  items ProductOrderItem[]
 
   @@index([invoiceNumber])
   @@index([paymentStatus])
@@ -581,27 +580,27 @@ model ProductOrder {
 }
 
 model ProductOrderItem {
-  id                   String            @id @default(cuid())
-  orderId              String            @map("order_id")
-  productId            String            @map("product_id")
-  productName          String            @map("product_name")
-  productPrice         Decimal           @db.Decimal(12, 2) @map("product_price")
-  productSize          String?           @map("product_size")
-  productImage         String?           @map("product_image")
-  quantity             Int               @default(1)
-  subtotal             Decimal           @db.Decimal(12, 2)
+  id           String  @id @default(cuid())
+  orderId      String  @map("order_id")
+  productId    String  @map("product_id")
+  productName  String  @map("product_name")
+  productPrice Decimal @map("product_price") @db.Decimal(12, 2)
+  productSize  String? @map("product_size")
+  productImage String? @map("product_image")
+  quantity     Int     @default(1)
+  subtotal     Decimal @db.Decimal(12, 2)
 
-  catalogProductId     String?           @map("catalog_product_id")
-  originalPrice        Decimal?          @db.Decimal(12, 2) @map("original_price")
-  discountAmount       Decimal           @default(0) @db.Decimal(12, 2) @map("discount_amount")
-  appliedPromotionId   String?           @map("applied_promotion_id")
-  appliedPromotionTitle String?          @map("applied_promotion_title")
+  catalogProductId      String?  @map("catalog_product_id")
+  originalPrice         Decimal? @map("original_price") @db.Decimal(12, 2)
+  discountAmount        Decimal  @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  appliedPromotionId    String?  @map("applied_promotion_id")
+  appliedPromotionTitle String?  @map("applied_promotion_title")
 
-  createdAt            DateTime          @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  order                ProductOrder      @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  catalogProduct       Product?          @relation(fields: [catalogProductId], references: [id], onDelete: SetNull)
-  appliedPromotion     ProductPromotion? @relation(fields: [appliedPromotionId], references: [id], onDelete: SetNull)
+  order            ProductOrder      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  catalogProduct   Product?          @relation(fields: [catalogProductId], references: [id], onDelete: SetNull)
+  appliedPromotion ProductPromotion? @relation(fields: [appliedPromotionId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
   @@index([catalogProductId])
@@ -610,53 +609,53 @@ model ProductOrderItem {
 }
 
 model ProductCategory {
-  id          String    @id @default(cuid())
-  slug        String    @unique
+  id          String  @id @default(cuid())
+  slug        String  @unique
   name        String
-  description String?   @db.Text
-  sortOrder   Int       @default(0) @map("sort_order")
-  isActive    Boolean   @default(true) @map("is_active")
+  description String? @db.Text
+  sortOrder   Int     @default(0) @map("sort_order")
+  isActive    Boolean @default(true) @map("is_active")
 
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  products    Product[]
+  products Product[]
 
   @@index([isActive, sortOrder])
   @@map("product_categories")
 }
 
 model Product {
-  id                String             @id @default(cuid())
-  categoryId        String             @map("category_id")
-  slug              String             @unique
-  name              String
-  headline          String?
-  description       String             @db.Text
-  price             Decimal            @db.Decimal(12, 2)
-  size              String?
+  id          String  @id @default(cuid())
+  categoryId  String  @map("category_id")
+  slug        String  @unique
+  name        String
+  headline    String?
+  description String  @db.Text
+  price       Decimal @db.Decimal(12, 2)
+  size        String?
 
-  imageUrl          String?            @map("image_url")
-  imageKey          String?            @unique @map("image_key")
-  imageAlt          String?            @map("image_alt")
+  imageUrl String? @map("image_url")
+  imageKey String? @unique @map("image_key")
+  imageAlt String? @map("image_alt")
 
-  benefits          String[]           @default([])
-  usageInstructions String?            @db.Text @map("usage_instructions")
-  ctaText           String?            @map("cta_text")
+  benefits          String[] @default([])
+  usageInstructions String?  @map("usage_instructions") @db.Text
+  ctaText           String?  @map("cta_text")
 
-  classification    String?            @map("classification")
+  classification String? @map("classification")
 
-  sortOrder         Int                @default(0) @map("sort_order")
-  isActive          Boolean            @default(true) @map("is_active")
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
 
-  createdByClerkId  String?            @map("created_by_clerk_id")
-  updatedByClerkId  String?            @map("updated_by_clerk_id")
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
+  createdByClerkId String?  @map("created_by_clerk_id")
+  updatedByClerkId String?  @map("updated_by_clerk_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
-  category          ProductCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  promotions        ProductPromotion[]
-  orderItems        ProductOrderItem[]
+  category   ProductCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  promotions ProductPromotion[]
+  orderItems ProductOrderItem[]
 
   @@index([categoryId, isActive, sortOrder])
   @@index([isActive, sortOrder])
@@ -664,23 +663,23 @@ model Product {
 }
 
 model ProductPromotion {
-  id               String             @id @default(cuid())
-  productId        String             @map("product_id")
-  title            String
-  badgeText        String?            @map("badge_text")
+  id        String  @id @default(cuid())
+  productId String  @map("product_id")
+  title     String
+  badgeText String? @map("badge_text")
 
-  finalPrice       Decimal            @db.Decimal(12, 2) @map("final_price")
-  startsAt         DateTime           @db.Timestamptz(3) @map("starts_at")
-  endsAt           DateTime           @db.Timestamptz(3) @map("ends_at")
-  isActive         Boolean            @default(true) @map("is_active")
+  finalPrice Decimal  @map("final_price") @db.Decimal(12, 2)
+  startsAt   DateTime @map("starts_at") @db.Timestamptz(3)
+  endsAt     DateTime @map("ends_at") @db.Timestamptz(3)
+  isActive   Boolean  @default(true) @map("is_active")
 
-  createdByClerkId String?            @map("created_by_clerk_id")
-  updatedByClerkId String?            @map("updated_by_clerk_id")
-  createdAt        DateTime           @default(now()) @map("created_at")
-  updatedAt        DateTime           @updatedAt @map("updated_at")
+  createdByClerkId String?  @map("created_by_clerk_id")
+  updatedByClerkId String?  @map("updated_by_clerk_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
-  product          Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
-  orderItems       ProductOrderItem[]
+  product    Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  orderItems ProductOrderItem[]
 
   @@unique([productId, startsAt])
   @@index([productId, isActive, startsAt, endsAt])
@@ -689,21 +688,21 @@ model ProductPromotion {
 }
 
 model ProductGalleryBanner {
-  id              String    @id @default(cuid())
+  id              String   @id @default(cuid())
   title           String
-  imageDesktopUrl String    @map("image_desktop_url")
-  imageDesktopKey String    @map("image_desktop_key")
-  imageMobileUrl  String?   @map("image_mobile_url")
-  imageMobileKey  String?   @map("image_mobile_key")
-  imageAlt        String    @map("image_alt")
+  imageDesktopUrl String   @map("image_desktop_url")
+  imageDesktopKey String   @map("image_desktop_key")
+  imageMobileUrl  String?  @map("image_mobile_url")
+  imageMobileKey  String?  @map("image_mobile_key")
+  imageAlt        String   @map("image_alt")
   heading         String?
   description     String?
-  ctaText         String?   @map("cta_text")
-  ctaLink         String?   @map("cta_link")
-  sortOrder       Int       @default(0) @map("sort_order")
-  isActive        Boolean   @default(true) @map("is_active")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  ctaText         String?  @map("cta_text")
+  ctaLink         String?  @map("cta_link")
+  sortOrder       Int      @default(0) @map("sort_order")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@index([isActive, sortOrder])
   @@map("product_gallery_banners")
@@ -743,15 +742,15 @@ model BlogPost {
 
 // Riwayat Tindakan dari AIDO - Medical Record History
 model RiwayatTindakan {
-  id                  String    @id @default(cuid())
-  userId              String
-  tanggalKunjungan    DateTime  @map("tanggal_kunjungan")
-  deskripsiTindakan   String?   @map("deskripsi_tindakan")
+  id                String   @id @default(cuid())
+  userId            String
+  tanggalKunjungan  DateTime @map("tanggal_kunjungan")
+  deskripsiTindakan String?  @map("deskripsi_tindakan")
 
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([userId])
   @@index([tanggalKunjungan])
@@ -772,4 +771,361 @@ model SeoAuditRun {
 
   @@index([runAt])
   @@map("seo_audit_runs")
+}
+
+// ===== Treatment Operations (treatment.drwprime.com) =====
+// Kept separate from the public member/catalog models above. Operational
+// records are immutable snapshots and must survive catalog/profile changes.
+enum OpsRole {
+  SUPER_ADMIN
+  MANAGEMENT
+  FRONT_OFFICE
+  SUPERVISOR
+  THERAPIST
+  DOCTOR
+}
+
+enum OpsOrderStatus {
+  DRAFT
+  CREATED
+  ASSIGNED
+  ON_PROCESS
+  WAITING_NEXT_ACTION
+  COMPLETED
+  VERIFIED
+  CANCELLED
+}
+
+enum OpsActionStatus {
+  PENDING
+  ASSIGNED
+  ON_PROCESS
+  COMPLETED
+  SKIPPED
+  CANCELLED
+}
+
+enum OpsIncentiveType {
+  FIXED
+  PERCENTAGE
+  POINTS
+  NONE
+}
+
+enum OpsIncentiveStatus {
+  PENDING
+  ELIGIBLE
+  VERIFIED
+  PAID
+  VOID
+}
+
+model OpsBranch {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  address   String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  staff            OpsStaff[]
+  doctors          OpsDoctor[]
+  patients         OpsPatient[]
+  orders           OpsTreatmentOrder[]
+  incentiveEntries OpsIncentiveLedger[]
+  incentivePeriods OpsIncentivePeriod[]
+  auditLogs        OpsAuditLog[]
+
+  @@map("ops_branches")
+}
+
+model OpsStaff {
+  id             String    @id @default(cuid())
+  branchId       String?   @map("branch_id")
+  username       String    @unique
+  passwordHash   String    @map("password_hash")
+  badgeTokenHash String?   @unique @map("badge_token_hash")
+  badgeIssuedAt  DateTime? @map("badge_issued_at") @db.Timestamptz(3)
+  employeeId     String    @unique @map("employee_id")
+  name           String
+  email          String?   @unique
+  role           OpsRole
+  active         Boolean   @default(true)
+  lastLoginAt    DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  branch             OpsBranch?           @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  createdOrders      OpsTreatmentOrder[]  @relation("OpsOrderCreator")
+  assignedActions    OpsOrderAction[]     @relation("OpsAssignedTherapist")
+  performedActions   OpsOrderAction[]     @relation("OpsPerformingTherapist")
+  assignments        OpsOrderAssignment[] @relation("OpsAssignedStaff")
+  assignmentsCreated OpsOrderAssignment[] @relation("OpsAssignmentCreator")
+  actionEvents       OpsActionEvent[]
+  incentiveEntries   OpsIncentiveLedger[] @relation("OpsTherapistLedger")
+  verifiedIncentives OpsIncentiveLedger[] @relation("OpsIncentiveVerifier")
+  lockedPeriods      OpsIncentivePeriod[]
+  auditLogs          OpsAuditLog[]
+  sessions           OpsSession[]
+
+  @@index([branchId, role, active])
+  @@map("ops_staff")
+}
+
+model OpsSession {
+  id        String   @id @default(cuid())
+  staffId   String   @map("staff_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  staff OpsStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, expiresAt])
+  @@map("ops_sessions")
+}
+
+model OpsPatient {
+  id            String   @id @default(cuid())
+  branchId      String   @map("branch_id")
+  patientNumber String   @unique @map("patient_number")
+  name          String
+  phone         String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  branch OpsBranch           @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  orders OpsTreatmentOrder[]
+
+  @@index([branchId, name])
+  @@map("ops_patients")
+}
+
+model OpsDoctor {
+  id        String   @id @default(cuid())
+  branchId  String   @map("branch_id")
+  staffId   String?  @unique @map("staff_id")
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  branch OpsBranch           @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  orders OpsTreatmentOrder[]
+
+  @@index([branchId, active])
+  @@map("ops_doctors")
+}
+
+model OpsTreatment {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  category     String?
+  defaultPrice Decimal  @default(0) @map("default_price") @db.Decimal(14, 2)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  actionTemplates OpsTreatmentActionTemplate[]
+  orders          OpsTreatmentOrder[]
+
+  @@map("ops_treatments")
+}
+
+model OpsTreatmentActionTemplate {
+  id                       String           @id @default(cuid())
+  treatmentId              String           @map("treatment_id")
+  actionName               String           @map("action_name")
+  sequenceNumber           Int              @map("sequence_number")
+  isRequired               Boolean          @default(true) @map("is_required")
+  estimatedDurationMinutes Int?             @map("estimated_duration_minutes")
+  incentiveType            OpsIncentiveType @default(FIXED) @map("incentive_type")
+  incentiveValue           Decimal          @default(0) @map("incentive_value") @db.Decimal(14, 2)
+  active                   Boolean          @default(true)
+  createdAt                DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  treatment    OpsTreatment     @relation(fields: [treatmentId], references: [id], onDelete: Restrict)
+  orderActions OpsOrderAction[]
+
+  @@unique([treatmentId, sequenceNumber])
+  @@map("ops_treatment_action_templates")
+}
+
+model OpsTreatmentOrder {
+  id                    String         @id @default(cuid())
+  orderNumber           String         @unique @map("order_number")
+  branchId              String         @map("branch_id")
+  patientId             String         @map("patient_id")
+  doctorId              String?        @map("doctor_id")
+  treatmentId           String         @map("treatment_id")
+  visitDate             DateTime       @map("visit_date") @db.Date
+  originalPrice         Decimal        @map("original_price") @db.Decimal(14, 2)
+  discountAmount        Decimal        @default(0) @map("discount_amount") @db.Decimal(14, 2)
+  finalPrice            Decimal        @map("final_price") @db.Decimal(14, 2)
+  status                OpsOrderStatus @default(DRAFT)
+  patientNameSnapshot   String         @map("patient_name_snapshot")
+  treatmentNameSnapshot String         @map("treatment_name_snapshot")
+  qrTokenHash           String         @unique @map("qr_token_hash")
+  qrTokenExpiresAt      DateTime?      @map("qr_token_expires_at") @db.Timestamptz(3)
+  qrRevokedAt           DateTime?      @map("qr_revoked_at") @db.Timestamptz(3)
+  internalNote          String?        @map("internal_note") @db.Text
+  createdById           String         @map("created_by_id")
+  completedAt           DateTime?      @map("completed_at") @db.Timestamptz(3)
+  verifiedAt            DateTime?      @map("verified_at") @db.Timestamptz(3)
+  cancelledAt           DateTime?      @map("cancelled_at") @db.Timestamptz(3)
+  cancellationReason    String?        @map("cancellation_reason")
+  createdAt             DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  branch      OpsBranch            @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  patient     OpsPatient           @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  doctor      OpsDoctor?           @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  treatment   OpsTreatment         @relation(fields: [treatmentId], references: [id], onDelete: Restrict)
+  createdBy   OpsStaff             @relation("OpsOrderCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  actions     OpsOrderAction[]
+  assignments OpsOrderAssignment[]
+  events      OpsActionEvent[]
+  incentives  OpsIncentiveLedger[]
+
+  @@index([branchId, visitDate, status])
+  @@index([patientId, createdAt])
+  @@map("ops_treatment_orders")
+}
+
+model OpsOrderAction {
+  id                     String           @id @default(cuid())
+  treatmentOrderId       String           @map("treatment_order_id")
+  sourceTemplateId       String?          @map("source_template_id")
+  actionNameSnapshot     String           @map("action_name_snapshot")
+  sequenceNumber         Int              @map("sequence_number")
+  isRequired             Boolean          @map("is_required")
+  status                 OpsActionStatus  @default(PENDING)
+  assignedTherapistId    String?          @map("assigned_therapist_id")
+  performedByTherapistId String?          @map("performed_by_therapist_id")
+  startedAt              DateTime?        @map("started_at") @db.Timestamptz(3)
+  completedAt            DateTime?        @map("completed_at") @db.Timestamptz(3)
+  durationSeconds        Int?             @map("duration_seconds")
+  incentiveTypeSnapshot  OpsIncentiveType @map("incentive_type_snapshot")
+  incentiveValueSnapshot Decimal          @map("incentive_value_snapshot") @db.Decimal(14, 2)
+  calculatedIncentive    Decimal?         @map("calculated_incentive") @db.Decimal(14, 2)
+  completionNote         String?          @map("completion_note")
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  order              OpsTreatmentOrder           @relation(fields: [treatmentOrderId], references: [id], onDelete: Restrict)
+  sourceTemplate     OpsTreatmentActionTemplate? @relation(fields: [sourceTemplateId], references: [id], onDelete: SetNull)
+  assignedTherapist  OpsStaff?                   @relation("OpsAssignedTherapist", fields: [assignedTherapistId], references: [id], onDelete: Restrict)
+  performedTherapist OpsStaff?                   @relation("OpsPerformingTherapist", fields: [performedByTherapistId], references: [id], onDelete: Restrict)
+  assignments        OpsOrderAssignment[]
+  events             OpsActionEvent[]
+  incentive          OpsIncentiveLedger?
+
+  @@unique([treatmentOrderId, sequenceNumber])
+  @@index([assignedTherapistId, status])
+  @@map("ops_order_actions")
+}
+
+model OpsOrderAssignment {
+  id               String    @id @default(cuid())
+  treatmentOrderId String    @map("treatment_order_id")
+  orderActionId    String?   @map("order_action_id")
+  therapistId      String    @map("therapist_id")
+  assignedById     String    @map("assigned_by_id")
+  assignedAt       DateTime  @default(now()) @map("assigned_at") @db.Timestamptz(3)
+  unassignedAt     DateTime? @map("unassigned_at") @db.Timestamptz(3)
+  reason           String?
+
+  order       OpsTreatmentOrder @relation(fields: [treatmentOrderId], references: [id], onDelete: Restrict)
+  orderAction OpsOrderAction?   @relation(fields: [orderActionId], references: [id], onDelete: Restrict)
+  therapist   OpsStaff          @relation("OpsAssignedStaff", fields: [therapistId], references: [id], onDelete: Restrict)
+  assignedBy  OpsStaff          @relation("OpsAssignmentCreator", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@index([treatmentOrderId, unassignedAt])
+  @@map("ops_order_assignments")
+}
+
+model OpsActionEvent {
+  id               String   @id @default(cuid())
+  treatmentOrderId String   @map("treatment_order_id")
+  orderActionId    String?  @map("order_action_id")
+  eventType        String   @map("event_type")
+  actorUserId      String   @map("actor_user_id")
+  eventAt          DateTime @default(now()) @map("event_at") @db.Timestamptz(3)
+  metadata         Json?    @map("metadata_json")
+
+  order       OpsTreatmentOrder @relation(fields: [treatmentOrderId], references: [id], onDelete: Restrict)
+  orderAction OpsOrderAction?   @relation(fields: [orderActionId], references: [id], onDelete: Restrict)
+  actor       OpsStaff          @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([treatmentOrderId, eventAt])
+  @@map("ops_action_events")
+}
+
+model OpsIncentiveLedger {
+  id               String             @id @default(cuid())
+  branchId         String             @map("branch_id")
+  therapistId      String             @map("therapist_id")
+  treatmentOrderId String             @map("treatment_order_id")
+  orderActionId    String             @unique @map("order_action_id")
+  amount           Decimal            @db.Decimal(14, 2)
+  status           OpsIncentiveStatus @default(ELIGIBLE)
+  period           String
+  verifiedById     String?            @map("verified_by_id")
+  verifiedAt       DateTime?          @map("verified_at") @db.Timestamptz(3)
+  paidAt           DateTime?          @map("paid_at") @db.Timestamptz(3)
+  adjustmentReason String?            @map("adjustment_reason")
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  branch      OpsBranch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  therapist   OpsStaff          @relation("OpsTherapistLedger", fields: [therapistId], references: [id], onDelete: Restrict)
+  order       OpsTreatmentOrder @relation(fields: [treatmentOrderId], references: [id], onDelete: Restrict)
+  orderAction OpsOrderAction    @relation(fields: [orderActionId], references: [id], onDelete: Restrict)
+  verifiedBy  OpsStaff?         @relation("OpsIncentiveVerifier", fields: [verifiedById], references: [id], onDelete: Restrict)
+
+  @@index([branchId, period, status])
+  @@index([therapistId, period])
+  @@map("ops_incentive_ledger")
+}
+
+model OpsIncentivePeriod {
+  id          String    @id @default(cuid())
+  branchId    String    @map("branch_id")
+  periodStart DateTime  @map("period_start") @db.Date
+  periodEnd   DateTime  @map("period_end") @db.Date
+  status      String    @default("OPEN")
+  lockedById  String?   @map("locked_by_id")
+  lockedAt    DateTime? @map("locked_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  branch   OpsBranch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  lockedBy OpsStaff? @relation(fields: [lockedById], references: [id], onDelete: Restrict)
+
+  @@unique([branchId, periodStart, periodEnd])
+  @@map("ops_incentive_periods")
+}
+
+model OpsAuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String   @map("actor_user_id")
+  branchId    String?  @map("branch_id")
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  action      String
+  beforeData  Json?    @map("before_json")
+  afterData   Json?    @map("after_json")
+  reason      String?
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor  OpsStaff   @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  branch OpsBranch? @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([branchId, createdAt])
+  @@map("ops_audit_logs")
 }

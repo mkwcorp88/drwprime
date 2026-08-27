@@ -18,6 +18,9 @@
     "treatments:sync": "tsx scripts/sync-treatments.ts",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:treatment-ops": "tsx prisma/seed-treatment-ops.ts",
+    "db:local": "node scripts/start-local-db.mjs",
+    "dev:ops": "next dev --hostname 0.0.0.0 --port 3010",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -32,6 +35,7 @@
     "@payloadcms/richtext-lexical": "3.75.0",
     "@payloadcms/storage-s3": "^3.75.0",
     "@prisma/client": "^5.22.0",
+    "argon2": "^0.45.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "exceljs": "^4.4.0",
@@ -60,6 +64,7 @@
     "@vitejs/plugin-react": "^6.0.4",
     "autoprefixer": "^10.4.21",
     "dotenv": "^17.4.2",
+    "embedded-postgres": "^18.4.0-beta.17",
     "eslint": "^9",
     "eslint-config-next": "15.5.12",
     "postcss": "^8.5.6",

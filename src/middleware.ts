@@ -1,14 +1,41 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextRequest, NextResponse } from "next/server";
+import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 
 // Host(s) that serve the Derma Rich Wellness marketing dashboard.
 // Requests here are rewritten into the /marketing route group.
 const MARKETING_HOSTS = ["marketing.drwprime.com", "marketing.localhost"];
+const TREATMENT_HOSTS = ["admin.drwprime.com", "admin.localhost"];
 
 function isMarketingHost(host: string | null): boolean {
   if (!host) return false;
   const hostname = host.split(":")[0];
   return MARKETING_HOSTS.includes(hostname) || hostname.startsWith("marketing.");
+}
+
+function isTreatmentHost(host: string | null): boolean {
+  if (!host) return false;
+  const hostname = host.split(":")[0];
+  return TREATMENT_HOSTS.includes(hostname);
+}
+
+function isTreatmentRequest(request: NextRequest): boolean {
+  const pathname = request.nextUrl.pathname;
+  return isTreatmentHost(request.headers.get("host")) ||
+    pathname.startsWith("/treatment-ops") ||
+    pathname.startsWith("/api/treatment-ops");
+}
+
+function handleTreatmentRequest(request: NextRequest): NextResponse {
+  if (!isTreatmentHost(request.headers.get("host"))) return NextResponse.next();
+
+  const url = request.nextUrl;
+  if (url.pathname.startsWith("/treatment-ops") || url.pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
+  const rewritten = url.clone();
+  rewritten.pathname = `/treatment-ops${url.pathname === "/" ? "" : url.pathname}`;
+  return NextResponse.rewrite(rewritten);
 }
 
 const isPublicRoute = createRouteMatcher([
@@ -31,6 +58,9 @@ const isPublicRoute = createRouteMatcher([
   // SEO cron jobs (Cronicle .159) — guarded by CRON_SECRET Bearer, not Clerk.
   '/api/cron(.*)',
   '/api/health',
+  // Treatment operations uses its own username/password session.
+  '/treatment-ops(.*)',
+  '/api/treatment-ops(.*)',
   '/api/treatments(.*)',
   '/api/best-deals(.*)',
   '/api/blog(.*)',
@@ -61,7 +91,7 @@ const isPublicRoute = createRouteMatcher([
   '/(.*\\.ico$)',
 ]);
 
-export default clerkMiddleware(async (auth, req: NextRequest) => {
+const withClerk = clerkMiddleware(async (auth, req: NextRequest) => {
   // Auto-login for Payload CMS — bypass the login page
   if (req.nextUrl.pathname === '/cms/login') {
     return Response.redirect(new URL('/api/cms-auto-login', req.url));
@@ -89,6 +119,13 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
     await auth.protect();
   }
 });
+
+// Admin treatment operations has its own internal authentication. Bypass Clerk
+// completely for its pages, APIs, and admin subdomain assets.
+export default function middleware(request: NextRequest, event: NextFetchEvent) {
+  if (isTreatmentRequest(request)) return handleTreatmentRequest(request);
+  return withClerk(request, event);
+}
 
 export const config = {
   matcher: [

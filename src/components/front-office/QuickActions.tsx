@@ -11,6 +11,7 @@ import {
   PackageSearch,
   ReceiptText,
   ScanBarcode,
+  Stethoscope,
   Tag,
   UserRoundPlus,
   type LucideIcon,
@@ -24,6 +25,12 @@ type QuickAction = {
 };
 
 const QUICK_ACTIONS = [
+  {
+    href: '/treatment-ops',
+    label: 'Alur Treatment',
+    description: 'Tindakan & Insentif',
+    icon: Stethoscope,
+  },
   {
     href: '/front-office/performance',
     label: 'Performance',
