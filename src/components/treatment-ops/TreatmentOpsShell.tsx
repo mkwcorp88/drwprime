@@ -2,18 +2,27 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, ClipboardPlus, Gauge, IdCard, LogOut, QrCode, WalletCards } from 'lucide-react';
+import type { OpsRole } from '@prisma/client';
+import { BarChart3, ClipboardPlus, Gauge, IdCard, LogOut, QrCode, Settings, UserCog, WalletCards } from 'lucide-react';
+import { REPORT_ROLES } from '@/lib/treatment-operations/constants';
 
 const links = [
-  { href: '/treatment-ops', label: 'Operasional', icon: Gauge },
-  { href: '/treatment-ops/scan', label: 'Scan QR', icon: QrCode },
-  { href: '/treatment-ops/badges', label: 'Kartu', icon: IdCard },
-  { href: '/treatment-ops/report', label: 'Report', icon: BarChart3 },
-  { href: '/treatment-ops/incentives', label: 'Insentif', icon: WalletCards },
+  { href: '/treatment-ops', label: 'Operasional', icon: Gauge, roles: null },
+  { href: '/treatment-ops/scan', label: 'Scan QR', icon: QrCode, roles: null },
+  { href: '/treatment-ops/badges', label: 'Kartu', icon: IdCard, roles: ['SUPER_ADMIN', 'MANAGEMENT'] as OpsRole[] },
+  { href: '/treatment-ops/report', label: 'Report', icon: BarChart3, roles: REPORT_ROLES },
+  { href: '/treatment-ops/incentives', label: 'Insentif', icon: WalletCards, roles: null },
+  { href: '/treatment-ops/staff', label: 'Staf', icon: UserCog, roles: ['SUPER_ADMIN'] as OpsRole[] },
+  { href: '/treatment-ops/settings', label: 'Pengaturan', icon: Settings, roles: null },
 ];
 
-export default function TreatmentOpsShell({ children }: { children: React.ReactNode }) {
+type ShellStaff = { name: string; role: OpsRole; mustChangePassword: boolean };
+
+export default function TreatmentOpsShell({ children, staff }: { children: React.ReactNode; staff: ShellStaff | null }) {
   const pathname = usePathname();
+  const visibleLinks = staff
+    ? links.filter((link) => (!staff.mustChangePassword || link.href === '/treatment-ops/settings') && (!link.roles || link.roles.includes(staff.role)))
+    : [];
   return (
     <div className="fo-glass-page min-h-screen text-white">
       <header className="sticky top-0 z-40 border-b border-primary/20 bg-black/40 backdrop-blur-xl">
@@ -29,7 +38,7 @@ export default function TreatmentOpsShell({ children }: { children: React.ReactN
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">
-            {links.map(({ href, label }) => {
+            {visibleLinks.map(({ href, label }) => {
               const active = pathname === href || (href !== '/treatment-ops' && pathname.startsWith(href));
               return (
                 <Link key={href} href={href} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${active ? 'bg-primary/15 text-primary' : 'text-white/55 hover:text-primary'}`}>
@@ -40,24 +49,25 @@ export default function TreatmentOpsShell({ children }: { children: React.ReactN
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link href="/" className="hidden items-center gap-1.5 text-xs font-semibold text-white/55 hover:text-primary sm:flex">
+            {staff && <span className="hidden max-w-40 truncate text-[11px] text-white/40 lg:block">{staff.name}</span>}
+            <Link href="https://drwprime.com" className="hidden items-center gap-1.5 text-xs font-semibold text-white/55 hover:text-primary sm:flex">
               <LogOut className="size-3.5" /> Website utama
             </Link>
-            <form action="/api/treatment-ops/auth/logout" method="post">
+            {staff && <form action="/api/treatment-ops/auth/logout" method="post">
               <button className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/75 transition hover:border-primary/50 hover:text-primary">
                 <LogOut className="size-3.5" /> Keluar
               </button>
-            </form>
+            </form>}
           </div>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 pb-24 pt-6 sm:px-6 sm:pb-10">{children}</main>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-primary/20 bg-black/70 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
-          {links.map(({ href, label, icon: Icon }) => {
+        <div className="mx-auto flex max-w-xl gap-1 overflow-x-auto">
+          {visibleLinks.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || (href !== '/treatment-ops' && pathname.startsWith(href));
             return (
-              <Link key={href} href={href} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition ${active ? 'bg-primary/15 text-primary' : 'text-white/55'}`}>
+              <Link key={href} href={href} className={`flex min-w-[4.4rem] flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition ${active ? 'bg-primary/15 text-primary' : 'text-white/55'}`}>
                 <Icon className="size-5" />{label}
               </Link>
             );

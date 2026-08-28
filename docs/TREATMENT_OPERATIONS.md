@@ -33,7 +33,7 @@ DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5433/drwprime_local" npm 
 npm run dev:ops
 ```
 
-Buka `http://localhost:3010/treatment-ops/login` dan masuk dengan akun demo.
+Buka `http://localhost:3010/treatment-ops/login` dan masuk dengan email akun demo.
 
 Konfigurasi lokal sudah disediakan di `.env.local` (di-ignore oleh git). `.env.local` menunjuk `DATABASE_URL` ke PostgreSQL lokal, sehingga `prisma db push` dan dev server memakai database lokal alih-alih database produksi yang tidak terjangkau dari mesin ini.
 
@@ -46,9 +46,11 @@ npm run db:migrate
 npm run db:seed:treatment-ops
 ```
 
-Seed membuat satu cabang, akun staf operasional, dua terapis, satu dokter, satu pasien demo, dan template Facial Brightening. Modul memakai login internal dengan username dan password Argon2, terpisah dari Clerk website utama.
+Seed membuat satu cabang, akun staf operasional, dua terapis, satu dokter, satu pasien demo, dan template Facial Brightening. Modul memakai login internal dengan email dan password Argon2, terpisah dari Clerk website utama.
 
-Akun demo localhost menggunakan password `PrimeDemo2026!`: `superadmin`, `manajemen`, `frontoffice`, `supervisor`, `terapisa`, `terapisb`, dan `dokter`. Atur `OPS_DEMO_PASSWORD` ketika menjalankan seed dan ganti seluruh password sebelum produksi.
+Akun demo localhost memakai password awal `PrimeDemo2026!` dan wajib menggantinya saat login pertama. Email tersedia dengan pola `superadmin@drwprime.local`, `manajemen@drwprime.local`, `frontoffice@drwprime.local`, `supervisor@drwprime.local`, `terapisa@drwprime.local`, `terapisb@drwprime.local`, dan `dokter@drwprime.local`. Atur `OPS_DEMO_PASSWORD` saat menjalankan seed bila membutuhkan password awal lain.
+
+Super Admin membuat akun staf produksi dari `/treatment-ops/staff`. Setiap akun mendapat email login dan password awal yang ditentukan Super Admin. Dashboard terkunci sampai pemilik akun membuat password pribadi dari `/treatment-ops/settings`. Reset password oleh Super Admin mengeluarkan seluruh sesi staf dan mengaktifkan kembali kewajiban ganti password.
 
 ## Alur MVP
 
@@ -72,6 +74,16 @@ Kartu hanya berisi token acak (`DRW-STAFF:<token>`); database menyimpan hash SHA
 
 ## Deployment
 
-Tambahkan `https://admin.drwprime.com` sebagai domain aplikasi setelah routing Nginx VPS disiapkan. Jalankan migration dan seed sebelum membuka modul. QR yang dibuat dari dashboard memakai origin browser saat ini, sehingga otomatis mengikuti domain produksi.
+Subdomain produksi adalah `https://admin.drwprime.com` dan diproksikan Nginx ke container DRW Prime yang sama pada `127.0.0.1:5054`. Middleware memilih antarmuka treatment berdasarkan header host, sehingga website utama tetap berada di `https://drwprime.com`.
+
+Jalankan migration, lalu bootstrap hanya akun Super Admin pertama dengan environment server-side:
+
+```bash
+OPS_ADMIN_EMAIL="admin@drwprime.com" \
+OPS_ADMIN_PASSWORD="password-awal-kuat" \
+npm run ops:bootstrap-admin
+```
+
+Jangan menjalankan seed demo di produksi. QR yang dibuat dari dashboard memakai origin browser saat ini, sehingga otomatis mengikuti domain produksi.
 
 Jangan menaruh data pasien dalam payload QR. Implementasi hanya menyimpan token acak pada URL dan hash SHA-256 di database.

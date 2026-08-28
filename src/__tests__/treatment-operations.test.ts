@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { normalizeOpsEmail, validateOpsEmail, validateOpsPassword } from '@/lib/treatment-operations/password';
 import { createQrToken, getPeriodRange, hashQrToken, jakartaDateKey, jakartaPeriod, maskPatientName } from '@/lib/treatment-operations/utils';
 
 describe('treatment operations utilities', () => {
@@ -33,5 +34,17 @@ describe('treatment operations utilities', () => {
     const { start, end } = getPeriodRange('custom', '2026-08-26', '2026-08-26');
     expect(start.getTime() < end.getTime()).toBe(true);
     expect(end.getTime() - start.getTime()).toBe(86400000);
+  });
+
+  it('normalizes and validates staff login emails', () => {
+    expect(normalizeOpsEmail('  Admin@DRWPrime.com ')).toBe('admin@drwprime.com');
+    expect(validateOpsEmail('admin@drwprime.com')).toBeNull();
+    expect(validateOpsEmail('bukan-email')).toBe('Format email tidak valid.');
+  });
+
+  it('requires strong operational passwords', () => {
+    expect(validateOpsPassword('PrimeAman2026!')).toBeNull();
+    expect(validateOpsPassword('terlalulemah')).toContain('huruf besar');
+    expect(validateOpsPassword('Pendek1!')).toContain('minimal 10');
   });
 });

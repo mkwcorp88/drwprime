@@ -3,6 +3,7 @@ import InternalLogin from '@/components/treatment-ops/InternalLogin';
 import { getOpsStaff } from '@/lib/treatment-operations/auth';
 
 export default async function TreatmentOpsLoginPage() {
-  if (await getOpsStaff()) redirect('/treatment-ops');
+  const staff = await getOpsStaff();
+  if (staff) redirect(staff.mustChangePassword ? '/treatment-ops/settings' : '/treatment-ops');
   return <InternalLogin />;
 }

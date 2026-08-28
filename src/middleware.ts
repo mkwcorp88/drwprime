@@ -58,7 +58,7 @@ const isPublicRoute = createRouteMatcher([
   // SEO cron jobs (Cronicle .159) — guarded by CRON_SECRET Bearer, not Clerk.
   '/api/cron(.*)',
   '/api/health',
-  // Treatment operations uses its own username/password session.
+  // Treatment operations uses its own email/password session.
   '/treatment-ops(.*)',
   '/api/treatment-ops(.*)',
   '/api/treatments(.*)',

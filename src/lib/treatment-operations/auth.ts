@@ -1,31 +1,25 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
-import { verify } from 'argon2';
+import { hash, verify } from 'argon2';
 import type { OpsRole, OpsStaff } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { normalizeOpsEmail, validateOpsEmail, validateOpsPassword } from './password';
 import { createQrToken, createStaffBadgeValue, extractStaffBadgeToken, hashQrToken, OpsError } from './utils';
 
 const SESSION_COOKIE = 'drw_ops_session';
 const SESSION_AGE_SECONDS = 60 * 60 * 12;
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+const LOGIN_LOCK_MINUTES = 15;
 
 function hashSessionToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-export async function loginOpsStaff(username: string, password: string): Promise<OpsStaff> {
-  const normalizedUsername = username.trim().toLowerCase();
-  const staff = await prisma.opsStaff.findUnique({ where: { username: normalizedUsername } });
-  if (!staff || !staff.active || !(await verify(staff.passwordHash, password))) {
-    throw new OpsError(403, 'Username atau password salah.');
-  }
-
+async function issueOpsSession(staffId: string): Promise<void> {
   const token = randomBytes(32).toString('base64url');
   const expiresAt = new Date(Date.now() + SESSION_AGE_SECONDS * 1000);
-  await prisma.$transaction([
-    prisma.opsSession.deleteMany({ where: { staffId: staff.id, expiresAt: { lt: new Date() } } }),
-    prisma.opsSession.create({ data: { staffId: staff.id, tokenHash: hashSessionToken(token), expiresAt } }),
-    prisma.opsStaff.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } }),
-  ]);
+  await prisma.opsSession.create({ data: { staffId, tokenHash: hashSessionToken(token), expiresAt } });
+
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -34,14 +28,64 @@ export async function loginOpsStaff(username: string, password: string): Promise
     path: '/',
     maxAge: SESSION_AGE_SECONDS,
   });
-  return staff;
+}
+
+function invalidCredentials(): never {
+  throw new OpsError(401, 'Email atau password salah.', 'INVALID_CREDENTIALS');
+}
+
+export async function loginOpsStaff(email: string, password: string): Promise<OpsStaff> {
+  const normalizedEmail = normalizeOpsEmail(email);
+  if (validateOpsEmail(normalizedEmail)) invalidCredentials();
+
+  const staff = await prisma.opsStaff.findUnique({ where: { email: normalizedEmail } });
+  if (!staff || !staff.active) invalidCredentials();
+
+  if (staff.lockedUntil && staff.lockedUntil > new Date()) {
+    throw new OpsError(429, 'Terlalu banyak percobaan login. Coba lagi dalam 15 menit.', 'LOGIN_LOCKED');
+  }
+
+  let passwordMatches = false;
+  try {
+    passwordMatches = await verify(staff.passwordHash, password);
+  } catch {
+    passwordMatches = false;
+  }
+
+  if (!passwordMatches) {
+    const failedLoginAttempts = staff.failedLoginAttempts + 1;
+    await prisma.opsStaff.update({
+      where: { id: staff.id },
+      data: {
+        failedLoginAttempts,
+        lockedUntil: failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS
+          ? new Date(Date.now() + LOGIN_LOCK_MINUTES * 60 * 1000)
+          : null,
+      },
+    });
+    invalidCredentials();
+  }
+
+  const loggedInAt = new Date();
+  const updatedStaff = await prisma.$transaction(async (tx) => {
+    await tx.opsSession.deleteMany({ where: { staffId: staff.id, expiresAt: { lt: loggedInAt } } });
+    return tx.opsStaff.update({
+      where: { id: staff.id },
+      data: { lastLoginAt: loggedInAt, failedLoginAttempts: 0, lockedUntil: null },
+    });
+  });
+  await issueOpsSession(staff.id);
+  return updatedStaff;
 }
 
 export async function logoutOpsStaff(): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (token) await prisma.opsSession.deleteMany({ where: { tokenHash: hashSessionToken(token) } });
-  cookieStore.delete(SESSION_COOKIE);
+  try {
+    if (token) await prisma.opsSession.deleteMany({ where: { tokenHash: hashSessionToken(token) } });
+  } finally {
+    cookieStore.delete(SESSION_COOKIE);
+  }
 }
 
 export async function getOpsStaff(): Promise<OpsStaff | null> {
@@ -57,17 +101,64 @@ export async function getOpsStaff(): Promise<OpsStaff | null> {
 
 export async function requireOpsStaff(allowedRoles?: readonly OpsRole[]): Promise<OpsStaff> {
   const staff = await getOpsStaff();
-  if (!staff) throw new OpsError(403, 'Silakan masuk dengan akun operasional.');
+  if (!staff) throw new OpsError(401, 'Silakan masuk dengan akun operasional.', 'AUTH_REQUIRED');
+  if (staff.mustChangePassword) {
+    throw new OpsError(403, 'Ganti password awal sebelum menggunakan sistem.', 'PASSWORD_CHANGE_REQUIRED');
+  }
   if (allowedRoles && !allowedRoles.includes(staff.role)) {
-    throw new OpsError(403, 'Anda tidak memiliki akses untuk tindakan ini.');
+    throw new OpsError(403, 'Anda tidak memiliki akses untuk tindakan ini.', 'FORBIDDEN');
   }
   return staff;
+}
+
+export async function changeOpsStaffPassword(staff: OpsStaff, currentPassword: string, newPassword: string): Promise<void> {
+  let currentMatches = false;
+  try {
+    currentMatches = await verify(staff.passwordHash, currentPassword);
+  } catch {
+    currentMatches = false;
+  }
+  if (!currentMatches) throw new OpsError(400, 'Password saat ini salah.', 'CURRENT_PASSWORD_INVALID');
+
+  const passwordError = validateOpsPassword(newPassword);
+  if (passwordError) throw new OpsError(422, passwordError, 'PASSWORD_INVALID');
+  if (currentPassword === newPassword) {
+    throw new OpsError(422, 'Password baru harus berbeda dari password saat ini.', 'PASSWORD_REUSED');
+  }
+
+  const passwordHash = await hash(newPassword);
+  const changedAt = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.opsStaff.update({
+      where: { id: staff.id },
+      data: {
+        passwordHash,
+        mustChangePassword: false,
+        passwordChangedAt: changedAt,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
+    });
+    await tx.opsSession.deleteMany({ where: { staffId: staff.id } });
+    await tx.opsAuditLog.create({
+      data: {
+        actorUserId: staff.id,
+        branchId: staff.branchId,
+        entityType: 'STAFF_ACCOUNT',
+        entityId: staff.id,
+        action: 'CHANGE_PASSWORD',
+        afterData: { passwordChangedAt: changedAt.toISOString() },
+      },
+    });
+  });
+  await issueOpsSession(staff.id);
 }
 
 export async function resolveStaffBadge(value: string, allowedRoles?: readonly OpsRole[]): Promise<OpsStaff> {
   const token = extractStaffBadgeToken(value);
   const staff = await prisma.opsStaff.findUnique({ where: { badgeTokenHash: hashQrToken(token) } });
   if (!staff || !staff.active) throw new OpsError(403, 'Kartu staf tidak valid atau sudah tidak aktif.');
+  if (staff.mustChangePassword) throw new OpsError(403, 'Pemilik kartu wajib mengganti password awal terlebih dahulu.');
   if (allowedRoles && !allowedRoles.includes(staff.role)) {
     throw new OpsError(403, 'Role pada kartu staf tidak dapat melakukan tindakan ini.');
   }

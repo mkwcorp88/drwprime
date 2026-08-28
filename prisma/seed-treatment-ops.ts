@@ -21,24 +21,25 @@ async function main() {
   });
 
   const staff = [
-    ['SA-001', 'superadmin', 'Super Admin Demo', 'SUPER_ADMIN'],
-    ['MGT-001', 'manajemen', 'Manajemen Demo', 'MANAGEMENT'],
-    ['FO-001', 'frontoffice', 'Front Office Demo', 'FRONT_OFFICE'],
-    ['SPV-001', 'supervisor', 'Supervisor Demo', 'SUPERVISOR'],
-    ['TRP-001', 'terapisa', 'Terapis A', 'THERAPIST'],
-    ['TRP-002', 'terapisb', 'Terapis B', 'THERAPIST'],
+    ['SA-001', 'superadmin', 'superadmin@drwprime.local', 'Super Admin Demo', 'SUPER_ADMIN'],
+    ['MGT-001', 'manajemen', 'manajemen@drwprime.local', 'Manajemen Demo', 'MANAGEMENT'],
+    ['FO-001', 'frontoffice', 'frontoffice@drwprime.local', 'Front Office Demo', 'FRONT_OFFICE'],
+    ['SPV-001', 'supervisor', 'supervisor@drwprime.local', 'Supervisor Demo', 'SUPERVISOR'],
+    ['TRP-001', 'terapisa', 'terapisa@drwprime.local', 'Terapis A', 'THERAPIST'],
+    ['TRP-002', 'terapisb', 'terapisb@drwprime.local', 'Terapis B', 'THERAPIST'],
   ] as const;
-  for (const [employeeId, username, name, role] of staff) {
+  for (const [employeeId, username, email, name, role] of staff) {
     await prisma.opsStaff.upsert({
-      where: { employeeId }, update: { branchId: branch.id, username, passwordHash: demoPasswordHash, name, role, active: true },
-      create: { employeeId, username, passwordHash: demoPasswordHash, branchId: branch.id, name, role, active: true },
+      where: { employeeId },
+      update: { branchId: branch.id, username, email, name, role, active: true },
+      create: { employeeId, username, email, passwordHash: demoPasswordHash, branchId: branch.id, name, role, active: true, mustChangePassword: true },
     });
   }
 
   const doctorStaff = await prisma.opsStaff.upsert({
     where: { employeeId: 'DR-001' },
-    update: { branchId: branch.id, username: 'dokter', passwordHash: demoPasswordHash, name: 'dr. Prime Demo', role: 'DOCTOR', active: true },
-    create: { employeeId: 'DR-001', username: 'dokter', passwordHash: demoPasswordHash, branchId: branch.id, name: 'dr. Prime Demo', role: 'DOCTOR' },
+    update: { branchId: branch.id, username: 'dokter', email: 'dokter@drwprime.local', name: 'dr. Prime Demo', role: 'DOCTOR', active: true },
+    create: { employeeId: 'DR-001', username: 'dokter', email: 'dokter@drwprime.local', passwordHash: demoPasswordHash, branchId: branch.id, name: 'dr. Prime Demo', role: 'DOCTOR', mustChangePassword: true },
   });
   await prisma.opsDoctor.upsert({
     where: { staffId: doctorStaff.id },

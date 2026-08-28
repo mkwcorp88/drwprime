@@ -1,3 +1,7 @@
 import { ScanLanding } from '@/components/treatment-ops/ScanOrder';
+import { requireOpsPage } from '@/lib/treatment-operations/page-auth';
 
-export default function ScanPage() { return <ScanLanding />; }
+export default async function ScanPage() {
+  await requireOpsPage();
+  return <ScanLanding />;
+}

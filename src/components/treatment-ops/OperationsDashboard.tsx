@@ -38,7 +38,8 @@ export default function OperationsDashboard() {
       const [bootstrapResponse, ordersResponse] = await Promise.all([fetch('/api/treatment-ops/bootstrap'), fetch('/api/treatment-ops/orders')]);
       const boot = await bootstrapResponse.json();
       const orderData = await ordersResponse.json();
-      if (bootstrapResponse.status === 403) { router.replace('/treatment-ops/login'); return; }
+      if (bootstrapResponse.status === 401) { router.replace('/treatment-ops/login'); return; }
+      if (boot.code === 'PASSWORD_CHANGE_REQUIRED') { router.replace('/treatment-ops/settings'); return; }
       if (!bootstrapResponse.ok) throw new Error(boot.error);
       if (!ordersResponse.ok) throw new Error(orderData.error);
       setBootstrap(boot);
@@ -55,7 +56,8 @@ export default function OperationsDashboard() {
       const boot = await bootstrapResponse.json();
       const orderData = await ordersResponse.json();
       if (!active) return;
-      if (bootstrapResponse.status === 403) { router.replace('/treatment-ops/login'); return; }
+      if (bootstrapResponse.status === 401) { router.replace('/treatment-ops/login'); return; }
+      if (boot.code === 'PASSWORD_CHANGE_REQUIRED') { router.replace('/treatment-ops/settings'); return; }
       if (!bootstrapResponse.ok) { setError(boot.error); setLoading(false); return; }
       if (!ordersResponse.ok) { setError(orderData.error); setLoading(false); return; }
       setBootstrap(boot);

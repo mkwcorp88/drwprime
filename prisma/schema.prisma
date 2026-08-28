@@ -773,7 +773,7 @@ model SeoAuditRun {
   @@map("seo_audit_runs")
 }
 
-// ===== Treatment Operations (treatment.drwprime.com) =====
+// ===== Treatment Operations (admin.drwprime.com) =====
 // Kept separate from the public member/catalog models above. Operational
 // records are immutable snapshots and must survive catalog/profile changes.
 enum OpsRole {
@@ -841,20 +841,24 @@ model OpsBranch {
 }
 
 model OpsStaff {
-  id             String    @id @default(cuid())
-  branchId       String?   @map("branch_id")
-  username       String    @unique
-  passwordHash   String    @map("password_hash")
-  badgeTokenHash String?   @unique @map("badge_token_hash")
-  badgeIssuedAt  DateTime? @map("badge_issued_at") @db.Timestamptz(3)
-  employeeId     String    @unique @map("employee_id")
-  name           String
-  email          String?   @unique
-  role           OpsRole
-  active         Boolean   @default(true)
-  lastLoginAt    DateTime? @map("last_login_at") @db.Timestamptz(3)
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                  String    @id @default(cuid())
+  branchId            String?   @map("branch_id")
+  username            String    @unique // Legacy rollback field; new accounts store their canonical email here.
+  passwordHash        String    @map("password_hash")
+  mustChangePassword  Boolean   @default(true) @map("must_change_password")
+  passwordChangedAt   DateTime? @map("password_changed_at") @db.Timestamptz(3)
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(3)
+  badgeTokenHash      String?   @unique @map("badge_token_hash")
+  badgeIssuedAt       DateTime? @map("badge_issued_at") @db.Timestamptz(3)
+  employeeId          String    @unique @map("employee_id")
+  name                String
+  email               String?   @unique
+  role                OpsRole
+  active              Boolean   @default(true)
+  lastLoginAt         DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   branch             OpsBranch?           @relation(fields: [branchId], references: [id], onDelete: Restrict)
   createdOrders      OpsTreatmentOrder[]  @relation("OpsOrderCreator")
@@ -868,6 +872,7 @@ model OpsStaff {
   lockedPeriods      OpsIncentivePeriod[]
   auditLogs          OpsAuditLog[]
   sessions           OpsSession[]
+  doctorProfile      OpsDoctor?
 
   @@index([branchId, role, active])
   @@map("ops_staff")
@@ -912,6 +917,7 @@ model OpsDoctor {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   branch OpsBranch           @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  staff  OpsStaff?           @relation(fields: [staffId], references: [id], onDelete: SetNull)
   orders OpsTreatmentOrder[]
 
   @@index([branchId, active])

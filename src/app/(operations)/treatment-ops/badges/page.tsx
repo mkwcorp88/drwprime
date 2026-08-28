@@ -1,9 +1,7 @@
-import { redirect } from 'next/navigation';
 import BadgeManagement from '@/components/treatment-ops/BadgeManagement';
-import { getOpsStaff } from '@/lib/treatment-operations/auth';
+import { requireOpsPage } from '@/lib/treatment-operations/page-auth';
 
 export default async function BadgeManagementPage() {
-  const staff = await getOpsStaff();
-  if (!staff || !['SUPER_ADMIN', 'MANAGEMENT'].includes(staff.role)) redirect('/treatment-ops');
+  await requireOpsPage(['SUPER_ADMIN', 'MANAGEMENT']);
   return <BadgeManagement />;
 }

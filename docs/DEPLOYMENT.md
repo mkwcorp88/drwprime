@@ -6,6 +6,12 @@ loopback port `127.0.0.1:5054`. Host Nginx proxies `drwprime.com` to that port
 using `/etc/nginx/sites-enabled/drwprime.com`; Coolify no longer owns this
 application.
 
+The same container serves treatment operations on `admin.drwprime.com`. Its
+dedicated Nginx virtual host must preserve `Host: admin.drwprime.com` when
+proxying to `127.0.0.1:5054`; Next.js middleware then rewrites requests to
+`/treatment-ops`. TLS is managed as a separate Certbot certificate named
+`admin.drwprime.com`.
+
 ## Deployment Paths
 
 The automatic path is the VPS webhook dispatcher:
@@ -55,6 +61,20 @@ Seeding is always explicit:
 npm run db:seed
 ```
 
+Treatment Operations must not use the demo seed in production. Bootstrap the
+first Super Admin once from the running release, then create all other staff in
+the application:
+
+```bash
+OPS_ADMIN_EMAIL="admin@drwprime.com" \
+OPS_ADMIN_PASSWORD="temporary-strong-password" \
+npm run ops:bootstrap-admin
+```
+
+The bootstrap password is temporary and the application forces an immediate
+password change. A controlled recovery can set `OPS_ADMIN_FORCE_RESET=true`;
+this revokes every existing session for that account.
+
 ## VPS Bootstrap
 
 The VPS build wrapper must pass the release SHA into Docker:
@@ -93,6 +113,8 @@ Production readiness:
 
 ```bash
 curl --fail --silent --show-error https://drwprime.com/api/health
+curl --fail --silent --show-error https://admin.drwprime.com/api/health
+curl --fail --silent --show-error https://admin.drwprime.com/treatment-ops/login
 ```
 
 The response must contain `"ok":true` and the expected `release` commit SHA.

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import TreatmentOpsShell from '@/components/treatment-ops/TreatmentOpsShell';
+import { getOpsStaff } from '@/lib/treatment-operations/auth';
 
 export const metadata: Metadata = {
   title: 'Operasional Treatment DRW Prime',
@@ -7,5 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TreatmentOpsLayout({ children }: { children: React.ReactNode }) {
-  return <TreatmentOpsShell>{children}</TreatmentOpsShell>;
+  const staff = await getOpsStaff();
+  const safeStaff = staff ? { name: staff.name, role: staff.role, mustChangePassword: staff.mustChangePassword } : null;
+  return <TreatmentOpsShell staff={safeStaff}>{children}</TreatmentOpsShell>;
 }

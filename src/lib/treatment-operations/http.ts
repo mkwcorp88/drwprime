@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { OpsError } from './utils';
 
 export function handleOpsError(error: unknown, context: string): NextResponse {
-  if (error instanceof OpsError) return NextResponse.json({ error: error.message }, { status: error.status });
+  if (error instanceof OpsError) {
+    return NextResponse.json({ error: error.message, ...(error.code ? { code: error.code } : {}) }, { status: error.status });
+  }
   console.error(`[TREATMENT OPS] ${context}:`, error);
   return NextResponse.json({ error: 'Terjadi kesalahan pada server' }, { status: 500 });
 }
