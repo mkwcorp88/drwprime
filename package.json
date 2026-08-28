@@ -20,6 +20,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:treatment-ops": "tsx prisma/seed-treatment-ops.ts",
     "ops:bootstrap-admin": "tsx prisma/bootstrap-treatment-ops-admin.ts",
+    "ops:import-md": "tsx prisma/import-ops-md.ts",
     "db:local": "node scripts/start-local-db.mjs",
     "dev:ops": "next dev --hostname 0.0.0.0 --port 3010",
     "postinstall": "prisma generate"

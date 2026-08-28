@@ -73,6 +73,18 @@ Setiap staf punya **barcode kartu pribadi**. Karyawan tidak lagi memindai QR; ya
 
 Kartu berisi token acak (`DRW-STAFF:<token>`); hash SHA-256 dipakai untuk verifikasi, token tersimpan agar pemilik bisa menampilkan barcode sendiri. Menerbitkan ulang otomatis membatalkan kartu sebelumnya. Endpoint `start`/`complete` menerima `badgeToken` opsional: jika ada, karyawan diidentifikasi dari kartu. Hanya Super Admin yang boleh memindai kartu.
 
+## Impor Data dari MD
+
+Impor awal karyawan dan list treatment bisa dilakukan dari satu file Markdown. Contoh format ada di `prisma/import-ops-template.md`.
+
+```bash
+npm run ops:import-md -- /path/ke/file.md
+```
+
+- **Karyawan**: tabel dengan kolom `Email | Nama | ID | Role | Cabang | Password`. Role memakai label Indonesia (`Terapis`, `Dokter`, `Front Office`, `Supervisor`, `Manajemen`, `Super Admin`). Password boleh dikosongkan; sistem membuat password acak dan menampilkannya, dan semua akun wajib mengganti password saat login pertama. Akun Dokter otomatis ditautkan ke daftar dokter order.
+- **Treatment**: tiap treatment diawali `### Nama (KODE)`, baris `Kategori: ... | Harga: ...`, lalu tabel tahapan `No | Tindakan | Wajib | Role | Menit | Insentif`.
+- Bersifat idempotent: email/kode yang sudah ada dilewati tanpa ditimpa. Karyawan dan treatment yang tidak valid dilaporkan di akhir tanpa menghentikan impor.
+
 ## Deployment
 
 Subdomain produksi adalah `https://admin.drwprime.com` dan diproksikan Nginx ke container DRW Prime yang sama pada `127.0.0.1:5054`. Middleware memilih antarmuka treatment berdasarkan header host, sehingga website utama tetap berada di `https://drwprime.com`.
