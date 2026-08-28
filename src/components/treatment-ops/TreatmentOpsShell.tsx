@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { OpsRole } from '@prisma/client';
-import { BarChart3, ClipboardPlus, Gauge, IdCard, LogOut, QrCode, Settings, UserCog, WalletCards } from 'lucide-react';
+import { BarChart3, ClipboardPlus, FlaskConical, Gauge, IdCard, LogOut, QrCode, Settings, UserCog, WalletCards } from 'lucide-react';
 import { REPORT_ROLES } from '@/lib/treatment-operations/constants';
 
 const links = [
@@ -12,6 +12,7 @@ const links = [
   { href: '/treatment-ops/badges', label: 'Kartu', icon: IdCard, roles: ['SUPER_ADMIN', 'MANAGEMENT'] as OpsRole[] },
   { href: '/treatment-ops/report', label: 'Report', icon: BarChart3, roles: REPORT_ROLES },
   { href: '/treatment-ops/incentives', label: 'Insentif', icon: WalletCards, roles: null },
+  { href: '/treatment-ops/treatments', label: 'Treatment', icon: FlaskConical, roles: ['SUPER_ADMIN'] as OpsRole[] },
   { href: '/treatment-ops/staff', label: 'Staf', icon: UserCog, roles: ['SUPER_ADMIN'] as OpsRole[] },
   { href: '/treatment-ops/settings', label: 'Pengaturan', icon: Settings, roles: null },
 ];

@@ -8,7 +8,7 @@ import Link from 'next/link';
 import BadgeScannerModal from '@/components/treatment-ops/BadgeScannerModal';
 import { roleLabels } from '@/lib/treatment-operations/constants';
 import { formatPhone } from '@/lib/phone';
-import type { OpsBootstrap, OpsOrderView } from '@/types/treatment-operations';
+import type { OpsActionView, OpsBootstrap, OpsOrderView } from '@/types/treatment-operations';
 
 const statusStyle: Record<string, string> = {
   CREATED: 'bg-sky-400/15 text-sky-300', ASSIGNED: 'bg-indigo-400/15 text-indigo-300',
@@ -22,6 +22,8 @@ const statusLabel: Record<string, string> = {
 };
 
 const money = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
+
+const roleLabel = (role: string) => (roleLabels as Record<string, string>)[role] ?? role;
 
 function initials(name: string): string {
   return name
@@ -42,6 +44,7 @@ export default function OperationsDashboard() {
   const [qr, setQr] = useState<{ orderNumber: string; url: string } | null>(null);
   const [scanTarget, setScanTarget] = useState<{ actionId: string; actionName: string; operation: 'start' | 'complete' } | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
+  const [busyAssign, setBusyAssign] = useState<string | null>(null);
   const [form, setForm] = useState({ branchId: '', patientId: '', doctorId: '', treatmentId: '', visitDate: new Date().toISOString().slice(0, 10), originalPrice: '', discountAmount: '0', internalNote: '' });
 
   const load = async () => {
@@ -101,12 +104,28 @@ export default function OperationsDashboard() {
     setQr({ orderNumber: order.orderNumber, url: `${window.location.origin}/treatment-ops/scan/${data.qrToken}` });
   };
 
-  const assign = async (actionId: string, therapistId: string) => {
-    if (!therapistId) return;
-    const response = await fetch(`/api/treatment-ops/actions/${actionId}/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ therapistId }) });
+  const assign = async (actionId: string, staffId: string) => {
+    if (!staffId) return;
+    const response = await fetch(`/api/treatment-ops/actions/${actionId}/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ therapistId: staffId }) });
     const data = await response.json();
-    if (!response.ok) setError(data.error || 'Gagal assign terapis'); else await load();
+    if (!response.ok) setError(data.error || 'Gagal assign eksekutor'); else await load();
   };
+
+  const assignAll = async (order: OpsOrderView, staffId: string) => {
+    if (!staffId) return;
+    const targets = order.actions.filter((action) => ['PENDING', 'ASSIGNED'].includes(action.status));
+    setError(''); setBusyAssign(order.id);
+    for (const action of targets) {
+      const response = await fetch(`/api/treatment-ops/actions/${action.id}/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ therapistId: staffId }) });
+      const data = await response.json();
+      if (!response.ok) { setError(data.error || 'Gagal assign eksekutor'); break; }
+    }
+    setBusyAssign(null);
+    await load();
+  };
+
+  const staffForAction = (action: OpsActionView) =>
+    bootstrap?.assignableStaff.filter((staff) => !action.requiredRoleSnapshot || staff.role === action.requiredRoleSnapshot) || [];
 
   const canCreate = bootstrap && ['SUPER_ADMIN', 'FRONT_OFFICE', 'SUPERVISOR'].includes(bootstrap.staff.role);
   const canAssign = bootstrap && ['SUPER_ADMIN', 'SUPERVISOR'].includes(bootstrap.staff.role);
@@ -212,6 +231,16 @@ export default function OperationsDashboard() {
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} /></div>
                   <span className="text-xs font-bold text-primary">{done}/{order.actions.length}</span>
                 </div>
+                {canAssign && (
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/45">Assign semua ke</span>
+                    <select value="" onChange={(event) => event.target.value && void assignAll(order, event.target.value)} className="rounded-xl border border-white/15 bg-black/40 px-2 py-1.5 text-[10px] text-white outline-none focus:border-primary/60">
+                      <option value="">Pilih eksekutor</option>
+                      {bootstrap?.assignableStaff.map((staff) => <option key={staff.id} value={staff.id}>{staff.name} · {roleLabel(staff.role)}</option>)}
+                    </select>
+                    {busyAssign === order.id && <span className="text-[10px] text-white/45">Meng-assign...</span>}
+                  </div>
+                )}
                 <div className="grid gap-2 lg:grid-cols-2">
                   {order.actions.map((action) => {
                     const canStartScan = canScan && ['PENDING', 'ASSIGNED'].includes(action.status);
@@ -229,7 +258,7 @@ export default function OperationsDashboard() {
                         {(canAssign || canStartScan || canCompleteScan) && (
                           <div className="mt-2 flex flex-wrap items-center gap-2">
                             {canAssign && ['PENDING', 'ASSIGNED'].includes(action.status) && (
-                              <select value={action.assignedTherapistId || ''} onChange={(event) => void assign(action.id, event.target.value)} className="max-w-32 rounded-xl border border-white/15 bg-black/40 px-2 py-2 text-[10px] text-white outline-none focus:border-primary/60"><option value="">Assign</option>{bootstrap?.therapists.map((therapist) => <option key={therapist.id} value={therapist.id}>{therapist.name}</option>)}</select>
+                              <select value={action.assignedTherapistId || ''} onChange={(event) => void assign(action.id, event.target.value)} className="max-w-40 rounded-xl border border-white/15 bg-black/40 px-2 py-2 text-[10px] text-white outline-none focus:border-primary/60"><option value="">Assign eksekutor</option>{staffForAction(action).map((staff) => <option key={staff.id} value={staff.id}>{staff.name}{action.requiredRoleSnapshot ? '' : ` · ${roleLabel(staff.role)}`}</option>)}</select>
                             )}
                             {canStartScan && (
                               <button onClick={() => setScanTarget({ actionId: action.id, actionName: action.actionNameSnapshot, operation: 'start' })} className="flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-[10px] font-bold text-black transition hover:bg-primary-light"><Play className="size-3.5" /> Mulai</button>

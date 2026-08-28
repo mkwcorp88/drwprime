@@ -11,7 +11,7 @@ export async function GET() {
     const staffBranch = staff.branchId
       ? await prisma.opsBranch.findUnique({ where: { id: staff.branchId }, select: { id: true, name: true } })
       : null;
-    const [branches, treatments, doctors, therapists, patients] = await Promise.all([
+    const [branches, treatments, doctors, therapists, patients, assignableStaff] = await Promise.all([
       prisma.opsBranch.findMany({ where: { ...branchWhere, active: true }, orderBy: { name: 'asc' } }),
       prisma.opsTreatment.findMany({
         where: { active: true },
@@ -30,6 +30,13 @@ export async function GET() {
         where: staff.role === 'SUPER_ADMIN' ? {} : { branchId: staff.branchId || '' },
         take: 100, orderBy: { name: 'asc' },
       }),
+      prisma.opsStaff.findMany({
+        where: {
+          ...(staff.role === 'SUPER_ADMIN' ? {} : { branchId: staff.branchId || '' }),
+          role: { in: ['THERAPIST', 'DOCTOR'] }, active: true,
+        },
+        select: { id: true, branchId: true, employeeId: true, name: true, role: true }, orderBy: { name: 'asc' },
+      }),
     ]);
     const safeStaff = {
       id: staff.id,
@@ -42,7 +49,7 @@ export async function GET() {
       role: staff.role,
       branch: staffBranch,
     };
-    return NextResponse.json(serialize({ staff: safeStaff, branches, treatments, doctors, therapists, patients }));
+    return NextResponse.json(serialize({ staff: safeStaff, branches, treatments, doctors, therapists, patients, assignableStaff }));
   } catch (error) {
     return handleOpsError(error, 'bootstrap');
   }

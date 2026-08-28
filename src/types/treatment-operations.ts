@@ -15,6 +15,7 @@ export type OpsActionView = {
   actionNameSnapshot: string;
   sequenceNumber: number;
   isRequired: boolean;
+  requiredRoleSnapshot?: string | null;
   status: string;
   assignedTherapistId: string | null;
   performedByTherapistId: string | null;
@@ -52,5 +53,28 @@ export type OpsBootstrap = {
   }>;
   doctors: Array<{ id: string; branchId: string; name: string }>;
   therapists: Array<{ id: string; branchId: string | null; employeeId: string; name: string }>;
+  assignableStaff: Array<{ id: string; branchId: string | null; employeeId: string; name: string; role: string }>;
   patients: Array<{ id: string; branchId: string; patientNumber: string; name: string }>;
+};
+
+export type OpsTreatmentActionTemplateView = {
+  id: string;
+  actionName: string;
+  sequenceNumber: number;
+  isRequired: boolean;
+  requiredRole: string | null;
+  estimatedDurationMinutes: number | null;
+  incentiveType: string;
+  incentiveValue: number;
+  active: boolean;
+};
+
+export type OpsTreatmentView = {
+  id: string;
+  code: string;
+  name: string;
+  category: string | null;
+  defaultPrice: number;
+  active: boolean;
+  actionTemplates: OpsTreatmentActionTemplateView[];
 };

@@ -72,6 +72,7 @@ export async function createTreatmentOrder(actor: OpsStaff, input: CreateOrderIn
             actionNameSnapshot: template.actionName,
             sequenceNumber: template.sequenceNumber,
             isRequired: template.isRequired,
+            requiredRoleSnapshot: template.requiredRole,
             incentiveTypeSnapshot: template.incentiveType,
             incentiveValueSnapshot: template.incentiveValue,
           })),
@@ -97,13 +98,19 @@ export async function createTreatmentOrder(actor: OpsStaff, input: CreateOrderIn
   return { order, qrToken: token };
 }
 
-export async function assignAction(actor: OpsStaff, actionId: string, therapistId: string, reason?: string) {
+export async function assignAction(actor: OpsStaff, actionId: string, staffId: string, reason?: string) {
   return prisma.$transaction(async (tx) => {
     const action = await tx.opsOrderAction.findUnique({ where: { id: actionId }, include: { order: true } });
-    const therapist = await tx.opsStaff.findUnique({ where: { id: therapistId } });
+    const staff = await tx.opsStaff.findUnique({ where: { id: staffId } });
     if (!action) throw new OpsError(404, 'Tindakan tidak ditemukan.');
-    if (!therapist || therapist.role !== 'THERAPIST' || !therapist.active || therapist.branchId !== action.order.branchId) {
-      throw new OpsError(422, 'Terapis aktif pada cabang ini tidak ditemukan.');
+    if (!staff || !staff.active || staff.branchId !== action.order.branchId) {
+      throw new OpsError(422, 'Eksekutor aktif pada cabang ini tidak ditemukan.');
+    }
+    if (!['THERAPIST', 'DOCTOR'].includes(staff.role)) {
+      throw new OpsError(422, 'Eksekutor harus berperan Terapis atau Dokter.');
+    }
+    if (action.requiredRoleSnapshot && staff.role !== action.requiredRoleSnapshot) {
+      throw new OpsError(422, `Tindakan ini memerlukan eksekutor berperan ${action.requiredRoleSnapshot.replaceAll('_', ' ').toLowerCase()}.`);
     }
     if (['ON_PROCESS', 'COMPLETED', 'SKIPPED', 'CANCELLED'].includes(action.status)) {
       throw new OpsError(409, 'Assignment tidak dapat diubah pada status tindakan saat ini.');
@@ -115,19 +122,19 @@ export async function assignAction(actor: OpsStaff, actionId: string, therapistI
       data: {
         treatmentOrderId: action.treatmentOrderId,
         orderActionId: action.id,
-        therapistId,
+        therapistId: staffId,
         assignedById: actor.id,
         reason,
       },
     });
     const updated = await tx.opsOrderAction.update({
-      where: { id: action.id }, data: { assignedTherapistId: therapistId, status: 'ASSIGNED' },
+      where: { id: action.id }, data: { assignedTherapistId: staffId, status: 'ASSIGNED' },
     });
     await tx.opsTreatmentOrder.update({ where: { id: action.order.id }, data: { status: 'ASSIGNED' } });
     await tx.opsActionEvent.create({
       data: {
         treatmentOrderId: action.order.id, orderActionId: action.id, eventType: 'ASSIGN', actorUserId: actor.id,
-        metadata: { therapistId, therapistName: therapist.name, reason: reason || null },
+        metadata: { staffId, staffName: staff.name, reason: reason || null },
       },
     });
     return updated;
