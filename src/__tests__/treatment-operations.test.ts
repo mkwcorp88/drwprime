@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeOpsEmail, validateOpsEmail, validateOpsPassword } from '@/lib/treatment-operations/password';
+import { normalizeOpsPhone, validateOpsPhone } from '@/lib/treatment-operations/profile';
 import { createQrToken, getPeriodRange, hashQrToken, jakartaDateKey, jakartaPeriod, maskPatientName } from '@/lib/treatment-operations/utils';
 
 describe('treatment operations utilities', () => {
@@ -46,5 +47,11 @@ describe('treatment operations utilities', () => {
     expect(validateOpsPassword('PrimeAman2026!')).toBeNull();
     expect(validateOpsPassword('terlalulemah')).toContain('huruf besar');
     expect(validateOpsPassword('Pendek1!')).toContain('minimal 10');
+  });
+
+  it('normalizes and validates staff WhatsApp numbers', () => {
+    expect(normalizeOpsPhone(' 0812-3456-789 ')).toBe('628123456789');
+    expect(validateOpsPhone('08123456789')).toBeNull();
+    expect(validateOpsPhone('12345')).toBe('Format nomor WhatsApp tidak valid.');
   });
 });

@@ -3,7 +3,11 @@ export type OpsStaffView = {
   branchId: string | null;
   employeeId: string;
   name: string;
+  email?: string | null;
+  phone?: string | null;
+  avatarUrl?: string | null;
   role: 'SUPER_ADMIN' | 'MANAGEMENT' | 'FRONT_OFFICE' | 'SUPERVISOR' | 'THERAPIST' | 'DOCTOR';
+  branch?: { id: string; name: string } | null;
 };
 
 export type OpsActionView = {

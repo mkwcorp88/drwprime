@@ -16,7 +16,7 @@ const links = [
   { href: '/treatment-ops/settings', label: 'Pengaturan', icon: Settings, roles: null },
 ];
 
-type ShellStaff = { name: string; role: OpsRole; mustChangePassword: boolean };
+type ShellStaff = { name: string; role: OpsRole; mustChangePassword: boolean; avatarUrl: string | null };
 
 export default function TreatmentOpsShell({ children, staff }: { children: React.ReactNode; staff: ShellStaff | null }) {
   const pathname = usePathname();
@@ -49,7 +49,18 @@ export default function TreatmentOpsShell({ children, staff }: { children: React
           </nav>
 
           <div className="flex items-center gap-3">
-            {staff && <span className="hidden max-w-40 truncate text-[11px] text-white/40 lg:block">{staff.name}</span>}
+            {staff && (
+              <div className="hidden items-center gap-2 lg:flex">
+                {staff.avatarUrl ? (
+                  <img src={staff.avatarUrl} alt={staff.name} className="size-7 rounded-full object-cover ring-1 ring-primary/30" />
+                ) : (
+                  <span className="flex size-7 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-[10px] font-bold text-primary">
+                    {staff.name.trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('')}
+                  </span>
+                )}
+                <span className="max-w-40 truncate text-[11px] text-white/40">{staff.name}</span>
+              </div>
+            )}
             <Link href="https://drwprime.com" className="hidden items-center gap-1.5 text-xs font-semibold text-white/55 hover:text-primary sm:flex">
               <LogOut className="size-3.5" /> Website utama
             </Link>

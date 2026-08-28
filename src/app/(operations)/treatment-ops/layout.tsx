@@ -9,6 +9,6 @@ export const metadata: Metadata = {
 
 export default async function TreatmentOpsLayout({ children }: { children: React.ReactNode }) {
   const staff = await getOpsStaff();
-  const safeStaff = staff ? { name: staff.name, role: staff.role, mustChangePassword: staff.mustChangePassword } : null;
+  const safeStaff = staff ? { name: staff.name, role: staff.role, mustChangePassword: staff.mustChangePassword, avatarUrl: staff.avatarUrl } : null;
   return <TreatmentOpsShell staff={safeStaff}>{children}</TreatmentOpsShell>;
 }

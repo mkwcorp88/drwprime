@@ -854,6 +854,9 @@ model OpsStaff {
   employeeId          String    @unique @map("employee_id")
   name                String
   email               String?   @unique
+  phone               String?   @unique
+  avatarUrl           String?   @map("avatar_url")
+  avatarKey           String?   @unique @map("avatar_key")
   role                OpsRole
   active              Boolean   @default(true)
   lastLoginAt         DateTime? @map("last_login_at") @db.Timestamptz(3)

@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CalendarDays, CheckCircle2, Clock3, Play, Plus, QrCode, Sparkles, UsersRound, X } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock3, Phone, Play, Plus, QrCode, Sparkles, UserRound, UsersRound, X } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import BadgeScannerModal from '@/components/treatment-ops/BadgeScannerModal';
+import { roleLabels } from '@/lib/treatment-operations/constants';
+import { formatPhone } from '@/lib/phone';
 import type { OpsBootstrap, OpsOrderView } from '@/types/treatment-operations';
 
 const statusStyle: Record<string, string> = {
@@ -19,6 +22,15 @@ const statusLabel: Record<string, string> = {
 };
 
 const money = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
+
+function initials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+}
 
 export default function OperationsDashboard() {
   const router = useRouter();
@@ -125,6 +137,37 @@ export default function OperationsDashboard() {
   if (loading) return <div className="py-24 text-center text-sm text-white/50">Menyiapkan operasional treatment...</div>;
   return (
     <div>
+      {bootstrap && (
+        <section className="fo-glass-card-soft fo-fade-up mb-6 flex flex-col gap-5 rounded-[2rem] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex items-center gap-4">
+            {bootstrap.staff.avatarUrl ? (
+              <img src={bootstrap.staff.avatarUrl} alt={bootstrap.staff.name} className="size-14 shrink-0 rounded-full object-cover ring-2 ring-primary/40" />
+            ) : (
+              <span className="flex size-14 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-lg font-bold text-primary">
+                {initials(bootstrap.staff.name)}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/70">Selamat datang kembali</p>
+              <h2 className="font-playfair truncate text-xl font-bold">{bootstrap.staff.name}</h2>
+              <p className="mt-0.5 text-xs text-white/50">
+                {roleLabels[bootstrap.staff.role]} · {bootstrap.staff.employeeId}
+                {bootstrap.staff.branch ? ` · ${bootstrap.staff.branch.name}` : ''}
+              </p>
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-white/45">
+                <Phone className="size-3.5 text-primary/70" />
+                {bootstrap.staff.phone ? formatPhone(bootstrap.staff.phone) : 'Nomor WhatsApp belum diisi'}
+              </p>
+            </div>
+          </div>
+          {(!bootstrap.staff.phone || !bootstrap.staff.avatarUrl) && (
+            <Link href="/treatment-ops/settings" className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-primary/35 px-5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black">
+              <UserRound className="size-4" /> Lengkapi profil
+            </Link>
+          )}
+        </section>
+      )}
+
       <section className="fo-glass-card fo-fade-up relative overflow-hidden rounded-[2rem] p-6 sm:p-9">
         <div className="absolute -right-16 -top-20 size-64 rounded-full border border-primary/15" />
         <div className="absolute -bottom-28 right-24 size-52 rounded-full bg-primary/10 blur-2xl" />

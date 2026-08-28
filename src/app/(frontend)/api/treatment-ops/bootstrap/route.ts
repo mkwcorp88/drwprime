@@ -8,6 +8,9 @@ export async function GET() {
   try {
     const staff = await requireOpsStaff();
     const branchWhere = staff.role === 'SUPER_ADMIN' ? {} : { id: staff.branchId || '' };
+    const staffBranch = staff.branchId
+      ? await prisma.opsBranch.findUnique({ where: { id: staff.branchId }, select: { id: true, name: true } })
+      : null;
     const [branches, treatments, doctors, therapists, patients] = await Promise.all([
       prisma.opsBranch.findMany({ where: { ...branchWhere, active: true }, orderBy: { name: 'asc' } }),
       prisma.opsTreatment.findMany({
@@ -33,7 +36,11 @@ export async function GET() {
       branchId: staff.branchId,
       employeeId: staff.employeeId,
       name: staff.name,
+      email: staff.email,
+      phone: staff.phone,
+      avatarUrl: staff.avatarUrl,
       role: staff.role,
+      branch: staffBranch,
     };
     return NextResponse.json(serialize({ staff: safeStaff, branches, treatments, doctors, therapists, patients }));
   } catch (error) {
