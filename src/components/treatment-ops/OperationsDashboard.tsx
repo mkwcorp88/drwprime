@@ -110,7 +110,7 @@ export default function OperationsDashboard() {
 
   const canCreate = bootstrap && ['SUPER_ADMIN', 'FRONT_OFFICE', 'SUPERVISOR'].includes(bootstrap.staff.role);
   const canAssign = bootstrap && ['SUPER_ADMIN', 'SUPERVISOR'].includes(bootstrap.staff.role);
-  const canScan = bootstrap && ['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR'].includes(bootstrap.staff.role);
+  const canScan = bootstrap?.staff.role === 'SUPER_ADMIN';
 
   const performWithBadge = async (badgeToken: string) => {
     if (!scanTarget) return;

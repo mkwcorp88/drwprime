@@ -6,7 +6,7 @@ import { hashQrToken, maskPatientName, OpsError, serialize } from '@/lib/treatme
 
 export async function GET(_request: Request, context: { params: Promise<{ token: string }> }) {
   try {
-    const actor = await requireOpsStaff();
+    const actor = await requireOpsStaff(['SUPER_ADMIN']);
     const { token } = await context.params;
     const order = await prisma.opsTreatmentOrder.findUnique({
       where: { qrTokenHash: hashQrToken(token) },

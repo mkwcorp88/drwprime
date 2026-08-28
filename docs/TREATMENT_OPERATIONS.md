@@ -61,16 +61,17 @@ Super Admin membuat akun staf produksi dari `/treatment-ops/staff`. Setiap akun 
 5. Penyelesaian membuat ledger insentif secara idempotent.
 6. Order menjadi `COMPLETED` setelah seluruh tindakan wajib selesai.
 
-## Kartu QR Staf (scan dari dashboard)
+## Kartu QR Staf (barcode karyawan)
 
-Selain login sendiri, setiap staf punya **kartu QR pribadi**. Alur yang disarankan:
+Setiap staf punya **barcode kartu pribadi**. Karyawan tidak lagi memindai QR; yang memindai adalah Super Admin. Alur yang disarankan:
 
-1. Super Admin/Manajemen membuka `/treatment-ops/badges` dan menerbitkan kartu QR untuk tiap terapis.
-2. Dashboard (FO/SPV/Manajemen) memilih order dan tindakan, lalu klik **Mulai** atau **Selesai**.
-3. Kamera dashboard membaca QR kartu terapis.
-4. Sistem mencatat identitas terapis dari kartu, bukan dari akun dashboard.
+1. Super Admin/Manajemen membuka `/treatment-ops/badges` dan menerbitkan kartu untuk tiap staf.
+2. Karyawan membuka menu **Barcode Saya** (`/treatment-ops/scan`) dan menampilkan barcode kartunya.
+3. Super Admin di dashboard memilih order dan tindakan, lalu klik **Mulai** atau **Selesai**.
+4. Kamera dashboard membaca barcode kartu karyawan.
+5. Sistem mencatat identitas karyawan dari kartu, bukan dari akun yang login.
 
-Kartu hanya berisi token acak (`DRW-STAFF:<token>`); database menyimpan hash SHA-256. Menerbitkan ulang otomatis membatalkan kartu sebelumnya. Endpoint `start`/`complete` menerima `badgeToken` opsional: jika ada, terapis diidentifikasi dari kartu; jika tidak, pemanggil harus terapis yang login sendiri.
+Kartu berisi token acak (`DRW-STAFF:<token>`); hash SHA-256 dipakai untuk verifikasi, token tersimpan agar pemilik bisa menampilkan barcode sendiri. Menerbitkan ulang otomatis membatalkan kartu sebelumnya. Endpoint `start`/`complete` menerima `badgeToken` opsional: jika ada, karyawan diidentifikasi dari kartu. Hanya Super Admin yang boleh memindai kartu.
 
 ## Deployment
 

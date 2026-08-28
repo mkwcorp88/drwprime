@@ -5,7 +5,7 @@ import { OpsError } from '@/lib/treatment-operations/utils';
 
 export async function POST(request: Request) {
   try {
-    await requireOpsStaff(['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR']);
+    await requireOpsStaff(['SUPER_ADMIN']);
     const body = await readJson(request);
     if (typeof body.badgeToken !== 'string') throw new OpsError(400, 'Token kartu staf wajib diisi.');
     const staff = await resolveStaffBadge(body.badgeToken);

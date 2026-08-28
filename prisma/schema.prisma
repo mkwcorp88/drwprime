@@ -849,6 +849,7 @@ model OpsStaff {
   passwordChangedAt   DateTime? @map("password_changed_at") @db.Timestamptz(3)
   failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
   lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(3)
+  badgeToken          String?   @unique @map("badge_token")
   badgeTokenHash      String?   @unique @map("badge_token_hash")
   badgeIssuedAt       DateTime? @map("badge_issued_at") @db.Timestamptz(3)
   employeeId          String    @unique @map("employee_id")

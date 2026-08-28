@@ -173,7 +173,7 @@ export async function issueStaffBadge(actor: OpsStaff, staffId: string) {
     if (!current || !current.active) throw new OpsError(404, 'Staf aktif tidak ditemukan.');
     const updated = await tx.opsStaff.update({
       where: { id: staffId },
-      data: { badgeTokenHash: hashQrToken(token), badgeIssuedAt: issuedAt },
+      data: { badgeToken: token, badgeTokenHash: hashQrToken(token), badgeIssuedAt: issuedAt },
     });
     await tx.opsAuditLog.create({
       data: {

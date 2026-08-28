@@ -39,10 +39,11 @@ export default function TreatmentOpsShell({ children, staff }: { children: React
 
           <nav className="hidden items-center gap-1 md:flex">
             {visibleLinks.map(({ href, label }) => {
+              const activeLabel = href === '/treatment-ops/scan' && staff && staff.role !== 'SUPER_ADMIN' ? 'Barcode Saya' : label;
               const active = pathname === href || (href !== '/treatment-ops' && pathname.startsWith(href));
               return (
                 <Link key={href} href={href} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${active ? 'bg-primary/15 text-primary' : 'text-white/55 hover:text-primary'}`}>
-                  {label}
+                  {activeLabel}
                 </Link>
               );
             })}
@@ -76,10 +77,11 @@ export default function TreatmentOpsShell({ children, staff }: { children: React
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-primary/20 bg-black/70 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden">
         <div className="mx-auto flex max-w-xl gap-1 overflow-x-auto">
           {visibleLinks.map(({ href, label, icon: Icon }) => {
+            const activeLabel = href === '/treatment-ops/scan' && staff && staff.role !== 'SUPER_ADMIN' ? 'Barcode Saya' : label;
             const active = pathname === href || (href !== '/treatment-ops' && pathname.startsWith(href));
             return (
               <Link key={href} href={href} className={`flex min-w-[4.4rem] flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition ${active ? 'bg-primary/15 text-primary' : 'text-white/55'}`}>
-                <Icon className="size-5" />{label}
+                <Icon className="size-5" />{activeLabel}
               </Link>
             );
           })}
