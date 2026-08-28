@@ -1,11 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { QRCodeCanvas } from 'qrcode.react';
 import { BadgeCheck, IdCard, Printer, X } from 'lucide-react';
+import StaffIdCard from '@/components/treatment-ops/StaffIdCard';
 
-type StaffRow = { id: string; employeeId: string; name: string; role: string; active: boolean; badgeIssuedAt: string | null };
-type Issued = { staff: { employeeId: string; name: string; role: string }; badgeValue: string };
+type StaffRow = {
+  id: string;
+  employeeId: string;
+  name: string;
+  role: string;
+  active: boolean;
+  badgeIssuedAt: string | null;
+  avatarUrl: string | null;
+  branch: { name: string } | null;
+};
+type Issued = {
+  staffId: string;
+  employeeId: string;
+  name: string;
+  role: string;
+  badgeValue: string;
+  avatarUrl: string | null;
+  branchName: string | null;
+};
 
 const roleLabel: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin', MANAGEMENT: 'Manajemen', FRONT_OFFICE: 'Front Office',
@@ -38,10 +55,39 @@ export default function BadgeManagementPage() {
       const response = await fetch(`/api/treatment-ops/staff/${staffId}/badge`, { method: 'POST' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Gagal menerbitkan kartu');
-      setIssued(data);
+      const row = staff.find((member) => member.id === staffId);
+      setIssued({
+        staffId,
+        employeeId: data.staff.employeeId,
+        name: data.staff.name,
+        role: data.staff.role,
+        badgeValue: data.badgeValue,
+        avatarUrl: row?.avatarUrl ?? null,
+        branchName: row?.branch?.name ?? null,
+      });
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Gagal menerbitkan kartu');
+    } finally { setBusyId(''); }
+  };
+
+  const viewBadge = async (staffId: string) => {
+    setBusyId(staffId); setError('');
+    try {
+      const response = await fetch(`/api/treatment-ops/staff/${staffId}/badge`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Kartu tidak dapat dimuat');
+      setIssued({
+        staffId,
+        employeeId: data.staff.employeeId,
+        name: data.staff.name,
+        role: data.staff.role,
+        badgeValue: data.badgeValue,
+        avatarUrl: data.avatarUrl,
+        branchName: data.branchName,
+      });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Gagal memuat kartu');
     } finally { setBusyId(''); }
   };
 
@@ -51,8 +97,8 @@ export default function BadgeManagementPage() {
       <section className="fo-glass-card rounded-[2rem] p-7 sm:p-9">
         <IdCard className="size-8 text-primary" />
         <p className="mt-8 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Identitas pribadi</p>
-        <h1 className="font-playfair mt-2 text-4xl font-bold">Kartu QR Staf</h1>
-        <p className="mt-2 max-w-xl text-sm text-white/50">Setiap terapis dan petugas memiliki kartu QR pribadi. Scan kartu di dashboard untuk mencatat siapa yang menjalankan tindakan.</p>
+        <h1 className="font-playfair mt-2 text-4xl font-bold">Kartu ID Staf</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">Terbitkan kartu ID berisi barcode untuk tiap karyawan. Tim bisa mengunduh desain ID card dan mencetaknya sendiri. Scan barcode hanya oleh Super Admin.</p>
       </section>
 
       {error && <p className="mt-5 rounded-xl border border-red-400/25 bg-red-500/10 p-4 text-sm text-red-200">{error}</p>}
@@ -71,28 +117,47 @@ export default function BadgeManagementPage() {
               <BadgeCheck className="size-4 text-primary/70" />
               {member.badgeIssuedAt ? `Kartu diterbitkan ${new Date(member.badgeIssuedAt).toLocaleDateString('id-ID')}` : 'Belum ada kartu'}
             </div>
-            <button
-              disabled={busyId === member.id || !member.active}
-              onClick={() => void issue(member.id)}
-              className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary text-xs font-bold text-black transition hover:bg-primary-light disabled:opacity-40"
-            >
-              <Printer className="size-4" /> {member.active ? (busyId === member.id ? 'Menerbitkan...' : 'Cetak / Terbitkan Kartu') : 'Nonaktif'}
-            </button>
+            {member.badgeIssuedAt ? (
+              <button
+                disabled={busyId === member.id}
+                onClick={() => void viewBadge(member.id)}
+                className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary text-xs font-bold text-black transition hover:bg-primary-light disabled:opacity-40"
+              >
+                <IdCard className="size-4" /> {busyId === member.id ? 'Memuat...' : 'Lihat / Download ID Card'}
+              </button>
+            ) : (
+              <button
+                disabled={busyId === member.id || !member.active}
+                onClick={() => void issue(member.id)}
+                className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full border border-primary/35 text-xs font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-40"
+              >
+                <Printer className="size-4" /> {member.active ? (busyId === member.id ? 'Menerbitkan...' : 'Cetak / Terbitkan Kartu') : 'Nonaktif'}
+              </button>
+            )}
           </article>
         ))}
       </section>
 
       {issued && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="fo-glass-modal w-full max-w-sm rounded-[2rem] p-7 text-center">
-            <div className="mb-5 flex items-center justify-between">
-              <span className="text-xs font-bold text-primary">Kartu {issued.staff.role === 'THERAPIST' ? 'Terapis' : roleLabel[issued.staff.role]}</span>
-              <button onClick={() => setIssued(null)}><X className="size-5" /></button>
+          <div className="fo-glass-modal w-full max-w-md rounded-[2rem] p-6 sm:p-7 text-center">
+            <div className="mb-4 flex items-start justify-between">
+              <div className="text-left">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Kartu {issued.role === 'THERAPIST' ? 'Terapis' : roleLabel[issued.role] || issued.role}</p>
+                <h2 className="font-playfair mt-1 text-xl font-bold">{issued.name}</h2>
+              </div>
+              <button onClick={() => setIssued(null)} className="rounded-full bg-white/10 p-2"><X className="size-5" /></button>
             </div>
-            <div className="mx-auto w-fit rounded-3xl bg-white p-4"><QRCodeCanvas value={issued.badgeValue} size={230} level="H" /></div>
-            <h3 className="font-playfair mt-5 text-xl font-bold">{issued.staff.name}</h3>
-            <p className="mt-1 text-xs text-white/50">{issued.staff.employeeId}</p>
-            <p className="mt-4 text-[11px] leading-5 text-white/45">Kartu berisi token acak saja. Menerbitkan ulang akan membatalkan kartu sebelumnya. Jangan bagikan QR di luar operasional.</p>
+            <StaffIdCard
+              badgeValue={issued.badgeValue}
+              name={issued.name}
+              roleLabel={roleLabel[issued.role] || issued.role}
+              employeeId={issued.employeeId}
+              branchName={issued.branchName}
+              avatarUrl={issued.avatarUrl}
+            />
+            <p className="mt-4 text-[11px] leading-5 text-white/45">Menerbitkan ulang akan membatalkan kartu sebelumnya. Jangan bagikan barcode di luar operasional.</p>
+            <button onClick={() => void issue(issued.staffId)} className="mt-3 h-11 w-full rounded-full border border-primary/40 bg-primary/10 text-xs font-bold text-primary transition hover:bg-primary hover:text-black">Terbitkan Ulang Kartu</button>
           </div>
         </div>
       )}

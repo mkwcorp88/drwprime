@@ -17,7 +17,7 @@ export async function GET() {
         select: {
           id: true, branchId: true, employeeId: true, name: true, email: true, role: true,
           active: true, mustChangePassword: true, passwordChangedAt: true, lastLoginAt: true,
-          badgeIssuedAt: true,
+          badgeIssuedAt: true, avatarUrl: true,
           branch: { select: { name: true } },
         },
         orderBy: [{ role: 'asc' }, { name: 'asc' }],
