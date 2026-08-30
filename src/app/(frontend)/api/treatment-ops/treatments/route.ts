@@ -80,6 +80,14 @@ export async function POST(request: Request) {
     if (name.length < 2 || name.length > 120) throw new OpsError(422, 'Nama treatment tidak valid.');
     const defaultPrice = Number(body.defaultPrice ?? 0);
     if (!Number.isFinite(defaultPrice) || defaultPrice < 0) throw new OpsError(422, 'Harga default tidak valid.');
+    const active = typeof body.active === 'boolean' ? body.active : true;
+    if (active && defaultPrice <= 0) {
+      throw new OpsError(422, 'Treatment aktif wajib memiliki harga default lebih dari 0.');
+    }
+    const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+    if (reason.length < 2 || reason.length > 240) {
+      throw new OpsError(422, 'Alasan perubahan wajib diisi (2-240 karakter).');
+    }
     const actions = parseActions(body.actions);
 
     const existing = await prisma.opsTreatment.findUnique({ where: { code } });
@@ -92,7 +100,7 @@ export async function POST(request: Request) {
           name,
           category: typeof body.category === 'string' && body.category.trim() ? body.category.trim() : null,
           defaultPrice: new Prisma.Decimal(defaultPrice),
-          active: typeof body.active === 'boolean' ? body.active : true,
+          active,
           actionTemplates: { create: actions },
         },
       });
@@ -102,6 +110,7 @@ export async function POST(request: Request) {
           entityType: 'TREATMENT',
           entityId: created.id,
           action: 'CREATE',
+          reason,
           afterData: { code, name, actions: actions.length },
         },
       });

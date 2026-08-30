@@ -1,4 +1,4 @@
-import type { OpsRole } from '@prisma/client';
+import type { OpsPatientSource, OpsRole } from '@prisma/client';
 
 export type OpsStaffView = {
   id: string;
@@ -56,7 +56,7 @@ export type OpsBootstrap = {
   doctors: Array<{ id: string; branchId: string; name: string }>;
   therapists: Array<{ id: string; branchId: string | null; employeeId: string; name: string }>;
   assignableStaff: Array<{ id: string; branchId: string | null; employeeId: string; name: string; role: string }>;
-  patients: Array<{ id: string; branchId: string; patientNumber: string; name: string }>;
+  patients: Array<{ id: string; branchId: string; patientNumber: string; name: string; source: OpsPatientSource }>;
 };
 
 export type OpsTreatmentActionTemplateView = {

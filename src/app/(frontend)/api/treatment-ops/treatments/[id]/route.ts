@@ -63,6 +63,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const existing = await prisma.opsTreatment.findUnique({ where: { id } });
     if (!existing) throw new OpsError(404, 'Treatment tidak ditemukan.');
 
+    const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+    if (reason.length < 2 || reason.length > 240) {
+      throw new OpsError(422, 'Alasan perubahan wajib diisi (2-240 karakter).');
+    }
+
     const update: Prisma.OpsTreatmentUpdateInput = {};
     if (typeof body.name === 'string' && body.name.trim()) update.name = body.name.trim();
     if (typeof body.category === 'string') update.category = body.category.trim() || null;
@@ -71,6 +76,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       update.defaultPrice = new Prisma.Decimal(body.defaultPrice);
     }
     if (typeof body.active === 'boolean') update.active = body.active;
+    const willActive = typeof body.active === 'boolean' ? body.active : existing.active;
+    const price = typeof body.defaultPrice === 'number' && Number.isFinite(body.defaultPrice)
+      ? body.defaultPrice
+      : Number(existing.defaultPrice);
+    if (willActive && price <= 0) {
+      throw new OpsError(422, 'Treatment aktif wajib memiliki harga default lebih dari 0.');
+    }
     if (typeof body.code === 'string' && body.code.trim()) {
       const code = body.code.trim().toUpperCase().replace(/\s+/g, '-');
       const dup = await prisma.opsTreatment.findFirst({ where: { code, NOT: { id } } });
@@ -94,6 +106,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           entityType: 'TREATMENT',
           entityId: id,
           action: 'UPDATE',
+          reason,
           afterData: { name: update.name ?? existing.name, actions: actions?.length ?? undefined },
         },
       });

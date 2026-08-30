@@ -5,8 +5,9 @@ import { CalendarDays, CheckCircle2, ClipboardCheck, Clock3, Phone, Play, Plus, 
 import { QRCodeCanvas } from 'qrcode.react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AidoPatientPicker from '@/components/treatment-ops/AidoPatientPicker';
 import BadgeScannerModal from '@/components/treatment-ops/BadgeScannerModal';
-import { roleLabels } from '@/lib/treatment-operations/constants';
+import { MANUAL_PATIENT_ENTRY_ROLES, ORDER_MANAGEMENT_ROLES, roleLabels } from '@/lib/treatment-operations/constants';
 import { formatPhone } from '@/lib/phone';
 import type { OpsActionView, OpsBootstrap, OpsOrderView } from '@/types/treatment-operations';
 
@@ -177,7 +178,7 @@ export default function OperationsDashboard() {
   const staffForAction = (action: OpsActionView) =>
     bootstrap?.assignableStaff.filter((staff) => !action.requiredRoleSnapshot || staff.role === action.requiredRoleSnapshot) || [];
 
-  const canCreate = Boolean(bootstrap && ['SUPER_ADMIN', 'FRONT_OFFICE', 'SUPERVISOR'].includes(bootstrap.staff.role));
+  const canCreate = Boolean(bootstrap && ORDER_MANAGEMENT_ROLES.includes(bootstrap.staff.role));
   const canAssign = Boolean(bootstrap && ['SUPER_ADMIN', 'SUPERVISOR'].includes(bootstrap.staff.role));
   const canScan = bootstrap?.staff.role === 'SUPER_ADMIN';
 
@@ -373,13 +374,19 @@ export default function OperationsDashboard() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
           <form onSubmit={submitOrder} className="fo-glass-modal max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-[2rem] p-6 sm:rounded-[2rem] sm:p-8">
             <div className="mb-6 flex items-start justify-between">
-              <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Front Office</p><h2 className="font-playfair mt-1 text-2xl font-bold">Order treatment baru</h2></div>
+              <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">{roleLabels[bootstrap.staff.role]}</p><h2 className="font-playfair mt-1 text-2xl font-bold">Order treatment baru</h2></div>
               <button type="button" onClick={() => setShowForm(false)} className="rounded-full bg-white/10 p-2"><X className="size-5" /></button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Cabang"><select required value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}>{bootstrap.branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
+              <Field label="Cabang"><select required value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value, patientId: '' })}>{bootstrap.branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
               <Field label="Tanggal kunjungan"><input required type="date" value={form.visitDate} onChange={(e) => setForm({ ...form, visitDate: e.target.value })} /></Field>
-              <Field label="Pasien"><select required value={form.patientId} onChange={(e) => setForm({ ...form, patientId: e.target.value })}><option value="">Pilih pasien</option>{bootstrap.patients.filter((item) => item.branchId === form.branchId).map((item) => <option key={item.id} value={item.id}>{item.patientNumber} · {item.name}</option>)}</select></Field>
+              <AidoPatientPicker
+                branchId={form.branchId}
+                localPatients={bootstrap.patients.filter((item) => item.branchId === form.branchId)}
+                value={form.patientId}
+                onChange={(patientId) => setForm((current) => ({ ...current, patientId }))}
+                canEnterManual={MANUAL_PATIENT_ENTRY_ROLES.includes(bootstrap.staff.role)}
+              />
               <Field label="Dokter"><select value={form.doctorId} onChange={(e) => setForm({ ...form, doctorId: e.target.value })}><option value="">Tanpa dokter</option>{bootstrap.doctors.filter((item) => item.branchId === form.branchId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
               <Field label="Treatment"><select required value={form.treatmentId} onChange={(e) => selectTreatment(e.target.value)}><option value="">Pilih treatment</option>{bootstrap.treatments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
               <Field label="Harga aktual"><input required inputMode="numeric" value={form.originalPrice} onChange={(e) => setForm({ ...form, originalPrice: e.target.value })} /></Field>

@@ -1,4 +1,4 @@
-import type { OpsRole } from '@prisma/client';
+import type { OpsManualPatientReason, OpsRole } from '@prisma/client';
 
 export const OPS_ROLES = [
   'SUPER_ADMIN',
@@ -12,7 +12,21 @@ export const OPS_ROLES = [
   'PERAWAT',
 ] as const satisfies readonly OpsRole[];
 
-export const ORDER_MANAGEMENT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'FRONT_OFFICE', 'SUPERVISOR'];
+export const ORDER_MANAGEMENT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR'];
+export const MANUAL_PATIENT_ENTRY_ROLES: OpsRole[] = ['SUPER_ADMIN', 'MANAGEMENT', 'SUPERVISOR'];
+export const MANUAL_PATIENT_REASON_CODES = [
+  'AIDO_UNAVAILABLE',
+  'NOT_IN_AIDO',
+  'AIDO_DATA_MISMATCH',
+  'OTHER',
+] as const satisfies readonly OpsManualPatientReason[];
+export type ManualPatientReasonCode = (typeof MANUAL_PATIENT_REASON_CODES)[number];
+export const manualPatientReasonLabels: Record<ManualPatientReasonCode, string> = {
+  AIDO_UNAVAILABLE: 'AIDO lambat atau gagal',
+  NOT_IN_AIDO: 'Pasien belum terdaftar di AIDO',
+  AIDO_DATA_MISMATCH: 'Data AIDO tidak sesuai',
+  OTHER: 'Lainnya',
+};
 export const REPORT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR'];
 
 export const roleLabels: Record<OpsRole, string> = {

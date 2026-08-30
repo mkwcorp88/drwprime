@@ -788,6 +788,18 @@ enum OpsRole {
   PERAWAT
 }
 
+enum OpsPatientSource {
+  AIDO
+  MANUAL
+}
+
+enum OpsManualPatientReason {
+  AIDO_UNAVAILABLE
+  NOT_IN_AIDO
+  AIDO_DATA_MISMATCH
+  OTHER
+}
+
 enum OpsOrderStatus {
   DRAFT
   CREATED
@@ -899,18 +911,28 @@ model OpsSession {
 }
 
 model OpsPatient {
-  id            String   @id @default(cuid())
-  branchId      String   @map("branch_id")
-  patientNumber String   @unique @map("patient_number")
-  name          String
-  phone         String?
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                    String                  @id @default(cuid())
+  branchId              String                  @map("branch_id")
+  patientNumber         String                  @unique @map("patient_number")
+  name                  String
+  phone                 String?
+  aidoHospitalId        String?                 @map("aido_hospital_id")
+  aidoExternalPatientId String?                 @map("aido_external_patient_id")
+  aidoExternalNumericId String?                 @map("aido_external_numeric_id")
+  mrNumber              String?                 @map("mr_number")
+  source                OpsPatientSource        @default(MANUAL)
+  manualEntryReason     OpsManualPatientReason? @map("manual_entry_reason")
+  manualEntryNote       String?                 @map("manual_entry_note")
+  createdAt             DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   branch OpsBranch           @relation(fields: [branchId], references: [id], onDelete: Restrict)
   orders OpsTreatmentOrder[]
 
   @@index([branchId, name])
+  @@index([branchId, aidoHospitalId, aidoExternalPatientId])
+  @@index([branchId, mrNumber])
+  @@index([branchId, source, name])
   @@map("ops_patients")
 }
 

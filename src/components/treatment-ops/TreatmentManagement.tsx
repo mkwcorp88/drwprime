@@ -22,6 +22,7 @@ type TreatmentForm = {
   category: string;
   defaultPrice: string;
   active: boolean;
+  reason: string;
   actions: ActionRow[];
 };
 
@@ -31,11 +32,11 @@ const emptyAction = (sequence: number): ActionRow => ({
 });
 
 const emptyForm: TreatmentForm = {
-  id: null, code: '', name: '', category: '', defaultPrice: '0', active: true,
+  id: null, code: '', name: '', category: '', defaultPrice: '0', active: true, reason: '',
   actions: [emptyAction(1)],
 };
 
-const roleLabels: Record<string, string> = { '': 'Semua eksekutor', THERAPIST: 'Terapis', DOCTOR: 'Dokter' };
+const roleLabels: Record<string, string> = { '': 'Semua eksekutor', THERAPIST: 'Terapis', DOCTOR: 'Dokter', PERAWAT: 'Perawat' };
 const incentiveLabels: Record<string, string> = { FIXED: 'Nominal', PERCENTAGE: 'Persen', POINTS: 'Poin', NONE: 'Tanpa insentif' };
 
 export default function TreatmentManagement() {
@@ -86,6 +87,7 @@ export default function TreatmentManagement() {
       category: treatment.category ?? '',
       defaultPrice: String(treatment.defaultPrice),
       active: treatment.active,
+      reason: '',
       actions: treatment.actionTemplates.map((action) => ({
         actionName: action.actionName,
         sequenceNumber: action.sequenceNumber,
@@ -123,6 +125,14 @@ export default function TreatmentManagement() {
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(''); setNotice('');
+    if (form.active && Number(form.defaultPrice || 0) <= 0) {
+      setError('Treatment aktif wajib memiliki harga default lebih dari 0. Isi harga dahulu.');
+      return;
+    }
+    if (form.reason.trim().length < 2) {
+      setError('Alasan perubahan wajib diisi.');
+      return;
+    }
     setBusy(true);
     const body = {
       code: form.code,
@@ -130,6 +140,7 @@ export default function TreatmentManagement() {
       category: form.category || null,
       defaultPrice: Number(form.defaultPrice || 0),
       active: form.active,
+      reason: form.reason.trim(),
       actions: form.actions.map((action) => ({
         actionName: action.actionName,
         sequenceNumber: action.sequenceNumber,
@@ -179,6 +190,7 @@ export default function TreatmentManagement() {
                   <h3 className="font-bold">{treatment.name}</h3>
                   <span className="rounded-full bg-primary/15 px-2.5 py-1 text-[10px] font-bold text-primary">{treatment.code}</span>
                   {!treatment.active && <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white/50">Nonaktif</span>}
+                  {Number(treatment.defaultPrice) <= 0 && <span className="rounded-full bg-amber-400/15 px-2.5 py-1 text-[10px] font-bold text-amber-300">Harga belum diisi</span>}
                 </div>
                 <p className="mt-1 text-xs text-white/45">{treatment.category || 'Tanpa kategori'} · {treatment.actionTemplates.length} tahapan</p>
               </div>
@@ -213,6 +225,9 @@ export default function TreatmentManagement() {
                 <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} className="size-4 accent-[#D4AF37]" />
                 Treatment aktif (muncul saat buat order)
               </label>
+              <div className="sm:col-span-2">
+                <Field label="Alasan perubahan"><input required value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Mis. update fee master atau lengkapi harga jual" /></Field>
+              </div>
             </div>
 
             <div className="mt-6 flex items-center justify-between">

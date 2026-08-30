@@ -28,6 +28,7 @@ export async function GET() {
       }),
       prisma.opsPatient.findMany({
         where: staff.role === 'SUPER_ADMIN' ? {} : { branchId: staff.branchId || '' },
+        select: { id: true, branchId: true, patientNumber: true, name: true, source: true },
         take: 100, orderBy: { name: 'asc' },
       }),
       prisma.opsStaff.findMany({
