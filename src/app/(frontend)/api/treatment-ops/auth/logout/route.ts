@@ -1,7 +1,11 @@
-import { NextResponse } from 'next/server';
 import { logoutOpsStaff } from '@/lib/treatment-operations/auth';
 
-export async function POST(request: Request) {
+export async function POST() {
   await logoutOpsStaff();
-  return NextResponse.redirect(new URL('/treatment-ops/login', request.url), { status: 303 });
+  // Use a relative Location so the browser stays on the current public
+  // origin (admin.drwprime.com) instead of the container/proxy host.
+  return new Response(null, {
+    status: 303,
+    headers: { Location: '/treatment-ops/login' },
+  });
 }
