@@ -800,6 +800,18 @@ enum OpsManualPatientReason {
   OTHER
 }
 
+enum OpsProtocolApprovalStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+}
+
+enum OpsTreatmentMappingStatus {
+  EXACT_NAME
+  PENDING_CONFIRMATION
+  CONFIRMED
+}
+
 enum OpsOrderStatus {
   DRAFT
   CREATED
@@ -879,19 +891,20 @@ model OpsStaff {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  branch             OpsBranch?           @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  createdOrders      OpsTreatmentOrder[]  @relation("OpsOrderCreator")
-  assignedActions    OpsOrderAction[]     @relation("OpsAssignedTherapist")
-  performedActions   OpsOrderAction[]     @relation("OpsPerformingTherapist")
-  assignments        OpsOrderAssignment[] @relation("OpsAssignedStaff")
-  assignmentsCreated OpsOrderAssignment[] @relation("OpsAssignmentCreator")
+  branch             OpsBranch?             @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  createdOrders      OpsTreatmentOrder[]    @relation("OpsOrderCreator")
+  assignedActions    OpsOrderAction[]       @relation("OpsAssignedTherapist")
+  performedActions   OpsOrderAction[]       @relation("OpsPerformingTherapist")
+  assignments        OpsOrderAssignment[]   @relation("OpsAssignedStaff")
+  assignmentsCreated OpsOrderAssignment[]   @relation("OpsAssignmentCreator")
   actionEvents       OpsActionEvent[]
-  incentiveEntries   OpsIncentiveLedger[] @relation("OpsTherapistLedger")
-  verifiedIncentives OpsIncentiveLedger[] @relation("OpsIncentiveVerifier")
+  incentiveEntries   OpsIncentiveLedger[]   @relation("OpsTherapistLedger")
+  verifiedIncentives OpsIncentiveLedger[]   @relation("OpsIncentiveVerifier")
   lockedPeriods      OpsIncentivePeriod[]
   auditLogs          OpsAuditLog[]
   sessions           OpsSession[]
   doctorProfile      OpsDoctor?
+  approvedProtocols  OpsTreatmentProtocol[] @relation("OpsProtocolApprover")
 
   @@index([branchId, role, active])
   @@map("ops_staff")
@@ -954,18 +967,26 @@ model OpsDoctor {
 }
 
 model OpsTreatment {
-  id           String   @id @default(cuid())
-  code         String   @unique
-  name         String
-  category     String?
-  defaultPrice Decimal  @default(0) @map("default_price") @db.Decimal(14, 2)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id             String                    @id @default(cuid())
+  code           String                    @unique
+  name           String
+  category       String?
+  defaultPrice   Decimal                   @default(0) @map("default_price") @db.Decimal(14, 2)
+  active         Boolean                   @default(true)
+  protocolId     String?                   @map("protocol_id")
+  mappingStatus  OpsTreatmentMappingStatus @default(PENDING_CONFIRMATION) @map("mapping_status")
+  requiresDoctor Boolean?                  @map("requires_doctor")
+  staffFeeIdr    Int?                      @map("staff_fee_idr")
+  doctorFeeIdr   Int?                      @map("doctor_fee_idr")
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  protocol        OpsTreatmentProtocol?        @relation(fields: [protocolId], references: [id], onDelete: SetNull)
   actionTemplates OpsTreatmentActionTemplate[]
   orders          OpsTreatmentOrder[]
 
+  @@index([protocolId])
+  @@index([mappingStatus])
   @@map("ops_treatments")
 }
 
@@ -988,6 +1009,43 @@ model OpsTreatmentActionTemplate {
 
   @@unique([treatmentId, sequenceNumber])
   @@map("ops_treatment_action_templates")
+}
+
+model OpsTreatmentProtocol {
+  id             String                    @id @default(cuid())
+  code           String                    @unique
+  name           String
+  version        Int                       @default(1)
+  approvalStatus OpsProtocolApprovalStatus @default(DRAFT) @map("approval_status")
+  approvedById   String?                   @map("approved_by_id")
+  approvedAt     DateTime?                 @map("approved_at") @db.Timestamptz(3)
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  approvedBy OpsStaff?                  @relation("OpsProtocolApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  steps      OpsTreatmentProtocolStep[]
+  treatments OpsTreatment[]
+
+  @@index([approvalStatus])
+  @@map("ops_treatment_protocols")
+}
+
+model OpsTreatmentProtocolStep {
+  id          String   @id @default(cuid())
+  protocolId  String   @map("protocol_id")
+  stepCode    String   @unique @map("step_code")
+  sequence    Int
+  name        String
+  defaultRole String?  @map("default_role")
+  isRequired  Boolean  @default(true) @map("is_required")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  protocol OpsTreatmentProtocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+
+  @@unique([protocolId, sequence])
+  @@map("ops_treatment_protocol_steps")
 }
 
 model OpsTreatmentOrder {

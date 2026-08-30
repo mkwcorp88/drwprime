@@ -78,5 +78,11 @@ export type OpsTreatmentView = {
   category: string | null;
   defaultPrice: number;
   active: boolean;
+  protocolId: string | null;
+  mappingStatus: string;
+  requiresDoctor: boolean | null;
+  staffFeeIdr: number | null;
+  doctorFeeIdr: number | null;
+  protocol?: { id: string; code: string; name: string } | null;
   actionTemplates: OpsTreatmentActionTemplateView[];
 };

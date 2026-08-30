@@ -34,6 +34,20 @@ export const FEE_MASTER_CATEGORIES = [
   'Lainnya',
 ] as const;
 
+export const EXACT_PROTOCOL_MAPPING: Record<string, string> = {
+  'Dermapen PRP': 'PRT-DERMA-PRP',
+  'Dermapen DNA Salmon': 'PRT-DERMA-DNA-MELASMA',
+  'Dermapen Melasma': 'PRT-DERMA-DNA-MELASMA',
+};
+
+export function treatmentMappingStatus(name: string): 'EXACT_NAME' | 'PENDING_CONFIRMATION' {
+  return name in EXACT_PROTOCOL_MAPPING ? 'EXACT_NAME' : 'PENDING_CONFIRMATION';
+}
+
+export function treatmentProtocolCode(name: string): string | null {
+  return EXACT_PROTOCOL_MAPPING[name] ?? null;
+}
+
 const CATEGORY_RULES: Array<[RegExp, string]> = [
   [/\(HOME\)/i, 'Home Treatment'],
   [/DERMAPEN/i, 'Dermapen'],

@@ -5,6 +5,8 @@ import {
   makeTreatmentCode,
   parseFeeCsv,
   parseIdr,
+  treatmentMappingStatus,
+  treatmentProtocolCode,
 } from '../../prisma/fee-master-parse';
 
 describe('fee master import', () => {
@@ -75,5 +77,18 @@ describe('fee master import', () => {
       actionName: 'Tindakan dokter', sequenceNumber: 2, isRequired: false,
       requiredRole: 'DOCTOR', incentiveType: 'FIXED', incentiveValue: 25000,
     });
+  });
+
+  it('maps only confirmed exact names to protocols and keeps others pending', () => {
+    expect(treatmentMappingStatus('Dermapen PRP')).toBe('EXACT_NAME');
+    expect(treatmentProtocolCode('Dermapen PRP')).toBe('PRT-DERMA-PRP');
+    expect(treatmentMappingStatus('Dermapen DNA Salmon')).toBe('EXACT_NAME');
+    expect(treatmentProtocolCode('Dermapen DNA Salmon')).toBe('PRT-DERMA-DNA-MELASMA');
+    expect(treatmentMappingStatus('Dermapen Melasma')).toBe('EXACT_NAME');
+    expect(treatmentProtocolCode('Dermapen Melasma')).toBe('PRT-DERMA-DNA-MELASMA');
+
+    expect(treatmentMappingStatus('Acne Facial')).toBe('PENDING_CONFIRMATION');
+    expect(treatmentProtocolCode('Acne Facial')).toBeNull();
+    expect(treatmentMappingStatus('Glow Facial (HOME)')).toBe('PENDING_CONFIRMATION');
   });
 });

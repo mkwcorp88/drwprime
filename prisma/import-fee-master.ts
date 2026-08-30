@@ -5,6 +5,8 @@ import {
   categorizeTreatment,
   makeTreatmentCode,
   parseFeeCsv,
+  treatmentMappingStatus,
+  treatmentProtocolCode,
   type FeeMasterRow,
 } from './fee-master-parse';
 
@@ -13,6 +15,8 @@ const prisma = new PrismaClient();
 type ImportRow = FeeMasterRow & {
   code: string;
   category: string;
+  mappingStatus: 'EXACT_NAME' | 'PENDING_CONFIRMATION';
+  protocolCode: string | null;
 };
 
 const SUSPICIOUS_TOKENS = [
@@ -39,7 +43,13 @@ function buildRows(rows: FeeMasterRow[]): { rows: ImportRow[]; duplicateCodes: s
       continue;
     }
     seen.set(code, row.name);
-    result.push({ ...row, code, category: categorizeTreatment(row.name) });
+    result.push({
+      ...row,
+      code,
+      category: categorizeTreatment(row.name),
+      mappingStatus: treatmentMappingStatus(row.name),
+      protocolCode: treatmentProtocolCode(row.name),
+    });
   }
 
   return { rows: result, duplicateCodes };
@@ -50,9 +60,12 @@ async function importTreatments(rows: ImportRow[]): Promise<{ created: string[];
   const updated: string[] = [];
   const skipped: string[] = [];
   const admin = await prisma.opsStaff.findFirst({ where: { role: 'SUPER_ADMIN' }, select: { id: true } });
+  const protocols = await prisma.opsTreatmentProtocol.findMany({ select: { id: true, code: true } });
+  const protocolIdByCode = new Map(protocols.map((protocol) => [protocol.code, protocol.id]));
 
   for (const row of rows) {
     const steps = buildTreatmentSteps(row);
+    const protocolId = row.protocolCode ? protocolIdByCode.get(row.protocolCode) ?? null : null;
     await prisma.$transaction(async (tx) => {
       const existing = await tx.opsTreatment.findUnique({ where: { code: row.code } });
       if (existing) {
@@ -64,6 +77,11 @@ async function importTreatments(rows: ImportRow[]): Promise<{ created: string[];
             category: row.category,
             defaultPrice: new Prisma.Decimal(0),
             active: false,
+            protocolId,
+            mappingStatus: row.mappingStatus,
+            requiresDoctor: row.doctorFee > 0,
+            staffFeeIdr: row.fee,
+            doctorFeeIdr: row.doctorFee,
             actionTemplates: {
               create: steps.map((step) => ({
                 actionName: step.actionName,
@@ -85,7 +103,7 @@ async function importTreatments(rows: ImportRow[]): Promise<{ created: string[];
               entityId: existing.id,
               action: 'IMPORT_UPDATE',
               reason: 'Impor master fee dari CSV',
-              afterData: { code: row.code, name: row.name, steps: steps.length },
+              afterData: { code: row.code, name: row.name, steps: steps.length, mappingStatus: row.mappingStatus },
             },
           });
         }
@@ -99,6 +117,11 @@ async function importTreatments(rows: ImportRow[]): Promise<{ created: string[];
           category: row.category,
           defaultPrice: new Prisma.Decimal(0),
           active: false,
+          protocolId,
+          mappingStatus: row.mappingStatus,
+          requiresDoctor: row.doctorFee > 0,
+          staffFeeIdr: row.fee,
+          doctorFeeIdr: row.doctorFee,
           actionTemplates: {
             create: steps.map((step) => ({
               actionName: step.actionName,
@@ -120,7 +143,7 @@ async function importTreatments(rows: ImportRow[]): Promise<{ created: string[];
             entityId: createdTreatment.id,
             action: 'IMPORT_CREATE',
             reason: 'Impor master fee dari CSV',
-            afterData: { code: row.code, name: row.name, steps: steps.length },
+            afterData: { code: row.code, name: row.name, steps: steps.length, mappingStatus: row.mappingStatus },
           },
         });
       }
@@ -160,6 +183,18 @@ async function main() {
   const withDoctorFee = built.filter((row) => row.doctorFee > 0).length;
   console.log(`\nDengan tahap dokter opsional: ${withDoctorFee}`);
   console.log('Semua treatment dibuat NONAKTIF (harga jual 0). Aktifkan setelah harga diisi lewat Master Treatment.');
+
+  const homeCount = rows.filter((row) => row.name.includes('(HOME)')).length;
+  const smootingZero = rows.filter((row) => row.name.startsWith('Smooting') && row.fee === 0).length;
+  const profhilo = rows.find((row) => row.name === 'Skin Booster Profhilo')?.doctorFee;
+  const hifuUpper = rows.find((row) => row.name === 'HIFU Upper Face')?.doctorFee;
+  const exactMapped = built.filter((row) => row.mappingStatus === 'EXACT_NAME').length;
+  console.log('\nCek kriteria penerimaan:');
+  console.log(`  Layanan HOME: ${homeCount} (harus 10)`);
+  console.log(`  Smooting fee nol: ${smootingZero} (harus 3)`);
+  console.log(`  Fee dokter Skin Booster Profhilo: ${profhilo} (harus 765000)`);
+  console.log(`  Fee dokter HIFU Upper Face: ${hifuUpper} (harus 177500)`);
+  console.log(`  Mapping eksak nama (Dermapen): ${exactMapped} (harus 3)`);
 
   const suspicious = flagSuspiciousNames(rows);
   if (suspicious.length > 0) {

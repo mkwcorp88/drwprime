@@ -58,7 +58,10 @@ export async function GET() {
   try {
     await requireOpsStaff(['SUPER_ADMIN']);
     const treatments = await prisma.opsTreatment.findMany({
-      include: { actionTemplates: { orderBy: { sequenceNumber: 'asc' } } },
+      include: {
+        protocol: { select: { id: true, code: true, name: true } },
+        actionTemplates: { orderBy: { sequenceNumber: 'asc' } },
+      },
       orderBy: { name: 'asc' },
     });
     return NextResponse.json(serialize({ treatments }));

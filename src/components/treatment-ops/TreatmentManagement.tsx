@@ -38,6 +38,12 @@ const emptyForm: TreatmentForm = {
 
 const roleLabels: Record<string, string> = { '': 'Semua eksekutor', THERAPIST: 'Terapis', DOCTOR: 'Dokter', PERAWAT: 'Perawat' };
 const incentiveLabels: Record<string, string> = { FIXED: 'Nominal', PERCENTAGE: 'Persen', POINTS: 'Poin', NONE: 'Tanpa insentif' };
+const mappingLabels: Record<string, string> = {
+  EXACT_NAME: 'Mapping eksak',
+  PENDING_CONFIRMATION: 'Menunggu pemetaan',
+  CONFIRMED: 'Terverifikasi',
+};
+const money = (value: number) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(value);
 
 export default function TreatmentManagement() {
   const router = useRouter();
@@ -191,8 +197,14 @@ export default function TreatmentManagement() {
                   <span className="rounded-full bg-primary/15 px-2.5 py-1 text-[10px] font-bold text-primary">{treatment.code}</span>
                   {!treatment.active && <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white/50">Nonaktif</span>}
                   {Number(treatment.defaultPrice) <= 0 && <span className="rounded-full bg-amber-400/15 px-2.5 py-1 text-[10px] font-bold text-amber-300">Harga belum diisi</span>}
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${treatment.mappingStatus === 'EXACT_NAME' ? 'bg-emerald-400/15 text-emerald-300' : treatment.mappingStatus === 'CONFIRMED' ? 'bg-teal-400/15 text-teal-300' : 'bg-sky-400/15 text-sky-300'}`}>{mappingLabels[treatment.mappingStatus] || treatment.mappingStatus}</span>
                 </div>
-                <p className="mt-1 text-xs text-white/45">{treatment.category || 'Tanpa kategori'} · {treatment.actionTemplates.length} tahapan</p>
+                <p className="mt-1 text-xs text-white/45">{treatment.category || 'Tanpa kategori'} · {treatment.actionTemplates.length} tahapan{treatment.protocol ? ` · ${treatment.protocol.code}` : ''}</p>
+                <p className="mt-1 text-xs text-white/45">
+                  {treatment.staffFeeIdr != null || treatment.doctorFeeIdr != null
+                    ? `Fee staff ${treatment.staffFeeIdr != null ? money(treatment.staffFeeIdr) : '—'} · Dokter ${treatment.doctorFeeIdr != null ? money(treatment.doctorFeeIdr) : '—'}`
+                    : 'Fee belum tersedia'}
+                </p>
               </div>
               <button onClick={() => openEdit(treatment)} className="flex h-10 shrink-0 items-center gap-2 rounded-full border border-primary/35 px-4 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"><Pencil className="size-3.5" /> Edit</button>
             </div>
