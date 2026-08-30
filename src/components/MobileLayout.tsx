@@ -19,22 +19,21 @@ export default function MobileLayout({
   return (
     <>
       {/* Global Announcement Ticker at the very top on mobile */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50">
+      <div className="mobile-shell-announcement lg:hidden fixed top-0 left-0 right-0 z-50">
         <AnnouncementTicker />
       </div>
 
       {/* Mobile Header - only visible on mobile, positioned below ticker */}
       {showHeader && (
-        <div className="lg:hidden fixed top-[27px] left-0 right-0 z-40">
+        <div className="mobile-shell-header lg:hidden fixed left-0 right-0 z-40">
           <MobileHeader embedded={true} />
         </div>
       )}
 
       {/* Main Content with proper padding */}
-      <div className={`
-        ${showHeader ? 'lg:pt-0 pt-[4.5rem]' : 'lg:pt-0 pt-7'} 
-        ${showBottomNav ? 'lg:pb-0 pb-20' : ''}
-      `}>
+      <div
+        className={`mobile-shell-content lg:pt-0 ${showHeader ? 'mobile-shell-content-header' : 'mobile-shell-content-no-header'} ${showBottomNav ? 'mobile-shell-content-bottom-nav lg:pb-0' : ''}`}
+      >
         {children}
       </div>
 

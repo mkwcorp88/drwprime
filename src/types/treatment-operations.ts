@@ -1,3 +1,5 @@
+import type { OpsRole } from '@prisma/client';
+
 export type OpsStaffView = {
   id: string;
   branchId: string | null;
@@ -6,7 +8,7 @@ export type OpsStaffView = {
   email?: string | null;
   phone?: string | null;
   avatarUrl?: string | null;
-  role: 'SUPER_ADMIN' | 'MANAGEMENT' | 'FRONT_OFFICE' | 'SUPERVISOR' | 'THERAPIST' | 'DOCTOR';
+  role: OpsRole;
   branch?: { id: string; name: string } | null;
 };
 

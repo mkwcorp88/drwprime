@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CalendarDays, CheckCircle2, Clock3, Phone, Play, Plus, QrCode, Sparkles, UserRound, UsersRound, X } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ClipboardCheck, Clock3, Phone, Play, Plus, QrCode, Sparkles, UserRound, UsersRound, WalletCards, X } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -24,6 +24,56 @@ const statusLabel: Record<string, string> = {
 const money = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
 
 const roleLabel = (role: string) => (roleLabels as Record<string, string>)[role] ?? role;
+
+const PERSONAL_ROLES = new Set(['THERAPIST', 'DOCTOR', 'APOTEKER', 'ASISTEN_APOTEKER', 'PERAWAT']);
+
+const ROLE_COPY: Record<string, { eyebrow: string; title: string; description: string }> = {
+  SUPER_ADMIN: {
+    eyebrow: 'Workspace pusat',
+    title: 'Jaga setiap alur treatment tetap rapi.',
+    description: 'Pantau pasien, assignment, dan verifikasi tindakan dari satu workspace operasional.',
+  },
+  MANAGEMENT: {
+    eyebrow: 'Ringkasan manajemen',
+    title: 'Satu pandangan untuk seluruh ritme klinik.',
+    description: 'Pantau order, performa tim, dan insentif tanpa kehilangan detail penting.',
+  },
+  FRONT_OFFICE: {
+    eyebrow: 'Front office',
+    title: 'Mulai kunjungan dengan lebih tenang.',
+    description: 'Buat order, siapkan QR, dan bantu setiap pasien masuk ke alur treatment yang tepat.',
+  },
+  SUPERVISOR: {
+    eyebrow: 'Supervisor',
+    title: 'Pastikan tim bergerak sesuai alur.',
+    description: 'Kelola order berjalan dan assignment eksekutor dari satu antrean yang jelas.',
+  },
+  THERAPIST: {
+    eyebrow: 'Ruang kerja terapis',
+    title: 'Fokus pada tindakan yang harus selesai.',
+    description: 'Lihat tugas yang ditugaskan kepadamu, status tindakan, dan insentif yang sudah tercatat.',
+  },
+  DOCTOR: {
+    eyebrow: 'Ruang kerja dokter',
+    title: 'Konsultasi lebih terarah.',
+    description: 'Pantau tindakan yang terkait denganmu dan tetap terhubung dengan alur pasien.',
+  },
+  APOTEKER: {
+    eyebrow: 'Ruang kerja apoteker',
+    title: 'Setiap detail perawatan tetap terjaga.',
+    description: 'Lihat tugas yang ditugaskan kepadamu dan progres treatment secara ringkas.',
+  },
+  ASISTEN_APOTEKER: {
+    eyebrow: 'Ruang kerja asisten apoteker',
+    title: 'Kerjakan langkah berikutnya dengan jelas.',
+    description: 'Semua tugas dan progres treatment yang relevan tersedia dalam satu tampilan.',
+  },
+  PERAWAT: {
+    eyebrow: 'Ruang kerja perawat',
+    title: 'Rawat alur pasien dari satu langkah ke langkah berikutnya.',
+    description: 'Lihat tugas yang ditugaskan kepadamu dan status tindakan tanpa memenuhi layar.',
+  },
+};
 
 function initials(name: string): string {
   return name
@@ -127,9 +177,29 @@ export default function OperationsDashboard() {
   const staffForAction = (action: OpsActionView) =>
     bootstrap?.assignableStaff.filter((staff) => !action.requiredRoleSnapshot || staff.role === action.requiredRoleSnapshot) || [];
 
-  const canCreate = bootstrap && ['SUPER_ADMIN', 'FRONT_OFFICE', 'SUPERVISOR'].includes(bootstrap.staff.role);
-  const canAssign = bootstrap && ['SUPER_ADMIN', 'SUPERVISOR'].includes(bootstrap.staff.role);
+  const canCreate = Boolean(bootstrap && ['SUPER_ADMIN', 'FRONT_OFFICE', 'SUPERVISOR'].includes(bootstrap.staff.role));
+  const canAssign = Boolean(bootstrap && ['SUPER_ADMIN', 'SUPERVISOR'].includes(bootstrap.staff.role));
   const canScan = bootstrap?.staff.role === 'SUPER_ADMIN';
+
+  const isPersonalRole = Boolean(bootstrap && PERSONAL_ROLES.has(bootstrap.staff.role));
+  const personalOrders = bootstrap
+    ? orders.filter((order) => order.actions.some((action) => action.assignedTherapistId === bootstrap.staff.id || action.performedByTherapistId === bootstrap.staff.id))
+    : [];
+  const dashboardOrders = isPersonalRole ? personalOrders : orders;
+  const personalActions = personalOrders.flatMap((order) => order.actions.filter((action) => action.assignedTherapistId === bootstrap?.staff.id || action.performedByTherapistId === bootstrap?.staff.id));
+  const todayKey = new Date().toDateString();
+  const todayPersonalActions = personalOrders.flatMap((order) => new Date(order.visitDate).toDateString() === todayKey
+    ? order.actions.filter((action) => action.assignedTherapistId === bootstrap?.staff.id || action.performedByTherapistId === bootstrap?.staff.id)
+    : []);
+  const personalIncentive = personalActions
+    .filter((action) => action.status === 'COMPLETED')
+    .reduce((sum, action) => sum + Number(action.calculatedIncentive ?? 0), 0);
+  const copy = ROLE_COPY[bootstrap?.staff.role || 'SUPER_ADMIN'] || ROLE_COPY.SUPER_ADMIN;
+  const quickLinks = bootstrap ? [
+    { href: '/treatment-ops/scan', label: bootstrap.staff.role === 'SUPER_ADMIN' ? 'Scan QR' : 'Barcode Saya', icon: QrCode },
+    { href: '/treatment-ops/incentives', label: 'Insentif', icon: WalletCards },
+    { href: '/treatment-ops/settings', label: 'Profil', icon: UserRound },
+  ] : [];
 
   const performWithBadge = async (badgeToken: string) => {
     if (!scanTarget) return;
@@ -150,14 +220,14 @@ export default function OperationsDashboard() {
     }
   };
 
-  const completed = orders.filter((order) => ['COMPLETED', 'VERIFIED'].includes(order.status)).length;
-  const running = orders.filter((order) => ['ON_PROCESS', 'WAITING_NEXT_ACTION'].includes(order.status)).length;
+  const completed = dashboardOrders.filter((order) => ['COMPLETED', 'VERIFIED'].includes(order.status)).length;
+  const running = dashboardOrders.filter((order) => ['ON_PROCESS', 'WAITING_NEXT_ACTION'].includes(order.status)).length;
 
   if (loading) return <div className="py-24 text-center text-sm text-white/50">Menyiapkan operasional treatment...</div>;
   return (
     <div>
       {bootstrap && (
-        <section className="fo-glass-card-soft fo-fade-up mb-6 flex flex-col gap-5 rounded-[2rem] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <section className="mobile-surface fo-fade-up mb-5 flex flex-col gap-5 rounded-[2rem] p-5 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="flex items-center gap-4">
             {bootstrap.staff.avatarUrl ? (
               <img src={bootstrap.staff.avatarUrl} alt={bootstrap.staff.name} className="size-14 shrink-0 rounded-full object-cover ring-2 ring-primary/40" />
@@ -187,37 +257,58 @@ export default function OperationsDashboard() {
         </section>
       )}
 
-      <section className="fo-glass-card fo-fade-up relative overflow-hidden rounded-[2rem] p-6 sm:p-9">
+       <section className="mobile-surface fo-glass-card fo-fade-up relative overflow-hidden rounded-[2rem] p-5 sm:p-9">
         <div className="absolute -right-16 -top-20 size-64 rounded-full border border-primary/15" />
         <div className="absolute -bottom-28 right-24 size-52 rounded-full bg-primary/10 blur-2xl" />
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
           <div>
-            <p className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-primary"><Sparkles className="size-4" /> Alur pasien hari ini</p>
-            <h1 className="font-playfair max-w-2xl text-3xl font-bold leading-tight sm:text-5xl">Treatment terpantau,<br />insentif tercatat.</h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-white/60">Satu QR mengikuti pasien dari tindakan pertama hingga selesai, walau terapis berganti.</p>
-          </div>
-          {canCreate && <button onClick={() => setShowForm(true)} className="flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-bold text-black shadow-[0_0_28px_rgba(212,175,55,0.35)] transition hover:bg-primary-light"><Plus className="size-4" /> Buat Order</button>}
-        </div>
-      </section>
+             <p className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-primary"><Sparkles className="size-4" /> {copy.eyebrow}</p>
+             <h1 className="mobile-page-title font-playfair max-w-2xl text-[2rem] font-bold leading-[1.08] sm:text-5xl">{copy.title}</h1>
+             <p className="mt-3 max-w-xl text-sm leading-6 text-white/60">{copy.description}</p>
+           </div>
+           {canCreate && <button onClick={() => setShowForm(true)} className="flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-bold text-black shadow-[0_0_28px_rgba(212,175,55,0.35)] transition hover:bg-primary-light"><Plus className="size-4" /> Buat Order</button>}
+         </div>
+         <div className="mt-6 grid grid-cols-3 gap-2 md:hidden">
+           {quickLinks.map(({ href, label, icon: Icon }) => (
+             <Link key={href} href={href} className="mobile-surface-soft flex min-h-[4.7rem] flex-col items-center justify-center gap-2 rounded-2xl px-2 text-center text-[10px] font-semibold text-white/75 transition active:scale-[0.98]">
+               <Icon className="size-5 text-primary" />
+               <span className="leading-tight">{label}</span>
+             </Link>
+           ))}
+         </div>
+       </section>
 
       {error && <div className="mt-5 flex items-center justify-between rounded-2xl border border-red-400/25 bg-red-500/10 p-4 text-sm text-red-200"><span>{error}</span><button onClick={() => setError('')}><X className="size-4" /></button></div>}
 
-      <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[{ label: 'Order hari ini', value: orders.length, icon: CalendarDays }, { label: 'Sedang berjalan', value: running, icon: Clock3 }, { label: 'Selesai', value: completed, icon: CheckCircle2 }, { label: 'Terapis aktif', value: bootstrap?.therapists.length || 0, icon: UsersRound }].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="fo-glass-card-soft fo-fade-up fo-stagger-1 rounded-3xl p-4 sm:p-5"><Icon className="mb-6 size-5 text-primary" /><p className="text-3xl font-bold">{value}</p><p className="mt-1 text-xs text-white/50">{label}</p></div>
-        ))}
-      </section>
+       <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+         {(isPersonalRole
+           ? [
+               { label: 'Tugas saya', value: personalActions.length, icon: ClipboardCheck },
+               { label: 'Jadwal hari ini', value: todayPersonalActions.length, icon: CalendarDays },
+               { label: 'Selesai', value: personalActions.filter((action) => action.status === 'COMPLETED').length, icon: CheckCircle2 },
+               { label: 'Insentif tercatat', value: money(personalIncentive), icon: WalletCards },
+             ]
+           : [
+               { label: 'Order hari ini', value: dashboardOrders.length, icon: CalendarDays },
+               { label: 'Sedang berjalan', value: running, icon: Clock3 },
+               { label: 'Selesai', value: completed, icon: CheckCircle2 },
+               { label: 'Eksekutor aktif', value: bootstrap?.assignableStaff.length || 0, icon: UsersRound },
+             ]
+         ).map(({ label, value, icon: Icon }) => (
+           <div key={label} className="mobile-surface-soft fo-fade-up fo-stagger-1 rounded-3xl p-4 sm:p-5"><Icon className="mb-5 size-5 text-primary" /><p className={`${typeof value === 'string' ? 'text-lg sm:text-2xl' : 'text-3xl'} font-bold`}>{value}</p><p className="mt-1 text-xs text-white/50">{label}</p></div>
+         ))}
+       </section>
 
-      <section className="mt-8 fo-fade-up fo-stagger-2">
-        <div className="mb-4 flex items-end justify-between">
-          <div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Antrean operasional</p><h2 className="font-playfair mt-1 text-2xl font-bold">Order treatment</h2></div>
-          <span className="text-xs text-white/40">{bootstrap?.staff.name} · {bootstrap?.staff.role.replaceAll('_', ' ')}</span>
-        </div>
-        {orders.length === 0 ? <div className="rounded-3xl border border-dashed border-white/20 bg-white/[0.02] py-16 text-center text-sm text-white/40">Belum ada order. Buat order pertama untuk memulai.</div> : <div className="space-y-4">{orders.map((order) => {
+       <section className="mt-8 fo-fade-up fo-stagger-2">
+         <div className="mb-4 flex items-end justify-between gap-4">
+           <div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">{isPersonalRole ? 'Tugas yang ditugaskan' : 'Antrean operasional'}</p><h2 className="mobile-page-title font-playfair mt-1 text-2xl font-bold">{isPersonalRole ? 'Tugas saya' : 'Order treatment'}</h2></div>
+           <span className="text-xs text-white/40">{bootstrap?.staff.name} · {bootstrap?.staff.role.replaceAll('_', ' ')}</span>
+         </div>
+         {dashboardOrders.length === 0 ? <div className="rounded-3xl border border-dashed border-white/20 bg-white/[0.02] px-6 py-16 text-center text-sm text-white/40">{isPersonalRole ? 'Belum ada tugas yang ditugaskan kepadamu.' : 'Belum ada order. Buat order pertama untuk memulai.'}</div> : <div className="space-y-4">{dashboardOrders.map((order) => {
           const done = order.actions.filter((action) => action.status === 'COMPLETED').length;
           const progress = order.actions.length ? Math.round(done / order.actions.length * 100) : 0;
           return (
-            <article key={order.id} className="fo-glass-card-soft overflow-hidden rounded-3xl">
+            <article key={order.id} className="mobile-surface-soft overflow-hidden rounded-3xl">
               <div className="flex flex-col gap-4 border-b border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{order.orderNumber}</h3><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${statusStyle[order.status] || 'bg-white/10 text-white/60'}`}>{statusLabel[order.status] || order.status}</span></div>

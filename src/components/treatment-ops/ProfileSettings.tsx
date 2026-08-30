@@ -72,13 +72,13 @@ export default function ProfileSettings({ staff }: { staff: ProfileStaff }) {
   };
 
   return (
-    <section className="fo-glass-card rounded-[2rem] p-7 sm:p-9">
+    <section className="mobile-surface rounded-[28px] p-5 sm:p-9">
       <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Profil</p>
       <h1 className="font-playfair mt-2 text-3xl font-bold">Profil pribadi</h1>
       <p className="mt-2 text-sm leading-6 text-white/50">Nama dan role diatur Super Admin. Lengkapi foto dan nomor WhatsApp kamu.</p>
 
       <div className="mt-7 flex flex-col items-start gap-5 sm:flex-row sm:items-center">
-        <div className="relative">
+        <div className="relative shrink-0">
           {staff.avatarUrl ? (
             <img src={staff.avatarUrl} alt={staff.name} className="size-20 rounded-full object-cover ring-2 ring-primary/40" />
           ) : (
@@ -121,7 +121,7 @@ export default function ProfileSettings({ staff }: { staff: ProfileStaff }) {
       <form onSubmit={savePhone} className="mt-7">
         <label className="block text-xs font-bold text-white/60">
           Nomor WhatsApp
-          <div className="mt-2 flex items-center gap-3 rounded-xl bg-black/30 px-4 ring-1 ring-white/20 focus-within:ring-primary/60">
+          <div className="mt-2 flex min-h-[52px] items-center gap-3 rounded-[16px] border border-white/10 bg-black/25 px-4 ring-1 ring-white/10 focus-within:ring-primary/60">
             <Phone className="size-4 text-white/35" />
             <input
               inputMode="tel"
@@ -129,12 +129,12 @@ export default function ProfileSettings({ staff }: { staff: ProfileStaff }) {
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               placeholder="0812xxxxxxx"
-              className="h-12 min-w-0 flex-1 bg-transparent text-sm text-white outline-none"
+              className="min-h-[52px] min-w-0 flex-1 bg-transparent text-sm text-white outline-none"
             />
           </div>
         </label>
         <p className="mt-2 text-[11px] text-white/40">Contoh: 08123456789. Tersimpan otomatis sebagai {formatPhone(phone || '6281234567890')}.</p>
-        <button disabled={busy !== null} className="mt-4 h-12 w-full rounded-full bg-primary text-sm font-bold text-black transition hover:bg-primary-light disabled:opacity-50">
+        <button disabled={busy !== null} className="mobile-touch-target mt-4 w-full rounded-[16px] bg-primary text-sm font-bold text-black transition hover:bg-primary-light disabled:opacity-50">
           {busy === 'phone' ? 'Menyimpan...' : 'Simpan Nomor WhatsApp'}
         </button>
       </form>

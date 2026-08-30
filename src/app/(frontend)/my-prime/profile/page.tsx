@@ -41,7 +41,7 @@ const EMPTY_FORM: ProfileForm = {
 };
 
 const inputClass =
-  'w-full fo-glass-input px-4 py-2.5 rounded-lg text-sm placeholder:text-white/30 [&>option]:text-black';
+  'w-full fo-glass-input min-h-[52px] rounded-[16px] px-4 py-3 text-sm placeholder:text-white/30 [&>option]:text-black';
 
 type Tier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
 
@@ -287,12 +287,12 @@ export default function ProfilePage() {
     <MobileLayout>
       <Navbar />
       <div className="min-h-screen fo-glass-page mp-theme-bright">
-        <div className="pt-20 relative z-10">
-          <div className="max-w-2xl mx-auto px-4 py-6">
+        <div className="pt-2 lg:pt-20 relative z-10">
+          <div className="mx-auto max-w-xl px-4 py-4 sm:py-6">
 
             <Link
               href="/my-prime"
-              className="inline-flex items-center gap-1.5 text-white/50 hover:text-primary text-xs mb-4 transition-colors"
+              className="mobile-touch-target -ml-2 mb-3 inline-flex items-center gap-1.5 rounded-full px-2 text-xs text-white/50 transition-colors hover:text-primary"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -301,14 +301,15 @@ export default function ProfilePage() {
             </Link>
 
             <div className="mb-5 fo-fade-up">
-              <h1 className="font-playfair text-2xl md:text-3xl font-bold text-primary">Lengkapi Profil</h1>
-              <p className="text-white/70 text-sm mt-1">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-primary/75">My Prime</p>
+              <h1 className="mobile-page-title font-playfair text-[2rem] font-bold text-white sm:text-3xl">Lengkapi Profil</h1>
+              <p className="mt-1 text-sm text-white/55">
                 Lengkapi data pribadi untuk menjadi member DRW Prime
               </p>
             </div>
 
             {/* Foto Profil */}
-            <div className="fo-glass-card fo-fade-up rounded-xl p-6 border-primary/35 mb-4 flex flex-col items-center gap-3">
+            <div className="mobile-surface fo-fade-up mb-4 flex flex-col items-center gap-3 rounded-[24px] border-primary/35 p-5">
               <div className="relative">
                 <div className={`w-24 h-24 rounded-full overflow-hidden border-2 ${TIER_RING[tier]} bg-white/10 flex items-center justify-center`}>
                   {user.imageUrl ? (
@@ -327,7 +328,7 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <label className="fo-glass-card-soft border-primary/35 text-primary px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer hover:bg-primary/20 transition-colors inline-flex items-center gap-2">
+              <label className="mobile-touch-target mobile-surface-soft inline-flex cursor-pointer items-center gap-2 rounded-[16px] border-primary/35 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/20">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -345,7 +346,7 @@ export default function ProfilePage() {
             </div>
 
             {alreadyComplete && (
-              <div className="mb-4 p-3 bg-primary/10 backdrop-blur-md border border-primary/25 rounded-xl flex items-center gap-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <div className="mb-4 flex items-center gap-2 rounded-2xl border border-primary/25 bg-primary/10 p-3 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                 <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
@@ -354,14 +355,14 @@ export default function ProfilePage() {
             )}
 
             {error && (
-              <div className="mb-4 p-3 bg-red-500/10 backdrop-blur-md border border-red-500/30 rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                 <p className="text-red-400 text-xs">{error}</p>
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="fo-glass-card fo-fade-up rounded-xl p-6 border-primary/35 space-y-4">
-                <h3 className="text-white font-semibold text-sm">Data Pribadi</h3>
+              <div className="mobile-surface fo-fade-up space-y-4 rounded-[24px] border-primary/35 p-5 sm:p-6">
+                <h3 className="text-sm font-semibold text-white">Data Pribadi</h3>
 
                 <div>
                   <label className="block text-white/70 text-xs mb-1.5">Nomor HP / WhatsApp *</label>
@@ -432,8 +433,8 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="fo-glass-card fo-fade-up rounded-xl p-6 border-primary/35 space-y-4">
-                <h3 className="text-white font-semibold text-sm">Alamat</h3>
+              <div className="mobile-surface fo-fade-up space-y-4 rounded-[24px] border-primary/35 p-5 sm:p-6">
+                <h3 className="text-sm font-semibold text-white">Alamat</h3>
 
                 <div>
                   <label className="block text-white/70 text-xs mb-1.5">Alamat Lengkap *</label>
@@ -489,13 +490,15 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full bg-primary text-dark font-semibold text-sm py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? 'Menyimpan...' : 'Simpan Profil'}
-              </button>
+              <div className="mobile-sticky-action">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="mobile-touch-target w-full rounded-[16px] bg-primary py-3 text-sm font-semibold text-dark shadow-[0_12px_30px_rgba(0,0,0,0.3)] transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving ? 'Menyimpan...' : 'Simpan Profil'}
+                </button>
+              </div>
             </form>
 
           </div>

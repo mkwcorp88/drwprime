@@ -47,7 +47,7 @@ export default function PasswordSettings({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <section className="fo-glass-card rounded-[2rem] p-7 sm:p-9">
+      <section className="mobile-surface rounded-[28px] p-5 sm:p-9">
         <span className="flex size-12 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary">
           {forced ? <ShieldCheck className="size-6" /> : <KeyRound className="size-6" />}
         </span>
@@ -98,7 +98,7 @@ function PasswordField({
         autoComplete={autoComplete}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-12 w-full rounded-xl border border-white/15 bg-black/30 px-4 text-sm text-white outline-none transition focus:border-primary/60"
+        className="mt-2 min-h-[52px] w-full rounded-[16px] border border-white/15 bg-black/30 px-4 text-sm text-white outline-none transition focus:border-primary/60"
       />
     </label>
   );

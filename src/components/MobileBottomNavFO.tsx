@@ -69,8 +69,8 @@ export default function MobileBottomNavFO() {
   };
 
   return (
-    <nav className="lg:hidden fixed bottom-2 left-0 right-0 z-[60] px-3 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
-      <div className="mx-auto max-w-md rounded-[1.9rem] border border-white/15 bg-[linear-gradient(180deg,rgba(28,34,46,0.55),rgba(10,14,22,0.42))] shadow-[0_10px_34px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-2xl backdrop-saturate-150">
+    <nav className="lg:hidden fixed bottom-2 left-0 right-0 z-[60] px-3 pb-[max(0.35rem,env(safe-area-inset-bottom))]">
+      <div className="mobile-tabbar mx-auto max-w-md rounded-[1.75rem]">
         <div className="grid grid-cols-6 gap-1 px-2 pt-2 pb-1.5">
           {navItems.map((item) => {
             const active = isActive(item.href);
@@ -80,12 +80,12 @@ export default function MobileBottomNavFO() {
                 key={item.name}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`group flex flex-col items-center justify-start gap-1 py-1 transition-colors ${
+                className={`group flex min-h-12 flex-col items-center justify-start gap-1 rounded-2xl py-1 transition-colors ${
                   active ? "text-primary" : "text-white/70"
                 }`}
               >
                 <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-2xl border transition-all duration-300 group-active:scale-95 ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-[1.15rem] border transition-all duration-300 group-active:scale-95 ${
                     active
                       ? "border-primary/40 bg-primary/15 shadow-[0_6px_18px_rgba(212,175,55,0.25),inset_0_1px_0_rgba(255,255,255,0.25)]"
                       : "border-transparent bg-white/0 group-hover:bg-white/10"

@@ -37,7 +37,7 @@ export default function StaffBadgeCard() {
 
   return (
     <div className="mx-auto max-w-md">
-      <section className="fo-glass-card rounded-[2rem] p-6 text-center sm:p-8">
+      <section className="mobile-surface rounded-[28px] p-5 text-center sm:p-8">
         <IdCard className="mx-auto size-9 text-primary" />
         <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.24em] text-primary">Barcode karyawan</p>
         <h1 className="font-playfair mt-1 text-2xl font-bold">{badge?.name ?? 'Barcode karyawan'}</h1>

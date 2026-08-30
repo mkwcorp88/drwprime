@@ -106,8 +106,8 @@ export async function assignAction(actor: OpsStaff, actionId: string, staffId: s
     if (!staff || !staff.active || staff.branchId !== action.order.branchId) {
       throw new OpsError(422, 'Eksekutor aktif pada cabang ini tidak ditemukan.');
     }
-    if (!['THERAPIST', 'DOCTOR', 'PERAWAT'].includes(staff.role)) {
-      throw new OpsError(422, 'Eksekutor harus berperan Terapis, Dokter, atau Perawat.');
+    if (!['THERAPIST', 'DOCTOR', 'APOTEKER', 'ASISTEN_APOTEKER', 'PERAWAT'].includes(staff.role)) {
+      throw new OpsError(422, 'Eksekutor harus memiliki role klinis yang sesuai.');
     }
     if (action.requiredRoleSnapshot && staff.role !== action.requiredRoleSnapshot) {
       throw new OpsError(422, `Tindakan ini memerlukan eksekutor berperan ${action.requiredRoleSnapshot.replaceAll('_', ' ').toLowerCase()}.`);

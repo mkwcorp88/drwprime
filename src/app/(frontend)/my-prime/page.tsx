@@ -307,9 +307,9 @@ export default function MyPrimePage() {
       <MobileLayout>
         <Navbar />
         <div className="min-h-screen fo-glass-page mp-theme-bright">
-          <div className="pt-20 relative z-10">
-            <div className="max-w-md mx-auto px-4 py-10">
-              <div className="fo-glass-card fo-fade-up rounded-2xl p-8 text-center border-primary/35">
+             <div className="pt-2 lg:pt-20 relative z-10">
+             <div className="max-w-md mx-auto px-4 py-10">
+               <div className="mobile-surface fo-fade-up rounded-[28px] p-7 text-center border-primary/35">
                 <div className="relative w-20 h-20 mx-auto mb-5">
                   <div className="absolute inset-0 bg-primary/15 backdrop-blur-md rounded-full border border-primary/20"></div>
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -359,18 +359,26 @@ export default function MyPrimePage() {
     <MobileLayout>
       <Navbar />
       <div className="min-h-screen fo-glass-page mp-theme-bright">
-        <div className="pt-20 relative z-10">
-          <div className="max-w-7xl mx-auto px-4 py-6">
+           <div className="pt-2 lg:pt-20 relative z-10">
+           <div className="mx-auto max-w-3xl px-4 py-4 sm:py-6">
 
-            {/* Page Title */}
-            <div className="mb-5 fo-fade-up">
-              <h1 className="font-playfair text-3xl md:text-4xl font-bold text-primary">My Prime</h1>
-              <p className="text-white/70 text-sm mt-1">Membership Dashboard</p>
-            </div>
+             {/* Page Title */}
+             <div className="mb-5 flex items-end justify-between gap-3 fo-fade-up">
+               <div>
+                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-primary/75">Personal membership</p>
+                 <h1 className="mobile-page-title font-playfair text-[2rem] font-bold text-white sm:text-4xl">My Prime</h1>
+                 <p className="mt-1 text-sm text-white/55">Ruang personal untuk perjalanan perawatanmu.</p>
+               </div>
+               <Link href="/my-prime/profile" aria-label="Buka profil" className="mobile-touch-target flex shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary transition hover:bg-primary/20">
+                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15.232 5.232l3.536 3.536M4 20l4.2-.9L18.9 8.4a2.5 2.5 0 00-3.536-3.536L4.664 15.564 4 20z" />
+                 </svg>
+               </Link>
+             </div>
 
             {/* Membership Card */}
             <div className="mb-5">
-              <div className={`prime-membership-card relative overflow-hidden rounded-[22px] border ${tier.border} bg-[#0d0d0e] shadow-[0_24px_70px_rgba(0,0,0,0.42)]`}>
+               <div className={`prime-membership-card relative overflow-hidden rounded-[28px] border ${tier.border} bg-[#0d0d0e] shadow-[0_24px_70px_rgba(0,0,0,0.42)]`}>
                 <div className={`absolute inset-0 bg-gradient-to-br ${tier.gradient}`} />
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/75 to-transparent" />
                 <div className="absolute -right-16 -bottom-20 h-64 w-64 opacity-[0.045]">
@@ -389,7 +397,7 @@ export default function MyPrimePage() {
                 <span className="prime-card-sparkle absolute right-8 top-[48%] [animation-delay:1.6s]" aria-hidden="true" />
                 <span className="prime-card-sparkle prime-card-sparkle-small absolute left-[42%] bottom-7 [animation-delay:3.1s]" aria-hidden="true" />
 
-                <div className="relative z-10 p-5 sm:p-6">
+                 <div className="relative z-10 p-5 sm:p-6">
                   <div className="mb-6 flex items-start justify-between gap-4">
                     <div>
                       <div className="mb-1.5 flex items-center gap-2">
@@ -467,7 +475,7 @@ export default function MyPrimePage() {
 
             {/* Poin Saya */}
             <div className="mb-5">
-              <div className="fo-glass-card rounded-xl p-4 border-primary/35">
+               <div className="mobile-surface rounded-[24px] p-5 border-primary/35">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -488,7 +496,7 @@ export default function MyPrimePage() {
                   <div className="space-y-2">
                     <p className="text-white/40 text-[10px] uppercase tracking-wider">Riwayat Perolehan</p>
                     {membership.pointHistory.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between bg-black/30 border border-white/10 rounded-lg px-3 py-2">
+                       <div key={p.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-3.5 py-3">
                         <div className="min-w-0">
                           <p className="text-white/80 text-xs truncate">{p.treatment || 'Transaksi treatment'}</p>
                           <p className="text-white/40 text-[10px]">{formatShortDate(p.spendingDate)} · {formatCurrency(p.amount)}</p>
@@ -507,7 +515,7 @@ export default function MyPrimePage() {
             {/* Tier Progress */}
             {membership.nextTier && (
               <div className="mb-5">
-                <div className="fo-glass-card rounded-xl p-4 border-primary/35">
+                 <div className="mobile-surface rounded-[24px] p-5 border-primary/35">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-white/70 text-xs font-semibold">Progress ke {TIER_CONFIG[membership.nextTier].label}</p>
                     <p className="text-white/50 text-[10px]">{membership.progressPercent}%</p>
@@ -527,7 +535,7 @@ export default function MyPrimePage() {
 
             {/* Benefits */}
             <div className="mb-5">
-              <div className={`bg-gradient-to-br ${tier.gradient} border ${tier.border} rounded-xl p-4`}>
+                 <div className={`bg-gradient-to-br ${tier.gradient} border ${tier.border} rounded-[24px] p-5`}>
                 <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-white">
                   <span className={`h-1.5 w-1.5 rounded-full ${tier.marker}`} />
                   <span>Benefit Member {tier.label}</span>
@@ -549,7 +557,7 @@ export default function MyPrimePage() {
             {membership.isTeamLeader && (
               <div className="mb-5">
                 <Link href="/affiliate-dashboard">
-                  <div className="bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/40 rounded-xl p-4 flex items-center justify-between hover:border-primary/70 transition-colors">
+                   <div className="bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/40 rounded-[24px] p-5 flex items-center justify-between hover:border-primary/70 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-primary/20 border border-primary/30 rounded-lg flex items-center justify-center flex-shrink-0">
                         <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -574,8 +582,14 @@ export default function MyPrimePage() {
 
             {/* Transaction History */}
             <div>
-              <div className="fo-glass-card rounded-xl p-4 border-primary/35">
-                <h3 className="font-bold text-sm text-white mb-3">Riwayat Kunjungan</h3>
+               <div className="mobile-surface rounded-[24px] p-5 border-primary/35">
+                 <div className="mb-4 flex items-end justify-between gap-3">
+                   <div>
+                     <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary/75">Perjalananmu</p>
+                     <h3 className="mt-1 font-bold text-base text-white">Riwayat Kunjungan</h3>
+                   </div>
+                   <span className="text-[11px] text-white/35">{membership.reservations.length} kunjungan</span>
+                 </div>
                 {membership.reservations.length === 0 ? (
                   <div className="text-center py-8">
                     <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -591,7 +605,7 @@ export default function MyPrimePage() {
                 ) : (
                   <div className="space-y-2">
                     {membership.reservations.map((r) => (
-                      <div key={r.id} className="bg-black/30 border border-white/10 rounded-lg p-3">
+                       <div key={r.id} className="rounded-2xl border border-white/10 bg-black/25 p-3.5">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
                             <p className="text-white font-semibold text-sm truncate">{r.treatmentName ?? 'Treatment'}</p>
@@ -623,7 +637,7 @@ export default function MyPrimePage() {
             <div className="mt-8 mb-4 fo-fade-up">
               <button
                 onClick={() => signOut(() => router.push('/'))}
-                className="w-full fo-glass-card-soft border-red-500/20 text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/35 font-semibold py-3.5 rounded-xl transition-all duration-300 text-sm flex items-center justify-center gap-2 group"
+                 className="mobile-surface-soft w-full rounded-[20px] border-red-500/20 py-3.5 text-sm font-semibold text-red-400 transition-all duration-300 hover:border-red-500/35 hover:bg-red-500/10 hover:text-red-300 group flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

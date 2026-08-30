@@ -33,7 +33,7 @@ export async function GET() {
       prisma.opsStaff.findMany({
         where: {
           ...(staff.role === 'SUPER_ADMIN' ? {} : { branchId: staff.branchId || '' }),
-          role: { in: ['THERAPIST', 'DOCTOR', 'PERAWAT'] }, active: true,
+          role: { in: ['THERAPIST', 'DOCTOR', 'APOTEKER', 'ASISTEN_APOTEKER', 'PERAWAT'] }, active: true,
         },
         select: { id: true, branchId: true, employeeId: true, name: true, role: true }, orderBy: { name: 'asc' },
       }),

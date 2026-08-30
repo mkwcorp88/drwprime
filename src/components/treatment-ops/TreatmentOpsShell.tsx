@@ -26,15 +26,15 @@ export default function TreatmentOpsShell({ children, staff }: { children: React
     : [];
   return (
     <div className="fo-glass-page min-h-screen text-white">
-      <header className="sticky top-0 z-40 border-b border-primary/20 bg-black/40 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#07090d]/80 shadow-[0_8px_30px_rgba(0,0,0,0.16)] backdrop-blur-2xl backdrop-saturate-150">
+        <div className="mx-auto flex h-[4.25rem] max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link href="/treatment-ops" className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary shadow-[0_0_20px_rgba(212,175,55,0.25)]">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-[1.1rem] border border-primary/40 bg-primary/10 text-primary shadow-[0_0_20px_rgba(212,175,55,0.25)]">
               <ClipboardPlus className="size-5" />
             </span>
-            <span>
-              <strong className="block text-sm tracking-[0.12em]">DRW PRIME</strong>
-              <span className="block text-[10px] uppercase tracking-[0.2em] text-primary/60">Treatment Flow</span>
+            <span className="min-w-0">
+              <strong className="block truncate text-sm tracking-[0.12em]">DRW PRIME</strong>
+              <span className="block truncate text-[9px] uppercase tracking-[0.18em] text-primary/60">Treatment Flow</span>
             </span>
           </Link>
 
@@ -50,7 +50,7 @@ export default function TreatmentOpsShell({ children, staff }: { children: React
             })}
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {staff && (
               <div className="hidden items-center gap-2 lg:flex">
                 {staff.avatarUrl ? (
@@ -67,25 +67,27 @@ export default function TreatmentOpsShell({ children, staff }: { children: React
               <LogOut className="size-3.5" /> Website utama
             </Link>
             {staff && <form action="/api/treatment-ops/auth/logout" method="post">
-              <button className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/75 transition hover:border-primary/50 hover:text-primary">
-                <LogOut className="size-3.5" /> Keluar
+              <button aria-label="Keluar" className="flex min-h-10 items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/75 transition hover:border-primary/50 hover:text-primary">
+                <LogOut className="size-3.5" /> <span className="hidden sm:inline">Keluar</span>
               </button>
             </form>}
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 pb-24 pt-6 sm:px-6 sm:pb-10">{children}</main>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-primary/20 bg-black/70 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden">
-        <div className="mx-auto flex max-w-xl gap-1 overflow-x-auto">
+      <main className="mx-auto max-w-7xl px-4 pb-28 pt-4 sm:px-6 sm:pb-10 sm:pt-6">{children}</main>
+      <nav className="fixed inset-x-0 bottom-2 z-40 px-3 pb-[max(0.35rem,env(safe-area-inset-bottom))] md:hidden">
+        <div className="mobile-tabbar mx-auto max-w-xl rounded-[1.7rem]">
+          <div className="scrollbar-hide flex snap-x gap-1 overflow-x-auto px-1.5 py-1.5">
           {visibleLinks.map(({ href, label, icon: Icon }) => {
             const activeLabel = href === '/treatment-ops/scan' && staff && staff.role !== 'SUPER_ADMIN' ? 'Barcode Saya' : label;
             const active = pathname === href || (href !== '/treatment-ops' && pathname.startsWith(href));
             return (
-              <Link key={href} href={href} className={`flex min-w-[4.4rem] flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition ${active ? 'bg-primary/15 text-primary' : 'text-white/55'}`}>
-                <Icon className="size-5" />{activeLabel}
+              <Link key={href} href={href} aria-current={active ? 'page' : undefined} className={`flex min-w-[4.8rem] snap-start flex-1 flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[10px] font-semibold transition ${active ? 'bg-primary/15 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]' : 'text-white/55'}`}>
+                <Icon className="size-[1.15rem]" />{activeLabel}
               </Link>
             );
           })}
+          </div>
         </div>
       </nav>
     </div>
