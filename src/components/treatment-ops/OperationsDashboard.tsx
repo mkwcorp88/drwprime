@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AidoPatientPicker from '@/components/treatment-ops/AidoPatientPicker';
 import BadgeScannerModal from '@/components/treatment-ops/BadgeScannerModal';
-import { MANUAL_PATIENT_ENTRY_ROLES, ORDER_MANAGEMENT_ROLES, roleLabels } from '@/lib/treatment-operations/constants';
+import { ORDER_MANAGEMENT_ROLES, roleLabels } from '@/lib/treatment-operations/constants';
 import { formatPhone } from '@/lib/phone';
 import type { OpsActionView, OpsBootstrap, OpsOrderView } from '@/types/treatment-operations';
 
@@ -385,7 +385,7 @@ export default function OperationsDashboard() {
                 localPatients={bootstrap.patients.filter((item) => item.branchId === form.branchId)}
                 value={form.patientId}
                 onChange={(patientId) => setForm((current) => ({ ...current, patientId }))}
-                canEnterManual={MANUAL_PATIENT_ENTRY_ROLES.includes(bootstrap.staff.role)}
+                canEnterManual={canCreate}
               />
               <Field label="Dokter"><select value={form.doctorId} onChange={(e) => setForm({ ...form, doctorId: e.target.value })}><option value="">Tanpa dokter</option>{bootstrap.doctors.filter((item) => item.branchId === form.branchId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
               <Field label="Treatment"><select required value={form.treatmentId} onChange={(e) => selectTreatment(e.target.value)}><option value="">Pilih treatment</option>{bootstrap.treatments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>

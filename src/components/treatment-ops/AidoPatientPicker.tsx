@@ -2,11 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Check, Database, Loader2, Search, UserRound, X } from 'lucide-react';
-import {
-  MANUAL_PATIENT_REASON_CODES,
-  manualPatientReasonLabels,
-  type ManualPatientReasonCode,
-} from '@/lib/treatment-operations/constants';
+
+const AIDO_SEARCH_ENABLED = false;
 
 type LocalPatient = {
   id: string;
@@ -51,8 +48,6 @@ export default function AidoPatientPicker({
   const [manualOpen, setManualOpen] = useState(false);
   const [manualName, setManualName] = useState('');
   const [manualPhone, setManualPhone] = useState('');
-  const [manualReason, setManualReason] = useState<ManualPatientReasonCode>('AIDO_UNAVAILABLE');
-  const [manualNote, setManualNote] = useState('');
   const [savingManual, setSavingManual] = useState(false);
   const [error, setError] = useState('');
 
@@ -65,6 +60,11 @@ export default function AidoPatientPicker({
   }, [branchId]);
 
   useEffect(() => {
+    if (!AIDO_SEARCH_ENABLED) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
     const normalizedQuery = query.trim();
     if (manualOpen || normalizedQuery.length < 2 || selected) {
       setResults([]);
@@ -162,8 +162,6 @@ export default function AidoPatientPicker({
           source: 'MANUAL',
           name: manualName,
           phone: manualPhone,
-          manualEntryReason: manualReason,
-          manualEntryNote: manualNote,
         }),
       });
       const data = await response.json().catch(() => null);
@@ -171,17 +169,15 @@ export default function AidoPatientPicker({
         window.location.href = '/treatment-ops/login';
         return;
       }
-      if (!response.ok) throw new Error(data?.error || 'Pasien manual tidak dapat disimpan.');
+      if (!response.ok) throw new Error(data?.error || 'Pasien tidak dapat disimpan.');
 
       setSelected({ id: data.patient.id, name: data.patient.name, meta: data.patient.patientNumber, source: 'MANUAL' });
       setManualOpen(false);
       setManualName('');
       setManualPhone('');
-      setManualReason('AIDO_UNAVAILABLE');
-      setManualNote('');
       onChange(data.patient.id);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Pasien manual tidak dapat disimpan.');
+      setError(caught instanceof Error ? caught.message : 'Pasien tidak dapat disimpan.');
     } finally {
       setSavingManual(false);
     }
@@ -218,57 +214,59 @@ export default function AidoPatientPicker({
             </button>
           </div>
         ) : (
-          <div className="flex min-h-12 items-center gap-3 rounded-[16px] border border-white/15 bg-black/30 px-3.5 ring-1 ring-white/5 focus-within:border-primary/60 focus-within:ring-primary/25">
-            <Search className="size-4 shrink-0 text-white/35" />
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Cari nama atau No. RM di AIDO"
-              autoComplete="off"
-              className="min-w-0 flex-1 bg-transparent py-3 text-sm font-normal text-white outline-none placeholder:text-white/30"
-            />
-            {searching && <Loader2 className="size-4 shrink-0 animate-spin text-primary" />}
+          <div className="space-y-2">
+            {AIDO_SEARCH_ENABLED && (
+              <div className="flex min-h-12 items-center gap-3 rounded-[16px] border border-white/15 bg-black/30 px-3.5 ring-1 ring-white/5 focus-within:border-primary/60 focus-within:ring-primary/25">
+                <Search className="size-4 shrink-0 text-white/35" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Cari nama atau No. RM di AIDO"
+                  autoComplete="off"
+                  className="min-w-0 flex-1 bg-transparent py-3 text-sm font-normal text-white outline-none placeholder:text-white/30"
+                />
+                {searching && <Loader2 className="size-4 shrink-0 animate-spin text-primary" />}
+              </div>
+            )}
+
+            {localPatients.length > 0 && (
+              <select value="" onChange={(event) => selectLocal(event.target.value)} className="h-11 w-full rounded-[16px] border border-white/10 bg-white/[0.04] px-3 text-xs font-normal text-white/65 outline-none focus:border-primary/50 [&>option]:bg-[#0a0a0a]">
+                <option value="">Pilih pasien tersimpan</option>
+                {localPatients.map((patient) => <option key={patient.id} value={patient.id}>{patient.patientNumber} · {patient.name}</option>)}
+              </select>
+            )}
+
+            {canEnterManual && !manualOpen && (
+              <button type="button" onClick={openManual} className="flex w-full items-center justify-center rounded-[16px] border border-primary/25 bg-primary/[0.06] px-3 py-3 text-xs font-semibold text-primary transition hover:bg-primary/10">
+                + Tambah pasien manual
+              </button>
+            )}
           </div>
-        )}
-
-        {!selected && localPatients.length > 0 && (
-          <select value="" onChange={(event) => selectLocal(event.target.value)} className="h-11 w-full rounded-[16px] border border-white/10 bg-white/[0.04] px-3 text-xs font-normal text-white/65 outline-none focus:border-primary/50 [&>option]:bg-[#0a0a0a]">
-            <option value="">Atau pilih pasien tersimpan</option>
-            {localPatients.map((patient) => <option key={patient.id} value={patient.id}>{patient.patientNumber} · {patient.name}</option>)}
-          </select>
-        )}
-
-        {!selected && canEnterManual && !manualOpen && (
-          <button type="button" onClick={openManual} className="flex w-full items-center justify-center rounded-[16px] border border-primary/25 bg-primary/[0.06] px-3 py-3 text-xs font-semibold text-primary transition hover:bg-primary/10">
-            AIDO bermasalah atau pasien tidak ditemukan? Tambah manual
-          </button>
         )}
 
         {!selected && manualOpen && (
           <div className="rounded-[18px] border border-primary/25 bg-primary/[0.06] p-4">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-white">Tambah pasien manual</p>
-                <p className="mt-1 text-[11px] font-normal leading-5 text-white/45">Pasien akan ditandai manual dan dapat direkonsiliasi ke AIDO nanti.</p>
+                <p className="text-sm font-semibold text-white">Daftarkan pasien</p>
+                <p className="mt-1 text-[11px] font-normal leading-5 text-white/45">Data disimpan di sistem operasional klinik.</p>
               </div>
-              <button type="button" onClick={() => setManualOpen(false)} className="flex size-8 shrink-0 items-center justify-center rounded-xl text-white/45 hover:bg-white/10 hover:text-white" aria-label="Tutup input manual">
+              <button type="button" onClick={() => setManualOpen(false)} className="flex size-8 shrink-0 items-center justify-center rounded-xl text-white/45 hover:bg-white/10 hover:text-white" aria-label="Tutup pendaftaran pasien">
                 <X className="size-4" />
               </button>
             </div>
             <div className="space-y-3">
               <label className="block text-[11px] font-semibold text-white/60">Nama pasien<input required value={manualName} onChange={(event) => setManualName(event.target.value)} maxLength={120} placeholder="Nama lengkap pasien" autoComplete="name" className="mt-1.5 h-11 w-full rounded-xl border border-white/15 bg-black/30 px-3 text-sm font-normal text-white outline-none placeholder:text-white/30 focus:border-primary/60" /></label>
               <label className="block text-[11px] font-semibold text-white/60">Nomor WhatsApp <span className="font-normal text-white/35">(opsional)</span><input value={manualPhone} onChange={(event) => setManualPhone(event.target.value)} maxLength={24} placeholder="08xx atau +62xx" inputMode="tel" autoComplete="tel" className="mt-1.5 h-11 w-full rounded-xl border border-white/15 bg-black/30 px-3 text-sm font-normal text-white outline-none placeholder:text-white/30 focus:border-primary/60" /></label>
-              <label className="block text-[11px] font-semibold text-white/60">Alasan input manual<select required value={manualReason} onChange={(event) => setManualReason(event.target.value as ManualPatientReasonCode)} className="mt-1.5 h-11 w-full rounded-xl border border-white/15 bg-black/30 px-3 text-sm font-normal text-white outline-none focus:border-primary/60 [&>option]:bg-[#0a0a0a]">{MANUAL_PATIENT_REASON_CODES.map((reason) => <option key={reason} value={reason}>{manualPatientReasonLabels[reason]}</option>)}</select></label>
-              {manualReason === 'OTHER' && <label className="block text-[11px] font-semibold text-white/60">Catatan alasan<textarea required value={manualNote} onChange={(event) => setManualNote(event.target.value)} maxLength={240} rows={3} placeholder="Jelaskan singkat alasan input manual" className="mt-1.5 w-full resize-none rounded-xl border border-white/15 bg-black/30 px-3 py-2.5 text-sm font-normal text-white outline-none placeholder:text-white/30 focus:border-primary/60" /></label>}
               <button type="button" onClick={() => void saveManual()} disabled={savingManual} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary text-xs font-bold text-black transition hover:bg-primary-light disabled:opacity-50">
-                {savingManual && <Loader2 className="size-4 animate-spin" />} Simpan pasien manual
+                {savingManual && <Loader2 className="size-4 animate-spin" />} Simpan pasien
               </button>
             </div>
           </div>
         )}
 
-        {!selected && query.trim().length >= 2 && !searching && results.length > 0 && (
+        {AIDO_SEARCH_ENABLED && !selected && query.trim().length >= 2 && !searching && results.length > 0 && (
           <div className="mobile-surface-soft max-h-64 overflow-y-auto rounded-2xl p-1.5" role="listbox" aria-label="Hasil pasien AIDO">
             {results.map((patient) => (
               <button key={patient.externalPatientId} type="button" onClick={() => void selectAido(patient)} disabled={savingId !== null} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-primary/10 disabled:opacity-50">
@@ -283,12 +281,10 @@ export default function AidoPatientPicker({
           </div>
         )}
 
-        {!selected && query.trim().length >= 2 && !searching && results.length === 0 && !error && (
+        {AIDO_SEARCH_ENABLED && !selected && query.trim().length >= 2 && !searching && results.length === 0 && !error && (
           <p className="rounded-xl bg-white/[0.03] px-3 py-2.5 text-[11px] font-normal text-white/45">Pasien tidak ditemukan di AIDO.</p>
         )}
-        {!selected && query.trim().length < 2 && (
-          <p className="text-[11px] font-normal leading-5 text-white/40">Ketik minimal 2 karakter. Pencarian mengambil data terbaru dari AIDO.</p>
-        )}
+
         {error && <p className="text-[11px] font-normal text-red-300" role="alert">{error}</p>}
       </div>
     </div>

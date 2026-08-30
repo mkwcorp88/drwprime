@@ -6,7 +6,7 @@ import { OpsError } from './utils';
 export type ManualPatientInput = {
   name: string;
   phone: string | null;
-  manualEntryReason: OpsManualPatientReason;
+  manualEntryReason: OpsManualPatientReason | null;
   manualEntryNote: string | null;
 };
 
@@ -19,15 +19,16 @@ export function parseManualPatientInput(body: Record<string, unknown>): ManualPa
   if (phoneInput && !phone) throw new OpsError(422, 'Format nomor WhatsApp pasien tidak valid.');
 
   const reasonInput = typeof body.manualEntryReason === 'string' ? body.manualEntryReason.trim() : '';
-  if (!(MANUAL_PATIENT_REASON_CODES as readonly string[]).includes(reasonInput)) {
-    throw new OpsError(422, 'Alasan input manual wajib dipilih.');
+  let manualEntryReason: OpsManualPatientReason | null = null;
+  if (reasonInput) {
+    if (!(MANUAL_PATIENT_REASON_CODES as readonly string[]).includes(reasonInput)) {
+      throw new OpsError(422, 'Alasan input manual tidak valid.');
+    }
+    manualEntryReason = reasonInput as OpsManualPatientReason;
   }
-  const manualEntryReason = reasonInput as OpsManualPatientReason;
+
   const manualEntryNote = typeof body.manualEntryNote === 'string' ? body.manualEntryNote.trim() : '';
   if (manualEntryNote.length > 240) throw new OpsError(422, 'Catatan alasan maksimal 240 karakter.');
-  if (manualEntryReason === 'OTHER' && !manualEntryNote) {
-    throw new OpsError(422, 'Catatan wajib diisi untuk alasan lainnya.');
-  }
 
   return {
     name,

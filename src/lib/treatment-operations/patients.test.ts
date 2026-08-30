@@ -5,7 +5,7 @@ import { OpsError } from '@/lib/treatment-operations/utils';
 
 describe('manual patient input', () => {
   it('allows the approved roles and normalizes the optional phone number', () => {
-    expect(MANUAL_PATIENT_ENTRY_ROLES).toEqual(['SUPER_ADMIN', 'MANAGEMENT', 'SUPERVISOR']);
+    expect(MANUAL_PATIENT_ENTRY_ROLES).toEqual(['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR']);
     expect(parseManualPatientInput({
       name: '  Sari Utami ',
       phone: '0812-3456-7890',
@@ -18,16 +18,18 @@ describe('manual patient input', () => {
     });
   });
 
-  it('requires a note when the reason is other', () => {
-    expect(() => parseManualPatientInput({
+  it('allows manual entry without a fallback reason', () => {
+    expect(parseManualPatientInput({ name: 'Sari Utami' })).toEqual({
       name: 'Sari Utami',
-      manualEntryReason: 'OTHER',
-    })).toThrow('Catatan wajib diisi');
+      phone: null,
+      manualEntryReason: null,
+      manualEntryNote: null,
+    });
   });
 
   it('rejects invalid phone numbers and unknown reasons', () => {
     for (const input of [
-      { name: 'Sari Utami', phone: '12345', manualEntryReason: 'AIDO_UNAVAILABLE' },
+      { name: 'Sari Utami', phone: '12345' },
       { name: 'Sari Utami', manualEntryReason: 'UNSAFE_REASON' },
     ]) {
       try {

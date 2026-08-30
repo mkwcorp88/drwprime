@@ -13,7 +13,7 @@ export const OPS_ROLES = [
 ] as const satisfies readonly OpsRole[];
 
 export const ORDER_MANAGEMENT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR'];
-export const MANUAL_PATIENT_ENTRY_ROLES: OpsRole[] = ['SUPER_ADMIN', 'MANAGEMENT', 'SUPERVISOR'];
+export const MANUAL_PATIENT_ENTRY_ROLES: OpsRole[] = ['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR'];
 export const MANUAL_PATIENT_REASON_CODES = [
   'AIDO_UNAVAILABLE',
   'NOT_IN_AIDO',
