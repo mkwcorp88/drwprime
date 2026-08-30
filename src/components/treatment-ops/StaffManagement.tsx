@@ -25,6 +25,9 @@ const roles = [
   ['SUPERVISOR', 'Supervisor'],
   ['THERAPIST', 'Terapis'],
   ['DOCTOR', 'Dokter'],
+  ['PERAWAT', 'Perawat'],
+  ['APOTEKER', 'Apoteker'],
+  ['ASISTEN_APOTEKER', 'Asisten Apoteker'],
   ['SUPER_ADMIN', 'Super Admin'],
 ] as const;
 

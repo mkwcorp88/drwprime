@@ -6,7 +6,7 @@ import { handleOpsError, readJson } from '@/lib/treatment-operations/http';
 import { OpsError, serialize } from '@/lib/treatment-operations/utils';
 
 const INCENTIVE_TYPES: OpsIncentiveType[] = ['FIXED', 'PERCENTAGE', 'POINTS', 'NONE'];
-const EXECUTOR_ROLES: OpsRole[] = ['THERAPIST', 'DOCTOR'];
+const EXECUTOR_ROLES: OpsRole[] = ['THERAPIST', 'DOCTOR', 'PERAWAT'];
 
 function parseActions(value: unknown) {
   if (!Array.isArray(value) || value.length === 0) {

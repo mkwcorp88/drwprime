@@ -2,7 +2,7 @@ import { hash } from 'argon2';
 import { randomInt } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Prisma, PrismaClient, type OpsRole } from '@prisma/client';
-import { normalizeOpsEmail, validateOpsEmail, validateOpsPassword } from '../src/lib/treatment-operations/password';
+import { normalizeOpsEmail, validateOpsEmail } from '../src/lib/treatment-operations/password';
 
 const prisma = new PrismaClient();
 
@@ -19,6 +19,10 @@ const ROLE_ALIASES: Record<string, OpsRole> = {
   TERAPIS: 'THERAPIST',
   DOCTOR: 'DOCTOR',
   DOKTER: 'DOCTOR',
+  APOTEKER: 'APOTEKER',
+  ASISTEN_APOTEKER: 'ASISTEN_APOTEKER',
+  'ASISTEN APOTEKER': 'ASISTEN_APOTEKER',
+  PERAWAT: 'PERAWAT',
 };
 
 type EmployeeRow = {
@@ -216,13 +220,9 @@ async function importEmployees(rows: EmployeeRow[]): Promise<{ created: string[]
     if (!password) {
       password = generatePassword();
       generated.push({ email: row.email, password });
-    } else {
-      const passwordError = validateOpsPassword(password);
-      if (passwordError) {
-        skipped.push(`${row.email} (${passwordError})`);
-        continue;
-      }
     }
+    // Provided passwords are treated as temporary: the account is forced to
+    // change them on first login, where the strong policy is enforced.
 
     const passwordHash = await hash(password);
     await prisma.$transaction(async (tx) => {

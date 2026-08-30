@@ -7,6 +7,9 @@ export const OPS_ROLES = [
   'SUPERVISOR',
   'THERAPIST',
   'DOCTOR',
+  'APOTEKER',
+  'ASISTEN_APOTEKER',
+  'PERAWAT',
 ] as const satisfies readonly OpsRole[];
 
 export const ORDER_MANAGEMENT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'FRONT_OFFICE', 'SUPERVISOR'];
@@ -19,6 +22,9 @@ export const roleLabels: Record<OpsRole, string> = {
   SUPERVISOR: 'Supervisor',
   THERAPIST: 'Terapis',
   DOCTOR: 'Dokter',
+  APOTEKER: 'Apoteker',
+  ASISTEN_APOTEKER: 'Asisten Apoteker',
+  PERAWAT: 'Perawat',
 };
 
 export const orderStatusLabels = {

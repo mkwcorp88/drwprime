@@ -783,6 +783,9 @@ enum OpsRole {
   SUPERVISOR
   THERAPIST
   DOCTOR
+  APOTEKER
+  ASISTEN_APOTEKER
+  PERAWAT
 }
 
 enum OpsOrderStatus {

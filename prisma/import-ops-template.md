@@ -10,7 +10,7 @@ npm run ops:import-md -- /path/ke/file-anda.md
 
 Kolom: Email | Nama | ID | Role | Cabang | Password
 
-- Role: `Super Admin`, `Manajemen`, `Front Office`, `Supervisor`, `Terapis`, `Dokter`.
+- Role: `Super Admin`, `Manajemen`, `Front Office`, `Supervisor`, `Terapis`, `Dokter`, `Perawat`, `Apoteker`, `Asisten Apoteker`.
 - Cabang: gunakan kode cabang, mis. `DRW-UTAMA`.
 - Password: opsional. Jika dikosongkan, sistem membuat password acak dan menampilkannya di akhir impor. Semua akun wajib mengganti password saat login pertama.
 
