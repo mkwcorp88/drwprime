@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { KeyRound, ShieldCheck } from 'lucide-react';
+import PasswordInput from '@/components/treatment-ops/PasswordInput';
 
 export default function PasswordSettings({
   staffName,
@@ -92,13 +93,12 @@ function PasswordField({
   return (
     <label className="block text-xs font-bold text-white/60">
       {label}
-      <input
-        required
-        type="password"
-        autoComplete={autoComplete}
+      <PasswordInput
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-2 min-h-[52px] w-full rounded-[16px] border border-white/15 bg-black/30 px-4 text-sm text-white outline-none transition focus:border-primary/60"
+        onChange={onChange}
+        autoComplete={autoComplete}
+        className="mt-2"
+        inputClassName="min-h-[52px] w-full rounded-[16px] border border-white/15 bg-black/30 px-4 text-sm text-white outline-none transition focus:border-primary/60"
       />
     </label>
   );

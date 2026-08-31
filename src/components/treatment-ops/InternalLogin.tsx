@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { KeyRound, LockKeyhole, Mail } from 'lucide-react';
+import PasswordInput from '@/components/treatment-ops/PasswordInput';
 
 export default function InternalLogin() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function InternalLogin() {
           <div className="mt-2 flex h-12 items-center gap-3 rounded-xl bg-black/30 px-4 ring-1 ring-white/20 focus-within:ring-primary/60"><Mail className="size-4 text-white/35" /><input required type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="nama@drwprime.com" /></div>
         </label>
         <label className="mt-4 block text-xs font-bold text-white/60">Password
-          <div className="mt-2 flex h-12 items-center gap-3 rounded-xl bg-black/30 px-4 ring-1 ring-white/20 focus-within:ring-primary/60"><LockKeyhole className="size-4 text-white/35" /><input required type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none" /></div>
+          <div className="mt-2 flex h-12 items-center gap-3 rounded-xl bg-black/30 px-4 ring-1 ring-white/20 focus-within:ring-primary/60"><LockKeyhole className="size-4 shrink-0 text-white/35" /><PasswordInput value={password} onChange={setPassword} autoComplete="current-password" className="h-full min-w-0 flex-1" inputClassName="h-full w-full bg-transparent text-sm outline-none" /></div>
         </label>
         {error && <p className="mt-4 rounded-xl bg-red-500/10 p-3 text-xs text-red-300 ring-1 ring-red-400/20">{error}</p>}
         <button disabled={busy} className="mt-6 h-12 w-full rounded-full bg-primary text-sm font-bold text-black transition hover:bg-primary-light disabled:opacity-50">{busy ? 'Memeriksa akun...' : 'Masuk ke Sistem'}</button>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { KeyRound, Plus, UserCog, X } from 'lucide-react';
+import PasswordInput from '@/components/treatment-ops/PasswordInput';
 
 type Branch = { id: string; name: string };
 type StaffRow = {
@@ -132,8 +133,8 @@ export default function StaffManagement() {
           <Field label="Role"><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>{roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
           <Field label="Cabang"><select required={form.role !== 'SUPER_ADMIN'} value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}><option value="">Tanpa cabang</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></Field>
           <div className="hidden lg:block" />
-          <Field label="Password awal"><input required type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
-          <Field label="Konfirmasi password"><input required type="password" autoComplete="new-password" value={form.confirmation} onChange={(e) => setForm({ ...form, confirmation: e.target.value })} /></Field>
+          <Field label="Password awal"><PasswordInput value={form.password} onChange={(value) => setForm({ ...form, password: value })} autoComplete="new-password" /></Field>
+          <Field label="Konfirmasi password"><PasswordInput value={form.confirmation} onChange={(value) => setForm({ ...form, confirmation: value })} autoComplete="new-password" /></Field>
           <div className="flex items-end"><button disabled={busy} className="h-12 w-full rounded-full bg-primary text-sm font-bold text-black transition hover:bg-primary-light disabled:opacity-50">{busy ? 'Menyimpan...' : 'Buat Akun Staf'}</button></div>
         </form>
         <p className="mt-4 text-[11px] text-white/35">Password minimal 10 karakter dan harus memiliki huruf besar, huruf kecil, angka, serta simbol.</p>
@@ -159,8 +160,8 @@ export default function StaffManagement() {
             <div className="flex items-start justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Reset password</p><h2 className="font-playfair mt-1 text-2xl font-bold">{resetTarget.name}</h2></div><button type="button" onClick={() => setResetTarget(null)}><X className="size-5" /></button></div>
             <p className="mt-3 text-xs leading-5 text-white/45">Semua sesi staf akan dikeluarkan. Password baru ini wajib diganti saat login berikutnya.</p>
             <div className="mt-6 space-y-4">
-              <Field label="Password awal baru"><input required type="password" autoComplete="new-password" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} /></Field>
-              <Field label="Konfirmasi password"><input required type="password" autoComplete="new-password" value={resetConfirmation} onChange={(e) => setResetConfirmation(e.target.value)} /></Field>
+              <Field label="Password awal baru"><PasswordInput value={resetPassword} onChange={setResetPassword} autoComplete="new-password" /></Field>
+              <Field label="Konfirmasi password"><PasswordInput value={resetConfirmation} onChange={setResetConfirmation} autoComplete="new-password" /></Field>
             </div>
             <button disabled={busy} className="mt-6 h-12 w-full rounded-full bg-primary text-sm font-bold text-black disabled:opacity-50">{busy ? 'Mereset...' : 'Reset Password'}</button>
           </form>
