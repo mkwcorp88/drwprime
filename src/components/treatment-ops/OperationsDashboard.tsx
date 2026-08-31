@@ -92,11 +92,11 @@ export default function OperationsDashboard() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [qr, setQr] = useState<{ orderNumber: string; url: string } | null>(null);
+  const [qr, setQr] = useState<Array<{ orderNumber: string; url: string }> | null>(null);
   const [scanTarget, setScanTarget] = useState<{ actionId: string; actionName: string; operation: 'start' | 'complete' } | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
   const [busyAssign, setBusyAssign] = useState<string | null>(null);
-  const [form, setForm] = useState({ branchId: '', patientId: '', doctorId: '', treatmentId: '', visitDate: new Date().toISOString().slice(0, 10), originalPrice: '', discountAmount: '0', internalNote: '' });
+  const [form, setForm] = useState({ branchId: '', patientId: '', doctorId: '', visitDate: new Date().toISOString().slice(0, 10), treatments: [{ treatmentId: '', originalPrice: '', discountAmount: '0' }], internalNote: '' });
 
   const load = async () => {
     setLoading(true);
@@ -134,28 +134,26 @@ export default function OperationsDashboard() {
     return () => { active = false; };
   }, [router]);
 
-  const selectTreatment = (id: string) => {
+  const selectTreatment = (index: number, id: string) => {
     const treatment = bootstrap?.treatments.find((item) => item.id === id);
-    setForm((current) => ({ ...current, treatmentId: id, originalPrice: treatment && treatment.defaultPrice > 0 ? String(treatment.defaultPrice) : '' }));
+    setForm((current) => ({ ...current, treatments: current.treatments.map((item, itemIndex) => itemIndex === index ? { ...item, treatmentId: id, originalPrice: treatment && treatment.defaultPrice > 0 ? String(treatment.defaultPrice) : '' } : item) }));
   };
 
   const submitOrder = async (event: React.FormEvent) => {
     event.preventDefault(); setError('');
-    const originalPrice = Number(form.originalPrice);
-    if (!form.treatmentId) { setError('Treatment wajib dipilih.'); return; }
-    if (!Number.isFinite(originalPrice) || originalPrice <= 0) { setError('Harga aktual wajib diisi lebih dari 0.'); return; }
+    if (form.treatments.some((item) => !item.treatmentId)) { setError('Semua treatment wajib dipilih.'); return; }
+    if (form.treatments.some((item) => !Number.isFinite(Number(item.originalPrice)) || Number(item.originalPrice) <= 0)) { setError('Harga aktual setiap treatment wajib diisi lebih dari 0.'); return; }
     const response = await fetch('/api/treatment-ops/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
     const data = await response.json();
     if (!response.ok) { setError(data.error || 'Gagal membuat order'); return; }
-    const url = `${window.location.origin}/treatment-ops/scan/${data.qrToken}`;
-    setQr({ orderNumber: data.order.orderNumber, url }); setShowForm(false); await load();
+    setQr(data.results.map((result: { order: OpsOrderView; qrToken: string }) => ({ orderNumber: result.order.orderNumber, url: `${window.location.origin}/treatment-ops/scan/${result.qrToken}` }))); setShowForm(false); await load();
   };
 
   const openQr = async (order: OpsOrderView) => {
     const response = await fetch(`/api/treatment-ops/orders/${order.id}/qr`, { method: 'POST' });
     const data = await response.json();
     if (!response.ok) { setError(data.error || 'Gagal membuat QR'); return; }
-    setQr({ orderNumber: order.orderNumber, url: `${window.location.origin}/treatment-ops/scan/${data.qrToken}` });
+    setQr([{ orderNumber: order.orderNumber, url: `${window.location.origin}/treatment-ops/scan/${data.qrToken}` }]);
   };
 
   const assign = async (actionId: string, staffId: string) => {
@@ -391,9 +389,7 @@ export default function OperationsDashboard() {
                 canEnterManual={canCreate}
               />
               <Field label="Dokter"><select value={form.doctorId} onChange={(e) => setForm({ ...form, doctorId: e.target.value })}><option value="">Tanpa dokter</option>{bootstrap.doctors.filter((item) => item.branchId === form.branchId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
-               <label className="block text-xs font-bold text-white/60">Treatment<TreatmentPicker treatments={bootstrap.treatments} value={form.treatmentId} onChange={selectTreatment} /></label>
-              <Field label="Harga aktual"><input required inputMode="numeric" value={form.originalPrice} onChange={(e) => setForm({ ...form, originalPrice: e.target.value })} /></Field>
-              <Field label="Diskon"><input inputMode="numeric" value={form.discountAmount} onChange={(e) => setForm({ ...form, discountAmount: e.target.value })} /></Field>
+               <div className="sm:col-span-2"><div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-white/60">Treatment</span><button type="button" onClick={() => setForm((current) => ({ ...current, treatments: [...current.treatments, { treatmentId: '', originalPrice: '', discountAmount: '0' }] }))} className="flex items-center gap-1 rounded-full border border-primary/40 px-3 py-1.5 text-[10px] font-bold text-primary hover:bg-primary hover:text-black"><Plus className="size-3" /> Tambah treatment</button></div><div className="space-y-3">{form.treatments.map((item, index) => <div key={index} className="rounded-2xl border border-white/10 bg-black/20 p-3"><div className="mb-3 flex items-center justify-between"><span className="text-[10px] font-bold text-primary">Treatment {index + 1}</span>{form.treatments.length > 1 && <button type="button" onClick={() => setForm((current) => ({ ...current, treatments: current.treatments.filter((_, itemIndex) => itemIndex !== index) }))} className="text-white/45 hover:text-red-300"><X className="size-4" /></button>}</div><label className="block text-xs font-bold text-white/60">Nama treatment<TreatmentPicker treatments={bootstrap.treatments} value={item.treatmentId} onChange={(id) => selectTreatment(index, id)} /></label><div className="mt-3 grid gap-3 sm:grid-cols-2"><Field label="Harga aktual"><input required inputMode="numeric" value={item.originalPrice} onChange={(e) => setForm((current) => ({ ...current, treatments: current.treatments.map((currentItem, itemIndex) => itemIndex === index ? { ...currentItem, originalPrice: e.target.value } : currentItem) }))} /></Field><Field label="Diskon"><input inputMode="numeric" value={item.discountAmount} onChange={(e) => setForm((current) => ({ ...current, treatments: current.treatments.map((currentItem, itemIndex) => itemIndex === index ? { ...currentItem, discountAmount: e.target.value } : currentItem) }))} /></Field></div></div>)}</div></div>
               <Field label="Catatan internal"><input value={form.internalNote} onChange={(e) => setForm({ ...form, internalNote: e.target.value })} placeholder="Opsional" /></Field>
             </div>
             <button className="mt-7 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-primary text-sm font-bold text-black transition hover:bg-primary-light"><Plus className="size-4" /> Buat order & QR</button>
@@ -403,11 +399,11 @@ export default function OperationsDashboard() {
 
       {qr && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="fo-glass-modal w-full max-w-sm rounded-[2rem] p-7 text-center">
-            <div className="mb-5 flex items-center justify-between"><span className="text-xs font-bold text-primary">{qr.orderNumber}</span><button onClick={() => setQr(null)}><X className="size-5" /></button></div>
-            <div className="mx-auto w-fit rounded-3xl bg-white p-4"><QRCodeCanvas value={qr.url} size={220} level="H" /></div>
-            <h3 className="font-playfair mt-5 text-xl font-bold">QR Order Treatment</h3>
-            <p className="mt-2 text-xs leading-5 text-white/50">Tampilkan QR ini kepada terapis. Jangan membagikannya di luar operasional klinik.</p>
+            <div className="fo-glass-modal max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] p-7 text-center">
+             <div className="mb-5 flex items-center justify-between"><span className="text-xs font-bold text-primary">{qr.length} order berhasil dibuat</span><button onClick={() => setQr(null)}><X className="size-5" /></button></div>
+             <div className="grid gap-5 sm:grid-cols-2">{qr.map((item) => <div key={item.orderNumber}><div className="mx-auto w-fit rounded-3xl bg-white p-4"><QRCodeCanvas value={item.url} size={200} level="H" /></div><p className="mt-3 text-xs font-bold text-primary">{item.orderNumber}</p></div>)}</div>
+             <h3 className="font-playfair mt-5 text-xl font-bold">QR Order Treatment</h3>
+             <p className="mt-2 text-xs leading-5 text-white/50">Tampilkan QR sesuai treatment kepada terapis. Jangan membagikannya di luar operasional klinik.</p>
           </div>
         </div>
       )}
