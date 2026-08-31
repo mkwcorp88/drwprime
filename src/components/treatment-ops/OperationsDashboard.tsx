@@ -23,6 +23,9 @@ const statusLabel: Record<string, string> = {
 };
 
 const money = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
+const schedule = (order: OpsOrderView) => order.scheduledAt
+  ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date(order.scheduledAt))
+  : new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeZone: 'Asia/Jakarta' }).format(new Date(order.visitDate));
 
 const roleLabel = (role: string) => (roleLabels as Record<string, string>)[role] ?? role;
 
@@ -96,7 +99,7 @@ export default function OperationsDashboard() {
   const [scanTarget, setScanTarget] = useState<{ actionId: string; actionName: string; operation: 'start' | 'complete' } | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
   const [busyAssign, setBusyAssign] = useState<string | null>(null);
-  const [form, setForm] = useState({ branchId: '', patientId: '', doctorId: '', visitDate: new Date().toISOString().slice(0, 10), treatments: [{ treatmentId: '', originalPrice: '', discountAmount: '0' }], internalNote: '' });
+  const [form, setForm] = useState({ branchId: '', patientId: '', doctorId: '', visitDate: new Date().toISOString().slice(0, 10), visitTime: '', treatments: [{ treatmentId: '', originalPrice: '', discountAmount: '0' }], internalNote: '' });
 
   const load = async () => {
     setLoading(true);
@@ -315,7 +318,7 @@ export default function OperationsDashboard() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{order.orderNumber}</h3><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${statusStyle[order.status] || 'bg-white/10 text-white/60'}`}>{statusLabel[order.status] || order.status}</span></div>
                   <p className="mt-2 text-lg font-semibold">{order.patientNameSnapshot} <span className="font-normal text-white/30">·</span> {order.treatmentNameSnapshot}</p>
-                  <p className="mt-1 text-xs text-white/45">{new Date(order.visitDate).toLocaleDateString('id-ID')} · {order.doctor?.name || 'Tanpa dokter'} · {money(order.finalPrice)}</p>
+                   <p className="mt-1 text-xs text-white/45">{schedule(order)} · {order.doctor?.name || 'Tanpa dokter'} · {money(order.finalPrice)}</p>
                 </div>
                 <button onClick={() => void openQr(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-primary/30 px-5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"><QrCode className="size-4" /> Tampilkan QR</button>
               </div>
@@ -380,7 +383,8 @@ export default function OperationsDashboard() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Cabang"><select required value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value, patientId: '' })}>{bootstrap.branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
-              <Field label="Tanggal kunjungan"><input required type="date" value={form.visitDate} onChange={(e) => setForm({ ...form, visitDate: e.target.value })} /></Field>
+               <Field label="Tanggal kunjungan"><input required type="date" value={form.visitDate} onChange={(e) => setForm({ ...form, visitDate: e.target.value })} /></Field>
+               <Field label="Jam kunjungan"><input required type="time" value={form.visitTime} onChange={(e) => setForm({ ...form, visitTime: e.target.value })} /></Field>
               <AidoPatientPicker
                 branchId={form.branchId}
                 localPatients={bootstrap.patients.filter((item) => item.branchId === form.branchId)}

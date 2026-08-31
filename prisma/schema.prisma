@@ -1056,6 +1056,7 @@ model OpsTreatmentOrder {
   doctorId              String?        @map("doctor_id")
   treatmentId           String         @map("treatment_id")
   visitDate             DateTime       @map("visit_date") @db.Date
+  scheduledAt           DateTime?      @map("scheduled_at") @db.Timestamptz(3)
   originalPrice         Decimal        @map("original_price") @db.Decimal(14, 2)
   discountAmount        Decimal        @default(0) @map("discount_amount") @db.Decimal(14, 2)
   finalPrice            Decimal        @map("final_price") @db.Decimal(14, 2)
@@ -1085,6 +1086,7 @@ model OpsTreatmentOrder {
   incentives  OpsIncentiveLedger[]
 
   @@index([branchId, visitDate, status])
+  @@index([branchId, scheduledAt])
   @@index([patientId, createdAt])
   @@map("ops_treatment_orders")
 }

@@ -8,6 +8,7 @@ type CreateOrderInput = {
   doctorId?: string | null;
   treatmentId: string;
   visitDate: Date;
+  scheduledAt: Date;
   originalPrice: number;
   discountAmount: number;
   internalNote?: string | null;
@@ -57,6 +58,7 @@ export async function createTreatmentOrder(actor: OpsStaff, input: CreateOrderIn
         doctorId: input.doctorId || null,
         treatmentId: input.treatmentId,
         visitDate: input.visitDate,
+        scheduledAt: input.scheduledAt,
         originalPrice: input.originalPrice,
         discountAmount: input.discountAmount,
         finalPrice: input.originalPrice - input.discountAmount,

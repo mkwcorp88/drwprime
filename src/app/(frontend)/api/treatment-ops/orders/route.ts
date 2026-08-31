@@ -39,9 +39,9 @@ export async function POST(request: Request) {
   try {
     const actor = await requireOpsStaff(ORDER_MANAGEMENT_ROLES);
     const body = await readJson(request);
-    const required = ['branchId', 'patientId', 'visitDate'];
+    const required = ['branchId', 'patientId', 'visitDate', 'visitTime'];
     if (required.some((field) => typeof body[field] !== 'string' || !body[field])) {
-      throw new OpsError(400, 'Cabang, pasien, dan tanggal kunjungan wajib diisi.');
+      throw new OpsError(400, 'Cabang, pasien, tanggal, dan jam kunjungan wajib diisi.');
     }
     const treatments = Array.isArray(body.treatments)
       ? body.treatments
@@ -54,8 +54,12 @@ export async function POST(request: Request) {
       patientId: body.patientId as string,
       doctorId: typeof body.doctorId === 'string' ? body.doctorId : null,
       visitDate: new Date(`${body.visitDate as string}T00:00:00+07:00`),
+      scheduledAt: new Date(`${body.visitDate as string}T${body.visitTime as string}:00+07:00`),
       internalNote: typeof body.internalNote === 'string' ? body.internalNote.trim() : null,
     };
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(body.visitTime as string) || Number.isNaN(shared.scheduledAt.getTime())) {
+      throw new OpsError(422, 'Jam kunjungan tidak valid.');
+    }
     const results = await Promise.all(treatments.map((item) => createTreatmentOrder(actor, {
       ...shared,
       treatmentId: item.treatmentId,

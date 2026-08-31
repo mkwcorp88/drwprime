@@ -36,6 +36,7 @@ export type OpsOrderView = {
   patientNameSnapshot: string;
   treatmentNameSnapshot: string;
   visitDate: string;
+  scheduledAt: string | null;
   finalPrice: number;
   status: string;
   patient?: { id: string; patientNumber: string; name: string };
