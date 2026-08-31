@@ -21,7 +21,7 @@ export async function createTreatmentOrder(actor: OpsStaff, input: CreateOrderIn
   if (actor.role !== 'SUPER_ADMIN' && actor.branchId !== input.branchId) {
     throw new OpsError(403, 'Tidak dapat membuat order untuk cabang lain.');
   }
-  if (!Number.isFinite(input.originalPrice) || input.originalPrice < 0) throw new OpsError(400, 'Harga tidak valid.');
+  if (!Number.isFinite(input.originalPrice) || input.originalPrice <= 0) throw new OpsError(400, 'Harga aktual harus lebih dari 0.');
   if (!Number.isFinite(input.discountAmount) || input.discountAmount < 0 || input.discountAmount > input.originalPrice) {
     throw new OpsError(400, 'Diskon tidak valid.');
   }
@@ -34,8 +34,8 @@ export async function createTreatmentOrder(actor: OpsStaff, input: CreateOrderIn
     }),
   ]);
   if (!patient || patient.branchId !== input.branchId) throw new OpsError(404, 'Pasien tidak ditemukan pada cabang ini.');
-  if (!treatment || !treatment.active || treatment.actionTemplates.length === 0) {
-    throw new OpsError(422, 'Treatment aktif beserta tahapannya tidak ditemukan.');
+  if (!treatment || treatment.actionTemplates.length === 0) {
+    throw new OpsError(422, 'Treatment beserta tahapan aktifnya tidak ditemukan.');
   }
 
   const token = createQrToken();

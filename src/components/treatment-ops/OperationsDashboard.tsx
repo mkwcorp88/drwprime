@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { CalendarDays, CheckCircle2, ClipboardCheck, Clock3, Phone, Play, Plus, QrCode, Sparkles, UserRound, UsersRound, WalletCards, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck, Clock3, Phone, Play, Plus, QrCode, Search, Sparkles, UserRound, UsersRound, WalletCards, X } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -136,11 +136,14 @@ export default function OperationsDashboard() {
 
   const selectTreatment = (id: string) => {
     const treatment = bootstrap?.treatments.find((item) => item.id === id);
-    setForm((current) => ({ ...current, treatmentId: id, originalPrice: treatment ? String(treatment.defaultPrice) : '' }));
+    setForm((current) => ({ ...current, treatmentId: id, originalPrice: treatment && treatment.defaultPrice > 0 ? String(treatment.defaultPrice) : '' }));
   };
 
   const submitOrder = async (event: React.FormEvent) => {
     event.preventDefault(); setError('');
+    const originalPrice = Number(form.originalPrice);
+    if (!form.treatmentId) { setError('Treatment wajib dipilih.'); return; }
+    if (!Number.isFinite(originalPrice) || originalPrice <= 0) { setError('Harga aktual wajib diisi lebih dari 0.'); return; }
     const response = await fetch('/api/treatment-ops/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
     const data = await response.json();
     if (!response.ok) { setError(data.error || 'Gagal membuat order'); return; }
@@ -388,7 +391,7 @@ export default function OperationsDashboard() {
                 canEnterManual={canCreate}
               />
               <Field label="Dokter"><select value={form.doctorId} onChange={(e) => setForm({ ...form, doctorId: e.target.value })}><option value="">Tanpa dokter</option>{bootstrap.doctors.filter((item) => item.branchId === form.branchId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
-              <Field label="Treatment"><select required value={form.treatmentId} onChange={(e) => selectTreatment(e.target.value)}><option value="">Pilih treatment</option>{bootstrap.treatments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
+               <label className="block text-xs font-bold text-white/60">Treatment<TreatmentPicker treatments={bootstrap.treatments} value={form.treatmentId} onChange={selectTreatment} /></label>
               <Field label="Harga aktual"><input required inputMode="numeric" value={form.originalPrice} onChange={(e) => setForm({ ...form, originalPrice: e.target.value })} /></Field>
               <Field label="Diskon"><input inputMode="numeric" value={form.discountAmount} onChange={(e) => setForm({ ...form, discountAmount: e.target.value })} /></Field>
               <Field label="Catatan internal"><input value={form.internalNote} onChange={(e) => setForm({ ...form, internalNote: e.target.value })} placeholder="Opsional" /></Field>
@@ -424,4 +427,96 @@ export default function OperationsDashboard() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="block text-xs font-bold text-white/60">{label}<div className="mt-1.5 [&>*]:h-11 [&>*]:w-full [&>*]:rounded-xl [&>*]:bg-black/30 [&>*]:px-3 [&>*]:text-sm [&>*]:text-white [&>*]:ring-1 [&>*]:ring-white/20 [&>*]:outline-none focus-within:[&>*]:ring-primary/60 [&>select>option]:bg-[#0a0a0a]">{children}</div></label>;
+}
+
+type TreatmentPickerProps = {
+  treatments: OpsBootstrap['treatments'];
+  value: string;
+  onChange: (id: string) => void;
+};
+
+function TreatmentPicker({ treatments, value, onChange }: TreatmentPickerProps) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const selected = treatments.find((item) => item.id === value);
+  const normalizedQuery = query.trim().toLocaleLowerCase('id-ID');
+  const filteredTreatments = treatments.filter((item) =>
+    [item.name, item.code, item.category || ''].some((field) => field.toLocaleLowerCase('id-ID').includes(normalizedQuery)),
+  );
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick);
+  }, [open]);
+
+  const chooseTreatment = (id: string) => {
+    onChange(id);
+    setQuery('');
+    setOpen(false);
+  };
+
+  return (
+    <div ref={pickerRef} className="relative mt-1.5">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex h-11 w-full items-center justify-between gap-3 rounded-xl bg-black/30 px-3 text-left text-sm text-white ring-1 ring-white/20 outline-none transition hover:ring-primary/50 focus:ring-primary/60"
+      >
+        <span className={selected ? 'truncate' : 'truncate text-white/50'}>{selected?.name || 'Pilih treatment'}</span>
+        <ChevronDown className={`size-4 shrink-0 text-white/45 transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+0.45rem)] z-30 overflow-hidden rounded-2xl border border-white/15 bg-[#121212] shadow-2xl shadow-black/50">
+          <div className="flex items-center gap-2 border-b border-white/10 px-3">
+            <Search className="size-4 shrink-0 text-white/40" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); }}
+              placeholder="Cari nama atau kode treatment"
+              aria-label="Cari treatment"
+              className="h-11 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
+            />
+          </div>
+          <div role="listbox" aria-label="Daftar treatment" className="max-h-64 overflow-y-auto p-1.5">
+            {filteredTreatments.length === 0 ? (
+              <p className="px-3 py-5 text-center text-xs text-white/40">Treatment tidak ditemukan.</p>
+            ) : filteredTreatments.map((item) => {
+              const priceReady = item.defaultPrice > 0;
+              const stepsReady = item.actionTemplates.length > 0;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="option"
+                  aria-selected={item.id === value}
+                  onClick={() => chooseTreatment(item.id)}
+                  className="flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-white/10 aria-selected:bg-primary/10"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-white">{item.name}</span>
+                    <span className="mt-0.5 block truncate text-[10px] text-white/45">
+                      {item.code}{item.category ? ` · ${item.category}` : ''} · {item.active ? 'Aktif' : 'Belum aktif'}
+                    </span>
+                    <span className={`mt-0.5 block text-[10px] ${priceReady && stepsReady ? 'text-emerald-300/70' : 'text-amber-300/80'}`}>
+                      {priceReady ? `Default ${money(item.defaultPrice)}` : 'Harga belum diatur'}{!stepsReady ? ' · Tahapan belum tersedia' : ''}
+                    </span>
+                  </span>
+                  {item.id === value && <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
