@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck, Clock3, Phone, Play, Plus, QrCode, Search, Sparkles, UserRound, UsersRound, WalletCards, X } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck, Clock3, Phone, Play, Plus, QrCode, Search, Sparkles, Trash2, UserRound, UsersRound, WalletCards, X } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -179,6 +179,22 @@ export default function OperationsDashboard() {
     await load();
   };
 
+  const removeOrder = async (order: OpsOrderView) => {
+    const confirmed = window.confirm(`Batalkan order ${order.orderNumber} untuk ${order.patientNameSnapshot}?`);
+    if (!confirmed) return;
+    const reason = window.prompt('Masukkan alasan pembatalan order:');
+    if (reason === null) return;
+    if (reason.trim().length < 2) { setError('Alasan pembatalan wajib diisi.'); return; }
+    setError(''); setBusyAssign(order.id);
+    try {
+      const response = await fetch(`/api/treatment-ops/orders/${order.id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: reason.trim() }) });
+      const data = await response.json();
+      if (!response.ok) { setError(data.error || 'Order tidak dapat dibatalkan.'); return; }
+      await load();
+    } catch { setError('Gagal membatalkan order.'); }
+    finally { setBusyAssign(null); }
+  };
+
   const staffForAction = (action: OpsActionView) =>
     bootstrap?.assignableStaff.filter((staff) => !action.requiredRoleSnapshot || staff.role === action.requiredRoleSnapshot) || [];
 
@@ -320,7 +336,7 @@ export default function OperationsDashboard() {
                   <p className="mt-2 text-lg font-semibold">{order.patientNameSnapshot} <span className="font-normal text-white/30">·</span> {order.treatmentNameSnapshot}</p>
                    <p className="mt-1 text-xs text-white/45">{schedule(order)} · {order.doctor?.name || 'Tanpa dokter'} · {money(order.finalPrice)}</p>
                 </div>
-                <button onClick={() => void openQr(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-primary/30 px-5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"><QrCode className="size-4" /> Tampilkan QR</button>
+               <div className="flex flex-wrap gap-2"><button onClick={() => void openQr(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-primary/30 px-5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"><QrCode className="size-4" /> Tampilkan QR</button>{canCreate && ['CREATED', 'ASSIGNED'].includes(order.status) && order.actions.every((action) => ['PENDING', 'ASSIGNED'].includes(action.status)) && <button disabled={busyAssign === order.id} onClick={() => void removeOrder(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-red-400/30 px-4 text-xs font-bold text-red-300 transition hover:bg-red-500 hover:text-white disabled:opacity-50"><Trash2 className="size-4" /> Hapus</button>}</div>
               </div>
               <div className="p-5">
                 <div className="mb-4 flex items-center gap-3">
