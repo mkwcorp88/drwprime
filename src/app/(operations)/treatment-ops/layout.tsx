@@ -3,7 +3,11 @@ import TreatmentOpsShell from '@/components/treatment-ops/TreatmentOpsShell';
 import { getOpsStaff } from '@/lib/treatment-operations/auth';
 
 export const metadata: Metadata = {
-  title: 'Operasional Treatment DRW Prime',
+  title: 'Treatment Flow DRW Prime',
+  manifest: '/treatment-ops-manifest.json',
+  applicationName: 'DRW Prime Treatment Flow',
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Treatment Flow' },
+  icons: { apple: '/apple-touch-icon-180.png' },
   robots: { index: false, follow: false },
 };
 

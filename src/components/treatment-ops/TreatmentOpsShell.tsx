@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { OpsRole } from '@prisma/client';
 import { BarChart3, ClipboardPlus, FlaskConical, Gauge, IdCard, LogOut, QrCode, Settings, UserCog, WalletCards } from 'lucide-react';
 import { REPORT_ROLES } from '@/lib/treatment-operations/constants';
+import { OpsPwaInstall } from './OpsPwaInstall';
 
 const links = [
   { href: '/treatment-ops', label: 'Operasional', icon: Gauge, roles: null },
@@ -74,7 +75,7 @@ export default function TreatmentOpsShell({ children, staff }: { children: React
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 pb-28 pt-4 sm:px-6 sm:pb-10 sm:pt-6">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 pb-28 pt-4 sm:px-6 sm:pb-10 sm:pt-6"><OpsPwaInstall />{children}</main>
       <nav className="fixed inset-x-0 bottom-2 z-40 px-3 pb-[max(0.35rem,env(safe-area-inset-bottom))] md:hidden">
         <div className="mobile-tabbar mx-auto max-w-xl rounded-[1.7rem]">
           <div className="scrollbar-hide flex snap-x gap-1 overflow-x-auto px-1.5 py-1.5">
