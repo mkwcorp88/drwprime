@@ -92,14 +92,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const actions = body.actions !== undefined ? parseActions(body.actions) : null;
 
-    const treatment = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       if (actions) {
         await tx.opsTreatmentActionTemplate.deleteMany({ where: { treatmentId: id } });
         await tx.opsTreatmentActionTemplate.createMany({
           data: actions.map((action) => ({ ...action, treatmentId: id })),
         });
       }
-      const updated = await tx.opsTreatment.update({ where: { id }, data: update });
+      await tx.opsTreatment.update({ where: { id }, data: update });
       await tx.opsAuditLog.create({
         data: {
           actorUserId: actor.id,
@@ -110,7 +110,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           afterData: { name: update.name ?? existing.name, actions: actions?.length ?? undefined },
         },
       });
-      return updated;
     });
 
     const fresh = await prisma.opsTreatment.findUnique({
@@ -120,5 +119,44 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json(serialize({ treatment: fresh }));
   } catch (error) {
     return handleOpsError(error, 'update treatment');
+  }
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const actor = await requireOpsStaff(['SUPER_ADMIN']);
+    const { id } = await params;
+    const body = await readJson(request);
+    const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+    if (reason.length < 2 || reason.length > 240) {
+      throw new OpsError(422, 'Alasan penghapusan wajib diisi (2-240 karakter).');
+    }
+
+    const treatment = await prisma.opsTreatment.findUnique({
+      where: { id },
+      include: { _count: { select: { orders: true } } },
+    });
+    if (!treatment) throw new OpsError(404, 'Treatment tidak ditemukan.');
+    if (treatment._count.orders > 0) {
+      throw new OpsError(409, 'Treatment sudah pernah digunakan pada order dan tidak dapat dihapus. Nonaktifkan treatment ini agar riwayat tetap aman.');
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.opsTreatmentActionTemplate.deleteMany({ where: { treatmentId: id } });
+      await tx.opsTreatment.delete({ where: { id } });
+      await tx.opsAuditLog.create({
+        data: {
+          actorUserId: actor.id,
+          entityType: 'TREATMENT',
+          entityId: id,
+          action: 'DELETE',
+          reason,
+          afterData: { code: treatment.code, name: treatment.name },
+        },
+      });
+    });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return handleOpsError(error, 'delete treatment');
   }
 }

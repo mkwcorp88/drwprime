@@ -128,6 +128,35 @@ export default function TreatmentManagement() {
     });
   };
 
+  const removeTreatment = async (treatment: OpsTreatmentView) => {
+    const confirmed = window.confirm(`Hapus treatment "${treatment.name}"? Tindakan ini tidak dapat dibatalkan.`);
+    if (!confirmed) return;
+    const reason = window.prompt('Masukkan alasan penghapusan treatment:');
+    if (reason === null) return;
+    if (reason.trim().length < 2) {
+      setError('Alasan penghapusan wajib diisi.');
+      return;
+    }
+    setError(''); setNotice(''); setBusy(true);
+    try {
+      const response = await fetch(`/api/treatment-ops/treatments/${treatment.id}`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: reason.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) router.replace('/treatment-ops/login');
+        setError(data.error || 'Treatment tidak dapat dihapus.');
+        return;
+      }
+      setNotice(`Treatment "${treatment.name}" berhasil dihapus.`);
+      await load();
+    } catch {
+      setError('Gagal menghapus treatment.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(''); setNotice('');
@@ -206,7 +235,10 @@ export default function TreatmentManagement() {
                     : 'Fee belum tersedia'}
                 </p>
               </div>
-              <button onClick={() => openEdit(treatment)} className="flex h-10 shrink-0 items-center gap-2 rounded-full border border-primary/35 px-4 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"><Pencil className="size-3.5" /> Edit</button>
+              <div className="flex shrink-0 items-center gap-2">
+                <button onClick={() => openEdit(treatment)} className="flex h-10 items-center gap-2 rounded-full border border-primary/35 px-4 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"><Pencil className="size-3.5" /> Edit</button>
+                <button disabled={busy} onClick={() => void removeTreatment(treatment)} aria-label={`Hapus ${treatment.name}`} className="flex size-10 items-center justify-center rounded-full border border-red-400/30 text-red-300 transition hover:bg-red-500 hover:text-white disabled:opacity-50"><Trash2 className="size-4" /></button>
+              </div>
             </div>
             <div className="mt-4 space-y-1.5">
               {treatment.actionTemplates.map((action) => (
