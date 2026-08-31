@@ -58,7 +58,7 @@ export function OpsPwaInstall() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-primary"><Sparkles className="size-3" /> Akses lebih cepat</p>
-          <h2 className="mt-1 text-base font-bold text-white sm:text-lg">Pasang Treatment Flow di HP</h2>
+          <h2 className="mt-1 text-base font-bold text-white sm:text-lg">Pasang DRWPRIME HUB di HP</h2>
           <p className="mt-1 text-xs leading-5 text-white/65">Buka seperti aplikasi, langsung dari layar utama perangkat Anda.</p>
         </div>
         {installPrompt && <button type="button" onClick={() => void install()} className="flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-black shadow-[0_8px_20px_rgba(212,175,55,0.25)] transition hover:bg-primary-light"><Download className="size-4" /> Install</button>}

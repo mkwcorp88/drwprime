@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { OpsRole } from '@prisma/client';
-import { BarChart3, ClipboardPlus, FlaskConical, Gauge, IdCard, LogOut, QrCode, Settings, UserCog, WalletCards } from 'lucide-react';
+import { BarChart3, FlaskConical, Gauge, IdCard, LogOut, QrCode, Settings, UserCog, WalletCards } from 'lucide-react';
 import { REPORT_ROLES } from '@/lib/treatment-operations/constants';
 import { OpsPwaInstall } from './OpsPwaInstall';
 
@@ -29,13 +29,11 @@ export default function TreatmentOpsShell({ children, staff }: { children: React
     <div className="fo-glass-page min-h-screen text-white">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#07090d]/80 shadow-[0_8px_30px_rgba(0,0,0,0.16)] backdrop-blur-2xl backdrop-saturate-150">
         <div className="mx-auto flex h-[4.25rem] max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
-          <Link href="/treatment-ops" className="flex items-center gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-[1.1rem] border border-primary/40 bg-primary/10 text-primary shadow-[0_0_20px_rgba(212,175,55,0.25)]">
-              <ClipboardPlus className="size-5" />
-            </span>
-            <span className="min-w-0">
-              <strong className="block truncate text-sm tracking-[0.12em]">DRW PRIME</strong>
-              <span className="block truncate text-[9px] uppercase tracking-[0.18em] text-primary/60">Treatment Flow</span>
+            <Link href="/treatment-ops" className="flex items-center gap-3">
+              <img src="/drwprime-hub-logo.png" alt="DRWPRIME HUB" className="size-10 shrink-0 rounded-[0.9rem] object-cover ring-1 ring-primary/40 shadow-[0_0_20px_rgba(212,175,55,0.25)]" />
+              <span className="min-w-0">
+                <strong className="block truncate text-sm tracking-[0.12em]">DRWPRIME HUB</strong>
+                <span className="block truncate text-[9px] uppercase tracking-[0.18em] text-primary/60">Treatment Operations</span>
             </span>
           </Link>
 

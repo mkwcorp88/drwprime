@@ -1,7 +1,7 @@
 {
-  "name": "DRW Prime Treatment Flow",
-  "short_name": "Treatment Flow",
-  "description": "Operasional treatment DRW Prime untuk staf klinik.",
+  "name": "DRWPRIME HUB",
+  "short_name": "DRWPRIME HUB",
+  "description": "Hub operasional treatment DRW Prime untuk staf klinik.",
   "start_url": "/treatment-ops",
   "scope": "/treatment-ops/",
   "display": "standalone",
@@ -9,14 +9,14 @@
   "theme_color": "#d4af37",
   "icons": [
     {
-      "src": "/icon-192x192.png",
-      "sizes": "192x192",
+      "src": "/drwprime-hub-logo.png",
+      "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
+      "src": "/drwprime-hub-logo.png",
+      "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
     }
