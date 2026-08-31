@@ -20,6 +20,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:treatment-ops": "tsx prisma/seed-treatment-ops.ts",
     "ops:bootstrap-admin": "tsx prisma/bootstrap-treatment-ops-admin.ts",
+    "ops:sync-public-treatments": "tsx prisma/sync-public-treatments-to-ops.ts",
     "ops:import-md": "tsx prisma/import-ops-md.ts",
     "ops:import-fee": "tsx prisma/import-fee-master.ts",
     "ops:import-protocols": "tsx prisma/import-protocols.ts",
