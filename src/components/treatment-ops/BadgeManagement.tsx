@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BadgeCheck, IdCard, Printer, X } from 'lucide-react';
+import { BadgeCheck, IdCard, Printer, Trash2, X } from 'lucide-react';
 import StaffIdCard from '@/components/treatment-ops/StaffIdCard';
 
 type StaffRow = {
@@ -91,6 +91,26 @@ export default function BadgeManagementPage() {
     } finally { setBusyId(''); }
   };
 
+  const removeBadge = async (member: StaffRow) => {
+    const confirmed = window.confirm(`Hapus kartu ID ${member.name}? Barcode kartu tidak akan dapat digunakan lagi.`);
+    if (!confirmed) return;
+    const reason = window.prompt('Masukkan alasan penghapusan kartu:');
+    if (reason === null) return;
+    if (reason.trim().length < 2) { setError('Alasan penghapusan kartu wajib diisi.'); return; }
+    setBusyId(member.id); setError('');
+    try {
+      const response = await fetch(`/api/treatment-ops/staff/${member.id}/badge`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: reason.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Kartu tidak dapat dihapus');
+      if (issued?.staffId === member.id) setIssued(null);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Kartu tidak dapat dihapus');
+    } finally { setBusyId(''); }
+  };
+
   if (loading) return <div className="py-24 text-center text-sm text-white/50">Memuat daftar staf...</div>;
   return (
     <div>
@@ -118,13 +138,10 @@ export default function BadgeManagementPage() {
               {member.badgeIssuedAt ? `Kartu diterbitkan ${new Date(member.badgeIssuedAt).toLocaleDateString('id-ID')}` : 'Belum ada kartu'}
             </div>
             {member.badgeIssuedAt ? (
-              <button
-                disabled={busyId === member.id}
-                onClick={() => void viewBadge(member.id)}
-                className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary text-xs font-bold text-black transition hover:bg-primary-light disabled:opacity-40"
-              >
-                <IdCard className="size-4" /> {busyId === member.id ? 'Memuat...' : 'Lihat / Download ID Card'}
-              </button>
+              <div className="mt-4 flex gap-2">
+                <button disabled={busyId === member.id} onClick={() => void viewBadge(member.id)} className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-xs font-bold text-black transition hover:bg-primary-light disabled:opacity-40"><IdCard className="size-4" /> {busyId === member.id ? 'Memuat...' : 'Lihat / Download ID Card'}</button>
+                <button disabled={busyId === member.id} onClick={() => void removeBadge(member)} aria-label={`Hapus kartu ${member.name}`} className="flex size-11 items-center justify-center rounded-full border border-red-400/30 text-red-300 transition hover:bg-red-500 hover:text-white disabled:opacity-40"><Trash2 className="size-4" /></button>
+              </div>
             ) : (
               <button
                 disabled={busyId === member.id || !member.active}
