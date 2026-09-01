@@ -25,7 +25,7 @@ type Issued = {
 };
 
 const roleLabel: Record<string, string> = {
-  SUPER_ADMIN: 'Super Admin', MANAGEMENT: 'Manajemen', FRONT_OFFICE: 'Front Office',
+  SUPER_ADMIN: 'Super Admin', FINANCE: 'Finance', MANAGEMENT: 'Manajemen', FRONT_OFFICE: 'Front Office',
   SUPERVISOR: 'Supervisor', THERAPIST: 'Terapis', DOCTOR: 'Dokter',
 };
 

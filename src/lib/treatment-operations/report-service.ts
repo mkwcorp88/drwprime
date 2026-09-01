@@ -1,11 +1,12 @@
 import type { OpsStaff } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { jakartaDateKey } from './utils';
+import { GLOBAL_REPORT_ROLES } from './constants';
 
 type Range = { start: Date; end: Date };
 
 export async function buildSummaryReport(actor: OpsStaff, range: Range) {
-  const branchFilter = actor.role === 'SUPER_ADMIN' ? {} : { branchId: actor.branchId || '' };
+  const branchFilter = GLOBAL_REPORT_ROLES.includes(actor.role) ? {} : { branchId: actor.branchId || '' };
   const orders = await prisma.opsTreatmentOrder.findMany({
     where: { ...branchFilter, createdAt: { gte: range.start, lt: range.end } },
     include: {

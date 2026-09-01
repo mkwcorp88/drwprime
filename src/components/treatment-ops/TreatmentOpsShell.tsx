@@ -8,11 +8,11 @@ import { REPORT_ROLES } from '@/lib/treatment-operations/constants';
 import { OpsPwaInstall } from './OpsPwaInstall';
 
 const links = [
-  { href: '/treatment-ops', label: 'Operasional', icon: Gauge, roles: null },
-  { href: '/treatment-ops/scan', label: 'Scan QR', icon: QrCode, roles: null },
+  { href: '/treatment-ops', label: 'Operasional', icon: Gauge, roles: ['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR', 'THERAPIST', 'DOCTOR', 'APOTEKER', 'ASISTEN_APOTEKER', 'PERAWAT'] as OpsRole[] },
+  { href: '/treatment-ops/scan', label: 'Scan QR', icon: QrCode, roles: ['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR', 'THERAPIST', 'DOCTOR', 'APOTEKER', 'ASISTEN_APOTEKER', 'PERAWAT'] as OpsRole[] },
   { href: '/treatment-ops/badges', label: 'Kartu', icon: IdCard, roles: ['SUPER_ADMIN', 'MANAGEMENT'] as OpsRole[] },
   { href: '/treatment-ops/report', label: 'Report', icon: BarChart3, roles: REPORT_ROLES },
-  { href: '/treatment-ops/incentives', label: 'Insentif', icon: WalletCards, roles: null },
+  { href: '/treatment-ops/incentives', label: 'Insentif', icon: WalletCards, roles: ['SUPER_ADMIN', 'FINANCE', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR', 'THERAPIST', 'DOCTOR', 'APOTEKER', 'ASISTEN_APOTEKER', 'PERAWAT'] as OpsRole[] },
   { href: '/treatment-ops/treatments', label: 'Treatment', icon: FlaskConical, roles: ['SUPER_ADMIN'] as OpsRole[] },
   { href: '/treatment-ops/staff', label: 'Staf', icon: UserCog, roles: ['SUPER_ADMIN'] as OpsRole[] },
   { href: '/treatment-ops/settings', label: 'Pengaturan', icon: Settings, roles: null },

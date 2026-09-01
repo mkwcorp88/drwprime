@@ -2,6 +2,7 @@ import type { OpsManualPatientReason, OpsRole } from '@prisma/client';
 
 export const OPS_ROLES = [
   'SUPER_ADMIN',
+  'FINANCE',
   'MANAGEMENT',
   'FRONT_OFFICE',
   'SUPERVISOR',
@@ -27,10 +28,13 @@ export const manualPatientReasonLabels: Record<ManualPatientReasonCode, string> 
   AIDO_DATA_MISMATCH: 'Data AIDO tidak sesuai',
   OTHER: 'Lainnya',
 };
-export const REPORT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR'];
+export const REPORT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'FINANCE', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR'];
+export const INCENTIVE_MANAGEMENT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'FINANCE'];
+export const GLOBAL_REPORT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'FINANCE'];
 
 export const roleLabels: Record<OpsRole, string> = {
   SUPER_ADMIN: 'Super Admin',
+  FINANCE: 'Finance',
   MANAGEMENT: 'Manajemen',
   FRONT_OFFICE: 'Front Office',
   SUPERVISOR: 'Supervisor',

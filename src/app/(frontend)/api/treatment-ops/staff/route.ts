@@ -55,8 +55,9 @@ export async function POST(request: Request) {
     if (!OPS_ROLES.includes(body.role as OpsRole)) throw new OpsError(422, 'Role staf tidak valid.');
 
     const role = body.role as OpsRole;
-    const branchId = typeof body.branchId === 'string' && body.branchId.trim() ? body.branchId.trim() : null;
-    if (role !== 'SUPER_ADMIN' && !branchId) throw new OpsError(422, 'Cabang wajib dipilih untuk role ini.');
+    const requestedBranchId = typeof body.branchId === 'string' && body.branchId.trim() ? body.branchId.trim() : null;
+    const branchId = ['SUPER_ADMIN', 'FINANCE'].includes(role) ? null : requestedBranchId;
+    if (!['SUPER_ADMIN', 'FINANCE'].includes(role) && !branchId) throw new OpsError(422, 'Cabang wajib dipilih untuk role ini.');
 
     if (branchId) {
       const branch = await prisma.opsBranch.findFirst({ where: { id: branchId, active: true }, select: { id: true } });

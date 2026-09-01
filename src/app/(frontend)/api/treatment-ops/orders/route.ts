@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireOpsStaff } from '@/lib/treatment-operations/auth';
-import { ORDER_MANAGEMENT_ROLES } from '@/lib/treatment-operations/constants';
+import { ORDER_MANAGEMENT_ROLES, OPS_ROLES } from '@/lib/treatment-operations/constants';
 import { handleOpsError, readJson } from '@/lib/treatment-operations/http';
 import { createTreatmentOrder } from '@/lib/treatment-operations/order-service';
 import { OpsError, serialize } from '@/lib/treatment-operations/utils';
 
 export async function GET(request: Request) {
   try {
-    const actor = await requireOpsStaff();
+    const actor = await requireOpsStaff(OPS_ROLES.filter((role) => role !== 'FINANCE'));
     const status = new URL(request.url).searchParams.get('status');
     const orders = await prisma.opsTreatmentOrder.findMany({
       where: {

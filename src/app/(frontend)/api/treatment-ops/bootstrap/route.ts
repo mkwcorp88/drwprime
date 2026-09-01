@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireOpsStaff } from '@/lib/treatment-operations/auth';
+import { OPS_ROLES } from '@/lib/treatment-operations/constants';
 import { handleOpsError } from '@/lib/treatment-operations/http';
 import { serialize } from '@/lib/treatment-operations/utils';
 
 export async function GET() {
   try {
-    const staff = await requireOpsStaff();
+    const staff = await requireOpsStaff(OPS_ROLES.filter((role) => role !== 'FINANCE'));
     const branchWhere = staff.role === 'SUPER_ADMIN' ? {} : { id: staff.branchId || '' };
     const staffBranch = staff.branchId
       ? await prisma.opsBranch.findUnique({ where: { id: staff.branchId }, select: { id: true, name: true } })

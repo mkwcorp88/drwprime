@@ -21,6 +21,7 @@ type StaffRow = {
 };
 
 const roles = [
+  ['FINANCE', 'Finance'],
   ['MANAGEMENT', 'Manajemen'],
   ['FRONT_OFFICE', 'Front Office'],
   ['SUPERVISOR', 'Supervisor'],
@@ -131,7 +132,7 @@ export default function StaffManagement() {
           <Field label="Nama lengkap"><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="Email login"><input required type="email" autoComplete="off" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nama@drwprime.com" /></Field>
           <Field label="Role"><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>{roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
-          <Field label="Cabang"><select required={form.role !== 'SUPER_ADMIN'} value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}><option value="">Tanpa cabang</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></Field>
+          <Field label="Cabang"><select required={!['SUPER_ADMIN', 'FINANCE'].includes(form.role)} value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}><option value="">{['SUPER_ADMIN', 'FINANCE'].includes(form.role) ? 'Semua cabang' : 'Pilih cabang'}</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></Field>
           <div className="hidden lg:block" />
           <Field label="Password awal"><PasswordInput value={form.password} onChange={(value) => setForm({ ...form, password: value })} autoComplete="new-password" /></Field>
           <Field label="Konfirmasi password"><PasswordInput value={form.confirmation} onChange={(value) => setForm({ ...form, confirmation: value })} autoComplete="new-password" /></Field>

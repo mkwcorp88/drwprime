@@ -778,6 +778,7 @@ model SeoAuditRun {
 // records are immutable snapshots and must survive catalog/profile changes.
 enum OpsRole {
   SUPER_ADMIN
+  FINANCE
   MANAGEMENT
   FRONT_OFFICE
   SUPERVISOR

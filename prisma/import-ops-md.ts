@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
 const ROLE_ALIASES: Record<string, OpsRole> = {
   SUPER_ADMIN: 'SUPER_ADMIN',
   'SUPER ADMIN': 'SUPER_ADMIN',
+  FINANCE: 'FINANCE',
   MANAGEMENT: 'MANAGEMENT',
   MANAJEMEN: 'MANAGEMENT',
   FRONT_OFFICE: 'FRONT_OFFICE',
