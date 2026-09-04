@@ -906,9 +906,28 @@ model OpsStaff {
   sessions           OpsSession[]
   doctorProfile      OpsDoctor?
   approvedProtocols  OpsTreatmentProtocol[] @relation("OpsProtocolApprover")
+  dayOffs            OpsStaffDayOff[]       @relation("OpsStaffDayOffStaff")
+  createdDayOffs     OpsStaffDayOff[]       @relation("OpsStaffDayOffCreator")
 
   @@index([branchId, role, active])
   @@map("ops_staff")
+}
+
+model OpsStaffDayOff {
+  id          String   @id @default(cuid())
+  staffId     String   @map("staff_id")
+  date        DateTime @db.Date
+  note        String?  @db.VarChar(240)
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  staff     OpsStaff @relation("OpsStaffDayOffStaff", fields: [staffId], references: [id], onDelete: Cascade)
+  createdBy OpsStaff @relation("OpsStaffDayOffCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([staffId, date])
+  @@index([date])
+  @@map("ops_staff_day_offs")
 }
 
 model OpsSession {

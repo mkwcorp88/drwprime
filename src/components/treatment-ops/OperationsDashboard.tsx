@@ -8,8 +8,9 @@ import Link from 'next/link';
 import AidoPatientPicker from '@/components/treatment-ops/AidoPatientPicker';
 import BadgeScannerModal from '@/components/treatment-ops/BadgeScannerModal';
 import { ORDER_MANAGEMENT_ROLES, roleLabels } from '@/lib/treatment-operations/constants';
+import { dateKeyFromDate } from '@/lib/treatment-operations/date';
 import { formatPhone } from '@/lib/phone';
-import type { OpsActionView, OpsBootstrap, OpsOrderView } from '@/types/treatment-operations';
+import type { OpsActionView, OpsBootstrap, OpsOrderView, OpsStaffDayOffSummary } from '@/types/treatment-operations';
 
 const statusStyle: Record<string, string> = {
   CREATED: 'bg-sky-400/15 text-sky-300', ASSIGNED: 'bg-indigo-400/15 text-indigo-300',
@@ -92,6 +93,7 @@ export default function OperationsDashboard() {
   const router = useRouter();
   const [bootstrap, setBootstrap] = useState<OpsBootstrap | null>(null);
   const [orders, setOrders] = useState<OpsOrderView[]>([]);
+  const [staffDayOffs, setStaffDayOffs] = useState<OpsStaffDayOffSummary[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -99,7 +101,7 @@ export default function OperationsDashboard() {
   const [scanTarget, setScanTarget] = useState<{ actionId: string; actionName: string; operation: 'start' | 'complete' } | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
   const [busyAssign, setBusyAssign] = useState<string | null>(null);
-  const [form, setForm] = useState({ branchId: '', patientId: '', doctorId: '', visitDate: new Date().toISOString().slice(0, 10), visitTime: '', treatments: [{ treatmentId: '', originalPrice: '', discountAmount: '0' }], internalNote: '' });
+  const [form, setForm] = useState({ branchId: '', patientId: '', doctorId: '', visitDate: dateKeyFromDate(new Date()), visitTime: '', treatments: [{ treatmentId: '', originalPrice: '', discountAmount: '0' }], internalNote: '' });
 
   const load = async () => {
     setLoading(true);
@@ -111,9 +113,10 @@ export default function OperationsDashboard() {
       if (boot.code === 'PASSWORD_CHANGE_REQUIRED') { router.replace('/treatment-ops/settings'); return; }
       if (!bootstrapResponse.ok) throw new Error(boot.error);
       if (!ordersResponse.ok) throw new Error(orderData.error);
-      setBootstrap(boot);
-      setOrders(orderData.orders);
-      setForm((current) => ({ ...current, branchId: current.branchId || boot.staff.branchId || boot.branches[0]?.id || '' }));
+       setBootstrap(boot);
+       setOrders(orderData.orders);
+       setStaffDayOffs(orderData.staffDayOffs || []);
+       setForm((current) => ({ ...current, branchId: current.branchId || boot.staff.branchId || boot.branches[0]?.id || '' }));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Gagal memuat data');
     } finally { setLoading(false); }
@@ -129,9 +132,10 @@ export default function OperationsDashboard() {
       if (boot.code === 'PASSWORD_CHANGE_REQUIRED') { router.replace('/treatment-ops/settings'); return; }
       if (!bootstrapResponse.ok) { setError(boot.error); setLoading(false); return; }
       if (!ordersResponse.ok) { setError(orderData.error); setLoading(false); return; }
-      setBootstrap(boot);
-      setOrders(orderData.orders);
-      setForm((current) => ({ ...current, branchId: current.branchId || boot.staff.branchId || boot.branches[0]?.id || '' }));
+       setBootstrap(boot);
+       setOrders(orderData.orders);
+       setStaffDayOffs(orderData.staffDayOffs || []);
+       setForm((current) => ({ ...current, branchId: current.branchId || boot.staff.branchId || boot.branches[0]?.id || '' }));
       setLoading(false);
     });
     return () => { active = false; };
@@ -195,8 +199,15 @@ export default function OperationsDashboard() {
     finally { setBusyAssign(null); }
   };
 
-  const staffForAction = (action: OpsActionView) =>
-    bootstrap?.assignableStaff.filter((staff) => !action.requiredRoleSnapshot || staff.role === action.requiredRoleSnapshot) || [];
+  const isStaffDayOff = (staffId: string, visitDate: string) => staffDayOffs.some(
+    (dayOff) => dayOff.staffId === staffId && dayOff.date === dateKeyFromDate(visitDate),
+  );
+
+  const staffForAction = (action: OpsActionView, order: OpsOrderView) =>
+    bootstrap?.assignableStaff.filter((staff) =>
+      (!action.requiredRoleSnapshot || staff.role === action.requiredRoleSnapshot) &&
+      (staff.id === action.assignedTherapistId || !isStaffDayOff(staff.id, order.visitDate)),
+    ) || [];
 
   const canCreate = Boolean(bootstrap && ORDER_MANAGEMENT_ROLES.includes(bootstrap.staff.role));
   const canAssign = Boolean(bootstrap && ['SUPER_ADMIN', 'SUPERVISOR'].includes(bootstrap.staff.role));
@@ -208,8 +219,8 @@ export default function OperationsDashboard() {
     : [];
   const dashboardOrders = isPersonalRole ? personalOrders : orders;
   const personalActions = personalOrders.flatMap((order) => order.actions.filter((action) => action.assignedTherapistId === bootstrap?.staff.id || action.performedByTherapistId === bootstrap?.staff.id));
-  const todayKey = new Date().toDateString();
-  const todayPersonalActions = personalOrders.flatMap((order) => new Date(order.visitDate).toDateString() === todayKey
+   const todayKey = dateKeyFromDate(new Date());
+   const todayPersonalActions = personalOrders.flatMap((order) => dateKeyFromDate(order.visitDate) === todayKey
     ? order.actions.filter((action) => action.assignedTherapistId === bootstrap?.staff.id || action.performedByTherapistId === bootstrap?.staff.id)
     : []);
   const personalIncentive = personalActions
@@ -334,7 +345,7 @@ export default function OperationsDashboard() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{order.orderNumber}</h3><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${statusStyle[order.status] || 'bg-white/10 text-white/60'}`}>{statusLabel[order.status] || order.status}</span></div>
                   <p className="mt-2 text-lg font-semibold">{order.patientNameSnapshot} <span className="font-normal text-white/30">·</span> {order.treatmentNameSnapshot}</p>
-                   <p className="mt-1 text-xs text-white/45">{schedule(order)} · {order.doctor?.name || 'Tanpa dokter'} · {money(order.finalPrice)}</p>
+                    <p className="mt-1 text-xs text-white/45">{schedule(order)} · {order.doctor?.name || 'Tanpa dokter'} · {money(order.finalPrice)}</p>
                 </div>
                <div className="flex flex-wrap gap-2"><button onClick={() => void openQr(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-primary/30 px-5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"><QrCode className="size-4" /> Tampilkan QR</button>{canCreate && ['CREATED', 'ASSIGNED'].includes(order.status) && order.actions.every((action) => ['PENDING', 'ASSIGNED'].includes(action.status)) && <button disabled={busyAssign === order.id} onClick={() => void removeOrder(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-red-400/30 px-4 text-xs font-bold text-red-300 transition hover:bg-red-500 hover:text-white disabled:opacity-50"><Trash2 className="size-4" /> Hapus</button>}</div>
               </div>
@@ -348,7 +359,7 @@ export default function OperationsDashboard() {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-white/45">Assign semua ke</span>
                     <select value="" onChange={(event) => event.target.value && void assignAll(order, event.target.value)} className="rounded-xl border border-white/15 bg-black/40 px-2 py-1.5 text-[10px] text-white outline-none focus:border-primary/60">
                       <option value="">Pilih eksekutor</option>
-                      {bootstrap?.assignableStaff.map((staff) => <option key={staff.id} value={staff.id}>{staff.name} · {roleLabel(staff.role)}</option>)}
+                      {bootstrap?.assignableStaff.filter((staff) => !isStaffDayOff(staff.id, order.visitDate)).map((staff) => <option key={staff.id} value={staff.id}>{staff.name} · {roleLabel(staff.role)}</option>)}
                     </select>
                     {busyAssign === order.id && <span className="text-[10px] text-white/45">Meng-assign...</span>}
                   </div>
@@ -369,9 +380,16 @@ export default function OperationsDashboard() {
                         </div>
                         {(canAssign || canStartScan || canCompleteScan) && (
                           <div className="mt-2 flex flex-wrap items-center gap-2">
-                            {canAssign && ['PENDING', 'ASSIGNED'].includes(action.status) && (
-                              <select value={action.assignedTherapistId || ''} onChange={(event) => void assign(action.id, event.target.value)} className="max-w-40 rounded-xl border border-white/15 bg-black/40 px-2 py-2 text-[10px] text-white outline-none focus:border-primary/60"><option value="">Assign eksekutor</option>{staffForAction(action).map((staff) => <option key={staff.id} value={staff.id}>{staff.name}{action.requiredRoleSnapshot ? '' : ` · ${roleLabel(staff.role)}`}</option>)}</select>
-                            )}
+                             {canAssign && ['PENDING', 'ASSIGNED'].includes(action.status) && (
+                               <select value={action.assignedTherapistId || ''} onChange={(event) => void assign(action.id, event.target.value)} className="max-w-40 rounded-xl border border-white/15 bg-black/40 px-2 py-2 text-[10px] text-white outline-none focus:border-primary/60">
+                                 <option value="">Assign eksekutor</option>
+                                 {staffForAction(action, order).map((staff) => {
+                                   const dayOff = isStaffDayOff(staff.id, order.visitDate);
+                                   return <option key={staff.id} value={staff.id} disabled={dayOff}>{staff.name}{action.requiredRoleSnapshot ? '' : ` · ${roleLabel(staff.role)}`}{dayOff ? ' · Libur' : ''}</option>;
+                                 })}
+                                 {staffForAction(action, order).length === 0 && <option disabled>Tidak ada eksekutor tersedia</option>}
+                               </select>
+                             )}
                             {canStartScan && (
                               <button onClick={() => setScanTarget({ actionId: action.id, actionName: action.actionNameSnapshot, operation: 'start' })} className="flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-[10px] font-bold text-black transition hover:bg-primary-light"><Play className="size-3.5" /> Mulai</button>
                             )}

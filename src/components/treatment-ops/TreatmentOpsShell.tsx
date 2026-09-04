@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { OpsRole } from '@prisma/client';
-import { BarChart3, FlaskConical, Gauge, IdCard, LogOut, QrCode, Settings, UserCog, WalletCards } from 'lucide-react';
+import { BarChart3, CalendarOff, FlaskConical, Gauge, IdCard, LogOut, QrCode, Settings, UserCog, WalletCards } from 'lucide-react';
 import { REPORT_ROLES } from '@/lib/treatment-operations/constants';
 import { OpsPwaInstall } from './OpsPwaInstall';
 
 const links = [
   { href: '/treatment-ops', label: 'Operasional', icon: Gauge, roles: ['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR', 'THERAPIST', 'DOCTOR', 'APOTEKER', 'ASISTEN_APOTEKER', 'PERAWAT'] as OpsRole[] },
   { href: '/treatment-ops/scan', label: 'Scan QR', icon: QrCode, roles: ['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR', 'THERAPIST', 'DOCTOR', 'APOTEKER', 'ASISTEN_APOTEKER', 'PERAWAT'] as OpsRole[] },
+  { href: '/treatment-ops/day-off', label: 'Jadwal Libur', icon: CalendarOff, roles: null },
   { href: '/treatment-ops/badges', label: 'Kartu', icon: IdCard, roles: ['SUPER_ADMIN', 'MANAGEMENT'] as OpsRole[] },
   { href: '/treatment-ops/report', label: 'Report', icon: BarChart3, roles: REPORT_ROLES },
   { href: '/treatment-ops/incentives', label: 'Insentif', icon: WalletCards, roles: ['SUPER_ADMIN', 'FINANCE', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR', 'THERAPIST', 'DOCTOR', 'APOTEKER', 'ASISTEN_APOTEKER', 'PERAWAT'] as OpsRole[] },

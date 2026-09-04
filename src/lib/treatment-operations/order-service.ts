@@ -1,5 +1,6 @@
 import { Prisma, type OpsStaff } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { dateKeyFromDate, formatDateKey } from './date';
 import { createQrToken, hashQrToken, jakartaPeriod, OpsError } from './utils';
 
 type CreateOrderInput = {
@@ -114,6 +115,11 @@ export async function assignAction(actor: OpsStaff, actionId: string, staffId: s
     if (action.requiredRoleSnapshot && staff.role !== action.requiredRoleSnapshot) {
       throw new OpsError(422, `Tindakan ini memerlukan eksekutor berperan ${action.requiredRoleSnapshot.replaceAll('_', ' ').toLowerCase()}.`);
     }
+    const dayOff = await tx.opsStaffDayOff.findUnique({
+      where: { staffId_date: { staffId: staff.id, date: action.order.visitDate } },
+      select: { date: true },
+    });
+    if (dayOff) throw new OpsError(409, `${staff.name} sedang libur pada ${formatDateKey(dateKeyFromDate(dayOff.date))}.`);
     if (['ON_PROCESS', 'COMPLETED', 'SKIPPED', 'CANCELLED'].includes(action.status)) {
       throw new OpsError(409, 'Assignment tidak dapat diubah pada status tindakan saat ini.');
     }
@@ -155,6 +161,11 @@ export async function startAction(actor: OpsStaff, actionId: string) {
     if (action.assignedTherapistId && action.assignedTherapistId !== actor.id) {
       throw new OpsError(403, 'Tindakan ini ditugaskan kepada terapis lain.');
     }
+    const dayOff = await tx.opsStaffDayOff.findUnique({
+      where: { staffId_date: { staffId: actor.id, date: action.order.visitDate } },
+      select: { date: true },
+    });
+    if (dayOff) throw new OpsError(409, `Anda sedang libur pada ${formatDateKey(dateKeyFromDate(dayOff.date))}.`);
     const unfinishedRequiredBefore = action.order.actions.some(
       (item) => item.sequenceNumber < action.sequenceNumber && item.isRequired && item.status !== 'COMPLETED',
     );

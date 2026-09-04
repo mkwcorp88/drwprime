@@ -44,6 +44,19 @@ export type OpsOrderView = {
   actions: OpsActionView[];
 };
 
+export type OpsStaffDayOffView = {
+  id: string;
+  staffId: string;
+  date: string;
+  note: string | null;
+  createdAt: string;
+};
+
+export type OpsStaffDayOffSummary = {
+  staffId: string;
+  date: string;
+};
+
 export type OpsBootstrap = {
   staff: OpsStaffView;
   branches: Array<{ id: string; code: string; name: string }>;

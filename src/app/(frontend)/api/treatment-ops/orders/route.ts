@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireOpsStaff } from '@/lib/treatment-operations/auth';
 import { ORDER_MANAGEMENT_ROLES, OPS_ROLES } from '@/lib/treatment-operations/constants';
+import { dateKeyFromDate, dateKeyToDate } from '@/lib/treatment-operations/date';
+import { parseOpsDateOnly } from '@/lib/treatment-operations/day-off';
 import { handleOpsError, readJson } from '@/lib/treatment-operations/http';
 import { createTreatmentOrder } from '@/lib/treatment-operations/order-service';
 import { OpsError, serialize } from '@/lib/treatment-operations/utils';
@@ -29,7 +31,21 @@ export async function GET(request: Request) {
       take: 100,
       orderBy: { createdAt: 'desc' },
     });
-    return NextResponse.json(serialize({ orders }));
+    const canViewStaffDayOffs = actor.role === 'SUPER_ADMIN' || actor.role === 'SUPERVISOR';
+    const visitDateKeys = [...new Set(orders.map((order) => dateKeyFromDate(order.visitDate)))];
+    const staffDayOffs = !canViewStaffDayOffs || visitDateKeys.length === 0
+      ? []
+      : await prisma.opsStaffDayOff.findMany({
+          where: {
+            date: { in: visitDateKeys.map(dateKeyToDate) },
+            staff: actor.role === 'SUPER_ADMIN' ? {} : { branchId: actor.branchId || '' },
+          },
+          select: { staffId: true, date: true },
+        });
+    return NextResponse.json(serialize({
+      orders,
+      staffDayOffs: staffDayOffs.map((dayOff) => ({ staffId: dayOff.staffId, date: dateKeyFromDate(dayOff.date) })),
+    }));
   } catch (error) {
     return handleOpsError(error, 'list orders');
   }
@@ -43,6 +59,7 @@ export async function POST(request: Request) {
     if (required.some((field) => typeof body[field] !== 'string' || !body[field])) {
       throw new OpsError(400, 'Cabang, pasien, tanggal, dan jam kunjungan wajib diisi.');
     }
+    const visitDate = parseOpsDateOnly(body.visitDate);
     const treatments = Array.isArray(body.treatments)
       ? body.treatments
       : [{ treatmentId: body.treatmentId, originalPrice: body.originalPrice, discountAmount: body.discountAmount }];
@@ -53,8 +70,8 @@ export async function POST(request: Request) {
       branchId: body.branchId as string,
       patientId: body.patientId as string,
       doctorId: typeof body.doctorId === 'string' ? body.doctorId : null,
-      visitDate: new Date(`${body.visitDate as string}T00:00:00+07:00`),
-      scheduledAt: new Date(`${body.visitDate as string}T${body.visitTime as string}:00+07:00`),
+      visitDate: dateKeyToDate(visitDate),
+      scheduledAt: new Date(`${visitDate}T${body.visitTime as string}:00+07:00`),
       internalNote: typeof body.internalNote === 'string' ? body.internalNote.trim() : null,
     };
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(body.visitTime as string) || Number.isNaN(shared.scheduledAt.getTime())) {

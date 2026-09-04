@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeOpsEmail, validateOpsEmail, validateOpsPassword } from '@/lib/treatment-operations/password';
 import { normalizeOpsPhone, validateOpsPhone } from '@/lib/treatment-operations/profile';
+import { addDateKeys, dateKeyFromDate, dateKeyToDate } from '@/lib/treatment-operations/date';
+import { parseOpsDateOnly } from '@/lib/treatment-operations/day-off';
 import { createQrToken, getPeriodRange, hashQrToken, jakartaDateKey, jakartaPeriod, maskPatientName } from '@/lib/treatment-operations/utils';
 
 describe('treatment operations utilities', () => {
@@ -21,6 +23,19 @@ describe('treatment operations utilities', () => {
 
   it('labels dates in Jakarta time even near midnight UTC', () => {
     expect(jakartaDateKey(new Date('2026-08-31T18:00:00.000Z'))).toBe('2026-09-01');
+  });
+
+  it('validates day-off dates and preserves Jakarta date keys', () => {
+    expect(parseOpsDateOnly('2026-02-28')).toBe('2026-02-28');
+    expect(dateKeyFromDate(dateKeyToDate('2026-02-28'))).toBe('2026-02-28');
+    expect(dateKeyToDate('2026-02-28').toISOString()).toBe('2026-02-28T00:00:00.000Z');
+    expect(() => parseOpsDateOnly('2026-02-30')).toThrow('Tanggal libur tidak valid.');
+    expect(() => parseOpsDateOnly('28-02-2026')).toThrow('Tanggal libur tidak valid.');
+  });
+
+  it('moves day-off date keys across month and year boundaries', () => {
+    expect(addDateKeys('2026-02-28', 1)).toBe('2026-03-01');
+    expect(addDateKeys('2026-12-31', 1)).toBe('2027-01-01');
   });
 
   it('computes an inclusive/exclusive month range in Jakarta time', () => {

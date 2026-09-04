@@ -6,6 +6,7 @@ Modul internal untuk pencatatan alur tindakan pasien dan perhitungan insentif te
 
 - Dashboard: `/treatment-ops`
 - Scan terapis: `/treatment-ops/scan`
+- Jadwal libur karyawan: `/treatment-ops/day-off`
 - Kartu QR staf: `/treatment-ops/badges`
 - Report: `/treatment-ops/report`
 - Laporan insentif: `/treatment-ops/incentives`
@@ -60,6 +61,12 @@ Super Admin membuat akun staf produksi dari `/treatment-ops/staff`. Setiap akun 
 4. Terapis memulai dan menyelesaikan tindakan menggunakan waktu server.
 5. Penyelesaian membuat ledger insentif secara idempotent.
 6. Order menjadi `COMPLETED` setelah seluruh tindakan wajib selesai.
+
+## Jadwal Libur Karyawan
+
+Setiap karyawan dapat menambahkan tanggal libur dari `/treatment-ops/day-off`. Super Admin dan Manajemen juga dapat memilih karyawan lain dalam cakupan cabangnya. Tanggal libur memiliki satu entri per karyawan, dapat diberi catatan, dan hanya berlaku untuk tanggal yang dipilih.
+
+Pada dashboard operasional, karyawan yang libur pada tanggal kunjungan tidak ditampilkan dalam pilihan assignment. Backend juga memblokir assignment atau mulai tindakan pada tanggal tersebut, termasuk jika request dikirim langsung ke API. Assignment yang sudah ada tidak dihapus otomatis agar supervisor dapat menggantinya secara sadar.
 
 ## Kartu QR Staf (barcode karyawan)
 
