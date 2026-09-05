@@ -77,21 +77,23 @@ immediate password change; OTP mode ignores that gate. A controlled recovery
 can set `OPS_ADMIN_FORCE_RESET=true`, which revokes every existing session for
 that account.
 
-Treatment Operations uses WhatsApp OTP when enabled. Add these values to
-`/opt/git/drwprime.env` before deploying the OTP release:
+Treatment Operations uses WhatsApp OTP when enabled, with credentials dedicated
+to the DRW Prime WhatsApp property (never the shared POS/member account). Add
+these values to `/opt/git/drwprime.env` before deploying the OTP release:
 
 ```bash
 OPS_WHATSAPP_OTP_ENABLED=true
-WHATSAPP_ACCESS_TOKEN="..."
-WHATSAPP_PHONE_NUMBER_ID="..."
-WHATSAPP_OPS_OTP_TEMPLATE="drwprime_login_otp"
-WHATSAPP_OPS_OTP_TEMPLATE_LANG="id"
+OPS_WHATSAPP_ACCESS_TOKEN="DRW-Prime-WABA-token"
+OPS_WHATSAPP_PHONE_NUMBER_ID="1002114199662987"   # +62 811-3880-0039
+OPS_WHATSAPP_TEMPLATE="drwprime_login_otp"
+OPS_WHATSAPP_TEMPLATE_LANG="id"
 OPS_OTP_SECRET="random-secret-minimum-32-characters"
 ```
 
 The Meta template must be active and every active `OpsStaff` account that needs
 access must have a unique normalized phone number. The deployment preflight
-requires the Meta token and phone-number ID whenever OTP mode is enabled.
+requires the dedicated `OPS_WHATSAPP_*` credentials whenever OTP mode is
+enabled; it never falls back to the shared POS `WHATSAPP_*` values.
 
 ## VPS Bootstrap
 

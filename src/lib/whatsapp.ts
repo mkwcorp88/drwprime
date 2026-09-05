@@ -212,11 +212,25 @@ async function sendWhatsApp(to: string, message: string) {
   return result;
 }
 
+// ===== Operational login OTP (dedicated DRW Prime property) =====
+// Deliberately separate from the shared WHATSAPP_* config used for member
+// notifications ("POS DRW Skincare"). Login OTP must never send through that
+// property, so these variables are read only from the OPS_* prefix and the
+// sender fails closed when they are missing.
+
+function getOpsOtpWhatsAppConfig() {
+  const accessToken = process.env.OPS_WHATSAPP_ACCESS_TOKEN?.trim();
+  const phoneNumberId = process.env.OPS_WHATSAPP_PHONE_NUMBER_ID?.trim();
+  const templateName = process.env.OPS_WHATSAPP_TEMPLATE?.trim() || 'drwprime_login_otp';
+  const languageCode = process.env.OPS_WHATSAPP_TEMPLATE_LANG?.trim() || 'id';
+  const graphVersion = process.env.OPS_WHATSAPP_API_VERSION?.trim() || process.env.WHATSAPP_API_VERSION?.trim() || 'v22.0';
+
+  return { accessToken, phoneNumberId, templateName, languageCode, graphVersion };
+}
+
 export async function sendOpsLoginOtpWhatsApp(to: string, code: string) {
-  const { accessToken, phoneNumberId, graphVersion } = getWhatsAppConfig();
+  const { accessToken, phoneNumberId, graphVersion, templateName, languageCode } = getOpsOtpWhatsAppConfig();
   const target = normalizePhoneNumber(to);
-  const templateName = process.env.WHATSAPP_OPS_OTP_TEMPLATE?.trim() || 'drwprime_login_otp';
-  const languageCode = process.env.WHATSAPP_OPS_OTP_TEMPLATE_LANG?.trim() || 'id';
 
   if (!accessToken || !phoneNumberId) {
     throw new Error('Konfigurasi WhatsApp OTP belum lengkap.');

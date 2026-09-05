@@ -19,7 +19,7 @@ const OTP_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 function getOtpSecret(): string {
   const configured = process.env.OPS_OTP_SECRET?.trim();
-  const fallback = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
+  const fallback = process.env.OPS_WHATSAPP_ACCESS_TOKEN?.trim() || process.env.WHATSAPP_ACCESS_TOKEN?.trim();
   const secret = (configured && configured.length >= 32 ? configured : fallback) || '';
   if (!secret) {
     throw new OpsError(500, 'Layanan OTP WhatsApp belum dikonfigurasi.', 'OTP_NOT_CONFIGURED');

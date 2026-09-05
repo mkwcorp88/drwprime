@@ -249,7 +249,7 @@ docker run --rm \
       "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY",
     ];
     const opsOtpEnabled = (process.env.OPS_WHATSAPP_OTP_ENABLED ?? process.env.WHATSAPP_OTP_ENABLED)?.toLowerCase() === "true";
-    if (opsOtpEnabled) required.push("WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID");
+    if (opsOtpEnabled) required.push("OPS_WHATSAPP_ACCESS_TOKEN", "OPS_WHATSAPP_PHONE_NUMBER_ID");
     const missing = required.filter((name) => !process.env[name]);
     if (missing.length > 0) {
       console.error(`Missing required environment: ${missing.join(", ")}`);

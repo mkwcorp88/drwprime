@@ -57,18 +57,18 @@ Super Admin membuat akun staf produksi dari `/treatment-ops/staff` dan wajib men
 
 Mode produksi memakai template Meta Authentication `drwprime_login_otp` berbahasa Indonesia dengan tombol **Salin Kode**. Kode berisi enam digit, berlaku lima menit, maksimal lima percobaan, dan dapat diminta ulang setelah 60 detik. Kode tidak disimpan sebagai teks biasa; database hanya menyimpan HMAC challenge dan rate limit per nomor/IP.
 
-Konfigurasi runtime:
+Konfigurasi runtime — **wajib terpisah** dari `WHATSAPP_*` milik POS/member. Login OTP hanya membaca prefiks `OPS_` dan gagal tertutup bila tidak lengkap:
 
 ```bash
 OPS_WHATSAPP_OTP_ENABLED=true
-WHATSAPP_ACCESS_TOKEN="..."
-WHATSAPP_PHONE_NUMBER_ID="..."
-WHATSAPP_OPS_OTP_TEMPLATE="drwprime_login_otp"
-WHATSAPP_OPS_OTP_TEMPLATE_LANG="id"
+OPS_WHATSAPP_ACCESS_TOKEN="token-WABA-DRW-Prime"
+OPS_WHATSAPP_PHONE_NUMBER_ID="1002114199662987"   # nomor DRW Prime +62 811-3880-0039
+OPS_WHATSAPP_TEMPLATE="drwprime_login_otp"
+OPS_WHATSAPP_TEMPLATE_LANG="id"
 OPS_OTP_SECRET="random-secret-minimal-32-karakter"
 ```
 
-`OPS_OTP_SECRET` direkomendasikan. Jika belum ada, aplikasi sementara memakai `WHATSAPP_ACCESS_TOKEN` sebagai pepper HMAC. Untuk rollback terkontrol ke login email/password, set `OPS_WHATSAPP_OTP_ENABLED=false`; kode password lama tetap tersedia tetapi endpoint-nya dinonaktifkan saat OTP aktif.
+`OPS_OTP_SECRET` direkomendasikan. Jika belum ada, aplikasi sementara memakai fallback pepper untuk HMAC. Untuk rollback terkontrol ke login email/password, set `OPS_WHATSAPP_OTP_ENABLED=false`; kode password lama tetap tersedia tetapi endpoint-nya dinonaktifkan saat OTP aktif.
 
 ## Alur MVP
 

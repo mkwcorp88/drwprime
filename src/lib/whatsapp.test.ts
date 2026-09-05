@@ -2,29 +2,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendOpsLoginOtpWhatsApp } from './whatsapp';
 
 const originalEnv = {
-  accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
-  phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
-  graphVersion: process.env.WHATSAPP_API_VERSION,
-  template: process.env.WHATSAPP_OPS_OTP_TEMPLATE,
-  language: process.env.WHATSAPP_OPS_OTP_TEMPLATE_LANG,
+  accessToken: process.env.OPS_WHATSAPP_ACCESS_TOKEN,
+  phoneNumberId: process.env.OPS_WHATSAPP_PHONE_NUMBER_ID,
+  graphVersion: process.env.OPS_WHATSAPP_API_VERSION,
+  template: process.env.OPS_WHATSAPP_TEMPLATE,
+  language: process.env.OPS_WHATSAPP_TEMPLATE_LANG,
 };
 
 beforeEach(() => {
-  process.env.WHATSAPP_ACCESS_TOKEN = 'test-access-token';
-  process.env.WHATSAPP_PHONE_NUMBER_ID = 'phone-number-id';
-  process.env.WHATSAPP_API_VERSION = 'v25.0';
-  process.env.WHATSAPP_OPS_OTP_TEMPLATE = 'drwprime_login_otp';
-  process.env.WHATSAPP_OPS_OTP_TEMPLATE_LANG = 'id';
+  process.env.OPS_WHATSAPP_ACCESS_TOKEN = 'test-access-token';
+  process.env.OPS_WHATSAPP_PHONE_NUMBER_ID = 'phone-number-id';
+  process.env.OPS_WHATSAPP_API_VERSION = 'v25.0';
+  process.env.OPS_WHATSAPP_TEMPLATE = 'drwprime_login_otp';
+  process.env.OPS_WHATSAPP_TEMPLATE_LANG = 'id';
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   for (const [key, value] of Object.entries({
-    WHATSAPP_ACCESS_TOKEN: originalEnv.accessToken,
-    WHATSAPP_PHONE_NUMBER_ID: originalEnv.phoneNumberId,
-    WHATSAPP_API_VERSION: originalEnv.graphVersion,
-    WHATSAPP_OPS_OTP_TEMPLATE: originalEnv.template,
-    WHATSAPP_OPS_OTP_TEMPLATE_LANG: originalEnv.language,
+    OPS_WHATSAPP_ACCESS_TOKEN: originalEnv.accessToken,
+    OPS_WHATSAPP_PHONE_NUMBER_ID: originalEnv.phoneNumberId,
+    OPS_WHATSAPP_API_VERSION: originalEnv.graphVersion,
+    OPS_WHATSAPP_TEMPLATE: originalEnv.template,
+    OPS_WHATSAPP_TEMPLATE_LANG: originalEnv.language,
   })) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -65,8 +65,8 @@ describe('WhatsApp operational login OTP', () => {
     });
   });
 
-  it('fails closed when Meta configuration is incomplete', async () => {
-    delete process.env.WHATSAPP_ACCESS_TOKEN;
+  it('fails closed when the dedicated OTP configuration is incomplete', async () => {
+    delete process.env.OPS_WHATSAPP_ACCESS_TOKEN;
     vi.stubGlobal('fetch', vi.fn());
 
     await expect(sendOpsLoginOtpWhatsApp('081234567890', '123456'))
