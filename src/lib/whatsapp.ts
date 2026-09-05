@@ -212,6 +212,54 @@ async function sendWhatsApp(to: string, message: string) {
   return result;
 }
 
+export async function sendOpsLoginOtpWhatsApp(to: string, code: string) {
+  const { accessToken, phoneNumberId, graphVersion } = getWhatsAppConfig();
+  const target = normalizePhoneNumber(to);
+  const templateName = process.env.WHATSAPP_OPS_OTP_TEMPLATE?.trim() || 'drwprime_login_otp';
+  const languageCode = process.env.WHATSAPP_OPS_OTP_TEMPLATE_LANG?.trim() || 'id';
+
+  if (!accessToken || !phoneNumberId) {
+    throw new Error('Konfigurasi WhatsApp OTP belum lengkap.');
+  }
+  if (!target || !/^\d{6}$/.test(code)) {
+    throw new Error('Tujuan atau kode WhatsApp OTP tidak valid.');
+  }
+
+  const response = await fetch(`https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: target,
+      type: 'template',
+      template: {
+        name: templateName,
+        language: { code: languageCode },
+        components: [
+          { type: 'body', parameters: [{ type: 'text', text: code }] },
+          {
+            type: 'button',
+            sub_type: 'url',
+            index: '0',
+            parameters: [{ type: 'text', text: code }],
+          },
+        ],
+      },
+    }),
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error(`WhatsApp OTP API error ${response.status}: ${raw}`);
+  }
+
+  return raw ? JSON.parse(raw) : null;
+}
+
 // ===== Message Builders =====
 
 function buildReservationMessage(payload: ReservationWhatsappPayload) {

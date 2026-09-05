@@ -1,11 +1,14 @@
+import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { hash } from 'argon2';
 import { Prisma, type OpsRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireOpsStaff } from '@/lib/treatment-operations/auth';
+import { isOpsWhatsAppOtpEnabled } from '@/lib/treatment-operations/auth-mode';
 import { OPS_ROLES } from '@/lib/treatment-operations/constants';
 import { handleOpsError, readJson } from '@/lib/treatment-operations/http';
 import { normalizeOpsEmail, validateOpsEmail, validateOpsPassword } from '@/lib/treatment-operations/password';
+import { normalizeOpsPhone, validateOpsPhone } from '@/lib/treatment-operations/profile';
 import { OpsError, serialize } from '@/lib/treatment-operations/utils';
 
 export async function GET() {
@@ -15,7 +18,7 @@ export async function GET() {
       prisma.opsStaff.findMany({
         where: actor.role === 'SUPER_ADMIN' ? {} : { branchId: actor.branchId || '' },
         select: {
-          id: true, branchId: true, employeeId: true, name: true, email: true, role: true,
+          id: true, branchId: true, employeeId: true, name: true, email: true, phone: true, role: true,
           active: true, mustChangePassword: true, passwordChangedAt: true, lastLoginAt: true,
           badgeIssuedAt: true, avatarUrl: true,
           branch: { select: { name: true } },
@@ -34,19 +37,29 @@ export async function POST(request: Request) {
   try {
     const actor = await requireOpsStaff(['SUPER_ADMIN']);
     const body = await readJson(request);
+    const otpEnabled = isOpsWhatsAppOtpEnabled();
     if (
-      typeof body.email !== 'string' || typeof body.password !== 'string' ||
+      typeof body.email !== 'string' || typeof body.phone !== 'string' ||
       typeof body.employeeId !== 'string' || typeof body.name !== 'string' ||
-      typeof body.role !== 'string'
+      typeof body.role !== 'string' || (!otpEnabled && typeof body.password !== 'string')
     ) {
-      throw new OpsError(400, 'Email, password awal, ID karyawan, nama, dan role wajib diisi.');
+      throw new OpsError(400, 'Email, WhatsApp, ID karyawan, nama, dan role wajib diisi.');
     }
 
     const email = normalizeOpsEmail(body.email);
     const emailError = validateOpsEmail(email);
     if (emailError) throw new OpsError(422, emailError);
-    const passwordError = validateOpsPassword(body.password);
-    if (passwordError) throw new OpsError(422, passwordError);
+    const phone = normalizeOpsPhone(body.phone);
+    const phoneError = validateOpsPhone(body.phone);
+    if (phoneError) throw new OpsError(422, phoneError);
+
+    const suppliedPassword = typeof body.password === 'string' ? body.password : '';
+    if (suppliedPassword) {
+      const passwordError = validateOpsPassword(suppliedPassword);
+      if (passwordError) throw new OpsError(422, passwordError);
+    } else if (!otpEnabled) {
+      throw new OpsError(400, 'Password awal wajib diisi.');
+    }
 
     const employeeId = body.employeeId.trim().toUpperCase();
     const name = body.name.trim();
@@ -65,13 +78,15 @@ export async function POST(request: Request) {
     }
 
     const existing = await prisma.opsStaff.findFirst({
-      where: { OR: [{ email }, { employeeId }, { username: email }] },
-      select: { email: true, employeeId: true },
+      where: { OR: [{ email }, { phone }, { employeeId }, { username: email }] },
+      select: { email: true, phone: true, employeeId: true },
     });
     if (existing?.email === email) throw new OpsError(409, 'Email sudah digunakan akun staf lain.');
+    if (existing?.phone === phone) throw new OpsError(409, 'Nomor WhatsApp sudah digunakan akun staf lain.');
     if (existing) throw new OpsError(409, 'ID karyawan sudah digunakan akun staf lain.');
 
-    const passwordHash = await hash(body.password);
+    const fallbackPassword = `${randomBytes(32).toString('base64url')}Aa1!`;
+    const passwordHash = await hash(suppliedPassword || fallbackPassword);
     const staff = await prisma.$transaction(async (tx) => {
       const created = await tx.opsStaff.create({
         data: {
@@ -82,6 +97,7 @@ export async function POST(request: Request) {
           employeeId,
           name,
           email,
+          phone,
           role,
         },
       });
@@ -95,18 +111,18 @@ export async function POST(request: Request) {
           entityType: 'STAFF_ACCOUNT',
           entityId: created.id,
           action: 'CREATE',
-          afterData: { email, employeeId, name, role, branchId, mustChangePassword: true },
+          afterData: { email, phone, employeeId, name, role, branchId, mustChangePassword: true },
         },
       });
       return created;
     });
 
     return NextResponse.json({
-      staff: { id: staff.id, branchId: staff.branchId, employeeId: staff.employeeId, name: staff.name, email: staff.email, role: staff.role },
+      staff: { id: staff.id, branchId: staff.branchId, employeeId: staff.employeeId, name: staff.name, email: staff.email, phone: staff.phone, role: staff.role },
     }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return handleOpsError(new OpsError(409, 'Email atau ID karyawan sudah digunakan.'), 'create staff');
+      return handleOpsError(new OpsError(409, 'Email, WhatsApp, atau ID karyawan sudah digunakan.'), 'create staff');
     }
     return handleOpsError(error, 'create staff');
   }

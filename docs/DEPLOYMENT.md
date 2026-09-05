@@ -67,13 +67,31 @@ the application:
 
 ```bash
 OPS_ADMIN_EMAIL="admin@drwprime.com" \
+OPS_ADMIN_PHONE="0812xxxxxxxx" \
 OPS_ADMIN_PASSWORD="temporary-strong-password" \
 npm run ops:bootstrap-admin
 ```
 
-The bootstrap password is temporary and the application forces an immediate
-password change. A controlled recovery can set `OPS_ADMIN_FORCE_RESET=true`;
-this revokes every existing session for that account.
+The bootstrap password remains a rollback credential. Password mode forces an
+immediate password change; OTP mode ignores that gate. A controlled recovery
+can set `OPS_ADMIN_FORCE_RESET=true`, which revokes every existing session for
+that account.
+
+Treatment Operations uses WhatsApp OTP when enabled. Add these values to
+`/opt/git/drwprime.env` before deploying the OTP release:
+
+```bash
+OPS_WHATSAPP_OTP_ENABLED=true
+WHATSAPP_ACCESS_TOKEN="..."
+WHATSAPP_PHONE_NUMBER_ID="..."
+WHATSAPP_OPS_OTP_TEMPLATE="drwprime_login_otp"
+WHATSAPP_OPS_OTP_TEMPLATE_LANG="id"
+OPS_OTP_SECRET="random-secret-minimum-32-characters"
+```
+
+The Meta template must be active and every active `OpsStaff` account that needs
+access must have a unique normalized phone number. The deployment preflight
+requires the Meta token and phone-number ID whenever OTP mode is enabled.
 
 ## VPS Bootstrap
 

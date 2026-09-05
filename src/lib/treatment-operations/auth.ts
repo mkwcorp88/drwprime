@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { hash, verify } from 'argon2';
 import type { OpsRole, OpsStaff } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { requiresOpsPasswordChange } from './auth-mode';
 import { normalizeOpsEmail, validateOpsEmail, validateOpsPassword } from './password';
 import { createQrToken, createStaffBadgeValue, extractStaffBadgeToken, hashQrToken, OpsError } from './utils';
 
@@ -28,6 +29,22 @@ async function issueOpsSession(staffId: string): Promise<void> {
     path: '/',
     maxAge: SESSION_AGE_SECONDS,
   });
+}
+
+export async function completeOpsLogin(staffId: string): Promise<OpsStaff> {
+  const loggedInAt = new Date();
+  const updatedStaff = await prisma.$transaction(async (tx) => {
+    const activeStaff = await tx.opsStaff.findFirst({ where: { id: staffId, active: true }, select: { id: true } });
+    if (!activeStaff) throw new OpsError(401, 'Akun operasional tidak aktif.', 'STAFF_INACTIVE');
+
+    await tx.opsSession.deleteMany({ where: { staffId, expiresAt: { lt: loggedInAt } } });
+    return tx.opsStaff.update({
+      where: { id: staffId },
+      data: { lastLoginAt: loggedInAt, failedLoginAttempts: 0, lockedUntil: null },
+    });
+  });
+  await issueOpsSession(staffId);
+  return updatedStaff;
 }
 
 function invalidCredentials(): never {
@@ -66,16 +83,7 @@ export async function loginOpsStaff(email: string, password: string): Promise<Op
     invalidCredentials();
   }
 
-  const loggedInAt = new Date();
-  const updatedStaff = await prisma.$transaction(async (tx) => {
-    await tx.opsSession.deleteMany({ where: { staffId: staff.id, expiresAt: { lt: loggedInAt } } });
-    return tx.opsStaff.update({
-      where: { id: staff.id },
-      data: { lastLoginAt: loggedInAt, failedLoginAttempts: 0, lockedUntil: null },
-    });
-  });
-  await issueOpsSession(staff.id);
-  return updatedStaff;
+  return completeOpsLogin(staff.id);
 }
 
 export async function logoutOpsStaff(): Promise<void> {
@@ -102,7 +110,7 @@ export async function getOpsStaff(): Promise<OpsStaff | null> {
 export async function requireOpsStaff(allowedRoles?: readonly OpsRole[]): Promise<OpsStaff> {
   const staff = await getOpsStaff();
   if (!staff) throw new OpsError(401, 'Silakan masuk dengan akun operasional.', 'AUTH_REQUIRED');
-  if (staff.mustChangePassword) {
+  if (requiresOpsPasswordChange(staff)) {
     throw new OpsError(403, 'Ganti password awal sebelum menggunakan sistem.', 'PASSWORD_CHANGE_REQUIRED');
   }
   if (allowedRoles && !allowedRoles.includes(staff.role)) {
@@ -158,7 +166,7 @@ export async function resolveStaffBadge(value: string, allowedRoles?: readonly O
   const token = extractStaffBadgeToken(value);
   const staff = await prisma.opsStaff.findUnique({ where: { badgeTokenHash: hashQrToken(token) } });
   if (!staff || !staff.active) throw new OpsError(403, 'Kartu staf tidak valid atau sudah tidak aktif.');
-  if (staff.mustChangePassword) throw new OpsError(403, 'Pemilik kartu wajib mengganti password awal terlebih dahulu.');
+  if (requiresOpsPasswordChange(staff)) throw new OpsError(403, 'Pemilik kartu wajib mengganti password awal terlebih dahulu.');
   if (allowedRoles && !allowedRoles.includes(staff.role)) {
     throw new OpsError(403, 'Role pada kartu staf tidak dapat melakukan tindakan ini.');
   }

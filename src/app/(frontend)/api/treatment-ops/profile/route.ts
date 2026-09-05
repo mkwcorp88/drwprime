@@ -23,10 +23,14 @@ export async function PATCH(request: Request) {
     });
     if (owner) throw new OpsError(409, 'Nomor WhatsApp sudah dipakai akun staf lain.');
 
-    const updated = await prisma.opsStaff.update({
-      where: { id: staff.id },
-      data: { phone },
-      select: { id: true, phone: true },
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.opsStaff.update({
+        where: { id: staff.id },
+        data: { phone },
+        select: { id: true, phone: true },
+      });
+      await tx.opsLoginOtp.deleteMany({ where: { staffId: staff.id } });
+      return result;
     });
 
     return NextResponse.json(serialize({ staff: updated }), { headers: { 'Cache-Control': 'no-store' } });

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import TreatmentOpsShell from '@/components/treatment-ops/TreatmentOpsShell';
 import { getOpsStaff } from '@/lib/treatment-operations/auth';
+import { requiresOpsPasswordChange } from '@/lib/treatment-operations/auth-mode';
 
 export const metadata: Metadata = {
   title: 'DRWPRIME HUB',
@@ -13,6 +14,6 @@ export const metadata: Metadata = {
 
 export default async function TreatmentOpsLayout({ children }: { children: React.ReactNode }) {
   const staff = await getOpsStaff();
-  const safeStaff = staff ? { name: staff.name, role: staff.role, mustChangePassword: staff.mustChangePassword, avatarUrl: staff.avatarUrl } : null;
+  const safeStaff = staff ? { name: staff.name, role: staff.role, mustChangePassword: requiresOpsPasswordChange(staff), avatarUrl: staff.avatarUrl } : null;
   return <TreatmentOpsShell staff={safeStaff}>{children}</TreatmentOpsShell>;
 }

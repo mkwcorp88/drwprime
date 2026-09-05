@@ -34,7 +34,7 @@ DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5433/drwprime_local" npm 
 npm run dev:ops
 ```
 
-Buka `http://localhost:3010/treatment-ops/login` dan masuk dengan email akun demo.
+Buka `http://localhost:3010/treatment-ops/login`. Untuk memakai akun demo berbasis password, set `OPS_WHATSAPP_OTP_ENABLED=false` pada `.env.local`. Untuk menguji OTP, ganti nomor demo dengan nomor WhatsApp nyata dan lengkapi konfigurasi Meta di bawah.
 
 Konfigurasi lokal sudah disediakan di `.env.local` (di-ignore oleh git). `.env.local` menunjuk `DATABASE_URL` ke PostgreSQL lokal, sehingga `prisma db push` dan dev server memakai database lokal alih-alih database produksi yang tidak terjangkau dari mesin ini.
 
@@ -47,11 +47,28 @@ npm run db:migrate
 npm run db:seed:treatment-ops
 ```
 
-Seed membuat satu cabang, akun staf operasional, dua terapis, satu dokter, satu pasien demo, dan template Facial Brightening. Modul memakai login internal dengan email dan password Argon2, terpisah dari Clerk website utama.
+Seed membuat satu cabang, akun staf operasional, dua terapis, satu dokter, satu pasien demo, dan template Facial Brightening. Modul memakai autentikasi internal yang terpisah dari Clerk website utama.
 
-Akun demo localhost memakai password awal `PrimeDemo2026!` dan wajib menggantinya saat login pertama. Email tersedia dengan pola `superadmin@drwprime.local`, `manajemen@drwprime.local`, `frontoffice@drwprime.local`, `supervisor@drwprime.local`, `terapisa@drwprime.local`, `terapisb@drwprime.local`, dan `dokter@drwprime.local`. Atur `OPS_DEMO_PASSWORD` saat menjalankan seed bila membutuhkan password awal lain.
+Akun demo localhost memakai password awal `PrimeDemo2026!` saat mode OTP dimatikan. Email tersedia dengan pola `superadmin@drwprime.local`, `manajemen@drwprime.local`, `frontoffice@drwprime.local`, `supervisor@drwprime.local`, `terapisa@drwprime.local`, `terapisb@drwprime.local`, dan `dokter@drwprime.local`. Atur `OPS_DEMO_PASSWORD` saat menjalankan seed bila membutuhkan password awal lain.
 
-Super Admin membuat akun staf produksi dari `/treatment-ops/staff`. Setiap akun mendapat email login dan password awal yang ditentukan Super Admin. Dashboard terkunci sampai pemilik akun membuat password pribadi dari `/treatment-ops/settings`. Reset password oleh Super Admin mengeluarkan seluruh sesi staf dan mengaktifkan kembali kewajiban ganti password.
+Super Admin membuat akun staf produksi dari `/treatment-ops/staff` dan wajib menetapkan nomor WhatsApp unik. Nomor dinormalisasi menjadi format `62...`; nama, cabang, dan role selalu diambil dari data `OpsStaff`, bukan dari input pengguna saat login. Super Admin juga dapat memperbarui nomor akun lama dari halaman yang sama.
+
+## Login WhatsApp OTP
+
+Mode produksi memakai template Meta Authentication `drwprime_login_otp` berbahasa Indonesia dengan tombol **Salin Kode**. Kode berisi enam digit, berlaku lima menit, maksimal lima percobaan, dan dapat diminta ulang setelah 60 detik. Kode tidak disimpan sebagai teks biasa; database hanya menyimpan HMAC challenge dan rate limit per nomor/IP.
+
+Konfigurasi runtime:
+
+```bash
+OPS_WHATSAPP_OTP_ENABLED=true
+WHATSAPP_ACCESS_TOKEN="..."
+WHATSAPP_PHONE_NUMBER_ID="..."
+WHATSAPP_OPS_OTP_TEMPLATE="drwprime_login_otp"
+WHATSAPP_OPS_OTP_TEMPLATE_LANG="id"
+OPS_OTP_SECRET="random-secret-minimal-32-karakter"
+```
+
+`OPS_OTP_SECRET` direkomendasikan. Jika belum ada, aplikasi sementara memakai `WHATSAPP_ACCESS_TOKEN` sebagai pepper HMAC. Untuk rollback terkontrol ke login email/password, set `OPS_WHATSAPP_OTP_ENABLED=false`; kode password lama tetap tersedia tetapi endpoint-nya dinonaktifkan saat OTP aktif.
 
 ## Alur MVP
 
@@ -88,7 +105,7 @@ Impor awal karyawan dan list treatment bisa dilakukan dari satu file Markdown. C
 npm run ops:import-md -- /path/ke/file.md
 ```
 
-- **Karyawan**: tabel dengan kolom `Email | Nama | ID | Role | Cabang | Password`. Role memakai label Indonesia (`Terapis`, `Dokter`, `Front Office`, `Supervisor`, `Manajemen`, `Super Admin`). Password boleh dikosongkan; sistem membuat password acak dan menampilkannya, dan semua akun wajib mengganti password saat login pertama. Akun Dokter otomatis ditautkan ke daftar dokter order.
+- **Karyawan**: tabel dengan kolom `Email | WhatsApp | Nama | ID | Role | Cabang | Password`. WhatsApp wajib dan unik. Role memakai label Indonesia (`Terapis`, `Dokter`, `Front Office`, `Supervisor`, `Manajemen`, `Super Admin`). Password tetap boleh dikosongkan untuk kompatibilitas mode rollback. Akun Dokter otomatis ditautkan ke daftar dokter order.
 - **Treatment**: tiap treatment diawali `### Nama (KODE)`, baris `Kategori: ... | Harga: ...`, lalu tabel tahapan `No | Tindakan | Wajib | Role | Menit | Insentif`.
 - Bersifat idempotent: email/kode yang sudah ada dilewati tanpa ditimpa. Karyawan dan treatment yang tidak valid dilaporkan di akhir tanpa menghentikan impor.
 
@@ -100,6 +117,7 @@ Jalankan migration, lalu bootstrap hanya akun Super Admin pertama dengan environ
 
 ```bash
 OPS_ADMIN_EMAIL="admin@drwprime.com" \
+OPS_ADMIN_PHONE="0812xxxxxxxx" \
 OPS_ADMIN_PASSWORD="password-awal-kuat" \
 npm run ops:bootstrap-admin
 ```

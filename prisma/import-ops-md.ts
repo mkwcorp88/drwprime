@@ -3,6 +3,7 @@ import { randomInt } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Prisma, PrismaClient, type OpsRole } from '@prisma/client';
 import { normalizeOpsEmail, validateOpsEmail } from '../src/lib/treatment-operations/password';
+import { normalizeOpsPhone, validateOpsPhone } from '../src/lib/treatment-operations/profile';
 
 const prisma = new PrismaClient();
 
@@ -28,6 +29,7 @@ const ROLE_ALIASES: Record<string, OpsRole> = {
 
 type EmployeeRow = {
   email: string;
+  phone: string;
   name: string;
   employeeId: string;
   role: OpsRole;
@@ -121,11 +123,16 @@ export function parseDocument(text: string): { employees: EmployeeRow[]; treatme
       if (cells.length === 0 || isSeparator(cells)) continue;
       if (cells[0].toLowerCase() === 'email') continue; // header row
 
-      const [emailRaw, nameRaw, employeeIdRaw, roleRaw, branchRaw, passwordRaw] = cells;
+      const [emailRaw, phoneRaw, nameRaw, employeeIdRaw, roleRaw, branchRaw, passwordRaw] = cells;
       const email = normalizeOpsEmail(emailRaw || '');
+      const phone = normalizeOpsPhone(phoneRaw || '');
       const role = normalizeRole(roleRaw || '');
       if (!email || validateOpsEmail(email)) {
         errors.push(`Karyawan: email tidak valid -> ${emailRaw || '(kosong)'}`);
+        continue;
+      }
+      if (validateOpsPhone(phoneRaw || '')) {
+        errors.push(`Karyawan ${email}: WhatsApp tidak valid -> ${phoneRaw || '(kosong)'}`);
         continue;
       }
       if (!role) {
@@ -134,6 +141,7 @@ export function parseDocument(text: string): { employees: EmployeeRow[]; treatme
       }
       employees.push({
         email,
+        phone,
         name: (nameRaw || '').trim(),
         employeeId: (employeeIdRaw || '').trim().toUpperCase(),
         role,
@@ -203,7 +211,7 @@ async function importEmployees(rows: EmployeeRow[]): Promise<{ created: string[]
   const generated: Array<{ email: string; password: string }> = [];
 
   for (const row of rows) {
-    const existing = await prisma.opsStaff.findUnique({ where: { email: row.email } });
+    const existing = await prisma.opsStaff.findFirst({ where: { OR: [{ email: row.email }, { phone: row.phone }] } });
     if (existing) {
       skipped.push(row.email);
       continue;
@@ -232,6 +240,7 @@ async function importEmployees(rows: EmployeeRow[]): Promise<{ created: string[]
           branchId: branch.id,
           username: row.email,
           email: row.email,
+          phone: row.phone,
           employeeId: row.employeeId,
           name: row.name,
           role: row.role,
@@ -249,7 +258,7 @@ async function importEmployees(rows: EmployeeRow[]): Promise<{ created: string[]
           entityType: 'STAFF_ACCOUNT',
           entityId: staff.id,
           action: 'IMPORT_CREATE',
-          afterData: { email: row.email, employeeId: row.employeeId, role: row.role, mustChangePassword: true },
+          afterData: { email: row.email, phone: row.phone, employeeId: row.employeeId, role: row.role, mustChangePassword: true },
         },
       });
     });

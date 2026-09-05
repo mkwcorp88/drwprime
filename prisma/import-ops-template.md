@@ -8,17 +8,18 @@ npm run ops:import-md -- /path/ke/file-anda.md
 
 ## Karyawan
 
-Kolom: Email | Nama | ID | Role | Cabang | Password
+Kolom: Email | WhatsApp | Nama | ID | Role | Cabang | Password
 
 - Role: `Super Admin`, `Manajemen`, `Front Office`, `Supervisor`, `Terapis`, `Dokter`, `Perawat`, `Apoteker`, `Asisten Apoteker`.
 - Cabang: gunakan kode cabang, mis. `DRW-UTAMA`.
+- WhatsApp: wajib dan harus unik. Format `08...` atau `62...`.
 - Password: opsional. Jika dikosongkan, sistem membuat password acak dan menampilkannya di akhir impor. Semua akun wajib mengganti password saat login pertama.
 
-| Email | Nama | ID | Role | Cabang | Password |
-|---|---|---|---|---|---|
-| budi.santoso@example.com | Budi Santoso | TRP-002 | Terapis | DRW-UTAMA | |
-| sari.wulandari@example.com | Sari Wulandari | DR-002 | Dokter | DRW-UTAMA | |
-| rina@example.com | Rina Marlina | FO-002 | Front Office | DRW-UTAMA | |
+| Email | WhatsApp | Nama | ID | Role | Cabang | Password |
+|---|---|---|---|---|---|---|
+| budi.santoso@example.com | 081200000001 | Budi Santoso | TRP-002 | Terapis | DRW-UTAMA | |
+| sari.wulandari@example.com | 081200000002 | Sari Wulandari | DR-002 | Dokter | DRW-UTAMA | |
+| rina@example.com | 081200000003 | Rina Marlina | FO-002 | Front Office | DRW-UTAMA | |
 
 ## Treatment
 

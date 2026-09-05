@@ -11,6 +11,7 @@ describe('treatment ops MD import parser', () => {
     expect(employees).toHaveLength(3);
     expect(employees[0]).toMatchObject({
       email: 'budi.santoso@example.com',
+      phone: '6281200000001',
       employeeId: 'TRP-002',
       role: 'THERAPIST',
       branchCode: 'DRW-UTAMA',
@@ -36,11 +37,11 @@ describe('treatment ops MD import parser', () => {
   it('reports invalid rows with errors', () => {
     const text = [
       '## Karyawan',
-      '| Email | Nama | ID | Role | Cabang | Password |',
-      '|---|---|---|---|---|---|',
-      '| bukan-email | X | T-1 | Terapis | DRW-UTAMA | |',
-      '| a@b.com | Y | T-2 | Terapis | DRW-UTAMA | |',
-      '| c@d.com | Z | T-3 | RoleAneh | DRW-UTAMA | |',
+      '| Email | WhatsApp | Nama | ID | Role | Cabang | Password |',
+      '|---|---|---|---|---|---|---|',
+      '| bukan-email | 081200000011 | X | T-1 | Terapis | DRW-UTAMA | |',
+      '| a@b.com | 081200000012 | Y | T-2 | Terapis | DRW-UTAMA | |',
+      '| c@d.com | bukan-nomor | Z | T-3 | RoleAneh | DRW-UTAMA | |',
       '## Treatment',
       '### Test (T-100)',
       'Kategori: X | Harga: 100',

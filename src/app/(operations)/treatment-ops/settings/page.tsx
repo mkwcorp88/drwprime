@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import PasswordSettings from '@/components/treatment-ops/PasswordSettings';
 import ProfileSettings, { type ProfileStaff } from '@/components/treatment-ops/ProfileSettings';
 import { getOpsStaff } from '@/lib/treatment-operations/auth';
+import { isOpsWhatsAppOtpEnabled, requiresOpsPasswordChange } from '@/lib/treatment-operations/auth-mode';
 import { prisma } from '@/lib/prisma';
 
 export default async function TreatmentOpsSettingsPage() {
@@ -25,7 +26,7 @@ export default async function TreatmentOpsSettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <ProfileSettings staff={profile} />
-      <PasswordSettings staffName={staff.name} email={staff.email} forced={staff.mustChangePassword} />
+      {!isOpsWhatsAppOtpEnabled() && <PasswordSettings staffName={staff.name} email={staff.email} forced={requiresOpsPasswordChange(staff)} />}
     </div>
   );
 }
