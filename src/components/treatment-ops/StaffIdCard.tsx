@@ -146,14 +146,20 @@ function drawIdCard(
   // The generated artwork reserves exactly two rows: name and role.
   const infoX = 310;
   const infoWidth = 470;
+  roundRectPath(ctx, 300, 735, 510, 160, 12);
+  ctx.fillStyle = '#F7EFDF';
+  ctx.fill();
+
   ctx.textAlign = 'left';
-  ctx.fillStyle = INK;
   ctx.font = '700 28px Arial, Helvetica, sans-serif';
-  ctx.fillText(truncate(ctx, name, infoWidth), infoX, 798);
+  const nameText = truncate(ctx, name, infoWidth);
+  ctx.fillStyle = INK;
+  ctx.fillText(nameText, infoX + 10, 800);
 
   ctx.fillStyle = ROLE_GOLD;
   ctx.font = '600 20px Arial, Helvetica, sans-serif';
-  ctx.fillText(truncate(ctx, roleLabel, infoWidth), infoX, 877);
+  const roleText = truncate(ctx, roleLabel, infoWidth);
+  ctx.fillText(roleText, infoX + 10, 874);
 
   // The template reserves the bottom white tile for the actual verification QR.
   const chip = { x: 360, y: 1195, size: 280, radius: 32 };
@@ -218,12 +224,14 @@ export default function StaffIdCard({ badgeValue, name, roleLabel, employeeId, a
             )}
           </div>
 
-          <div className="absolute left-[31%] top-[51%] z-20 w-[47%] overflow-hidden">
+          <div className="absolute left-[30%] top-[48.8%] z-20 h-[11.2%] w-[51%] rounded-r-[12px] bg-[#F7EFDF]" />
+
+          <div className="absolute left-[32%] top-[51.5%] z-30 w-[47%] overflow-hidden">
             <p className="truncate font-sans text-[11px] font-bold leading-[1.35] text-[#3A2C17]">{name}</p>
-            <p className="truncate text-[8px] font-semibold leading-[1.8] text-[#A97B2E]">{roleLabel}</p>
+            <p className="mt-2 truncate text-[8px] font-semibold leading-[1.35] text-[#A97B2E]">{roleLabel}</p>
           </div>
 
-          <div className="absolute left-[36%] top-[79.67%] z-30 aspect-square w-[28%] rounded-[12px] bg-white p-[1.4%] shadow-md ring-1 ring-[#C9A24B]">
+          <div className="absolute left-[36%] top-[79.67%] z-40 aspect-square w-[28%] rounded-[12px] bg-white p-[1.4%] shadow-md ring-1 ring-[#C9A24B]">
             <QRCodeCanvas ref={qrRef} value={badgeValue} size={170} level="H" style={{ width: '100%', height: '100%', display: 'block' }} />
           </div>
         </div>
