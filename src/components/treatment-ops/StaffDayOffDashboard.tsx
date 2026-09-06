@@ -5,6 +5,7 @@ import { CalendarDays, CalendarOff, CheckCircle2, Info, Trash2, UserRound, Users
 import { useRouter } from 'next/navigation';
 import { dateKeyFromDate, formatDateKey } from '@/lib/treatment-operations/date';
 import { roleLabels } from '@/lib/treatment-operations/constants';
+import DayOffCalendar from '@/components/treatment-ops/DayOffCalendar';
 import type { OpsStaffDayOffView } from '@/types/treatment-operations';
 
 type StaffOption = {
@@ -147,7 +148,7 @@ export default function StaffDayOffDashboard() {
 
           <label className="mt-6 block text-xs font-bold text-white/55">
             Tanggal libur
-            <span className="mt-2 block"><input required type="date" min={todayKey || undefined} value={date} onChange={(event) => setDate(event.target.value)} className="h-12 w-full rounded-xl border border-white/15 bg-black/30 px-4 text-sm text-white outline-none focus:border-primary/60" /></span>
+            <span className="mt-2 block"><DayOffCalendar value={date} todayKey={todayKey} markedDates={dayOffs.map((item) => item.date)} onSelect={(selected) => { setDate(selected); setNotice(''); }} /></span>
           </label>
           <label className="mt-4 block text-xs font-bold text-white/55">
             Catatan <span className="font-normal text-white/35">(opsional)</span>
