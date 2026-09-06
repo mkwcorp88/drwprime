@@ -13,7 +13,6 @@ const ROLE_GOLD = '#A97B2E';
 const IVORY = '#FBF7EF';
 
 const BG_URL = '/id-card-brand.jpg';
-const BUILDING_URL = '/drwprime-building.jpg';
 const LOGO_URL = '/drwprime-logo.png';
 
 type CardData = {
@@ -113,7 +112,6 @@ function drawIdCard(
   },
   qrCanvas: HTMLCanvasElement | null,
   bg: HTMLImageElement | null,
-  building: HTMLImageElement | null,
   logo: HTMLImageElement | null,
 ) {
   if (bg) {
@@ -122,38 +120,8 @@ function drawIdCard(
     drawFallbackBrand(ctx, logo);
   }
 
-  // Remove the generated building area before adding the real DRW Prime photo.
-  ctx.fillStyle = '#F5ECDB';
-  ctx.fillRect(0, 1094, CARD_W, CARD_H - 1094);
-
-  const buildingBox = { x: 43, y: 1106, width: 914, height: 342, radius: 26 };
-  if (building) {
-    ctx.save();
-    roundRectPath(ctx, buildingBox.x, buildingBox.y, buildingBox.width, buildingBox.height, buildingBox.radius);
-    ctx.clip();
-    drawCover(ctx, building, buildingBox.x, buildingBox.y, buildingBox.width, buildingBox.height, 0.18);
-    ctx.restore();
-    roundRectPath(ctx, buildingBox.x, buildingBox.y, buildingBox.width, buildingBox.height, buildingBox.radius);
-    ctx.strokeStyle = 'rgba(255,255,255,0.78)';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-  }
-
-  ctx.strokeStyle = 'rgba(201,162,75,0.82)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(40, 1094);
-  ctx.lineTo(40, 1462);
-  ctx.moveTo(960, 1094);
-  ctx.lineTo(960, 1462);
-  ctx.moveTo(40, 1462);
-  ctx.lineTo(400, 1462);
-  ctx.moveTo(600, 1462);
-  ctx.lineTo(960, 1462);
-  ctx.stroke();
-
   // The generated template has a large empty arch reserved for the staff portrait.
-  const photoBox = { x: 270, y: 405, width: 460, height: 470 };
+  const photoBox = { x: 246, y: 247, width: 508, height: 464 };
   ctx.save();
   archPath(ctx, photoBox.x, photoBox.y, photoBox.width, photoBox.height);
   ctx.clip();
@@ -175,20 +143,20 @@ function drawIdCard(
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // The information panel in the generated artwork provides three usable rows.
-  const infoX = 304;
-  const infoWidth = 500;
+  // The generated artwork reserves exactly two rows: name and role.
+  const infoX = 310;
+  const infoWidth = 470;
   ctx.textAlign = 'left';
   ctx.fillStyle = INK;
-  ctx.font = '700 29px Arial, Helvetica, sans-serif';
-  ctx.fillText(truncate(ctx, name, infoWidth), infoX, 948);
+  ctx.font = '700 28px Arial, Helvetica, sans-serif';
+  ctx.fillText(truncate(ctx, name, infoWidth), infoX, 798);
 
   ctx.fillStyle = ROLE_GOLD;
-  ctx.font = '600 21px Arial, Helvetica, sans-serif';
-  ctx.fillText(truncate(ctx, roleLabel, infoWidth), infoX, 997);
+  ctx.font = '600 20px Arial, Helvetica, sans-serif';
+  ctx.fillText(truncate(ctx, roleLabel, infoWidth), infoX, 877);
 
   // The template reserves the bottom white tile for the actual verification QR.
-  const chip = { x: 390, y: 1258, size: 220, radius: 28 };
+  const chip = { x: 360, y: 1195, size: 280, radius: 32 };
   roundRectPath(ctx, chip.x, chip.y, chip.size, chip.size, chip.radius);
   ctx.fillStyle = '#FFFFFF';
   ctx.fill();
@@ -215,9 +183,8 @@ export default function StaffIdCard({ badgeValue, name, roleLabel, employeeId, a
           avatar = null;
         }
       }
-      const [bg, building, logo] = await Promise.all([
+      const [bg, logo] = await Promise.all([
         loadImage(BG_URL).catch(() => null),
-        loadImage(BUILDING_URL).catch(() => null),
         loadImage(LOGO_URL).catch(() => null),
       ]);
       const canvas = document.createElement('canvas');
@@ -225,7 +192,7 @@ export default function StaffIdCard({ badgeValue, name, roleLabel, employeeId, a
       canvas.height = CARD_H;
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Canvas tidak tersedia di browser ini.');
-      drawIdCard(ctx, { name, roleLabel, avatar }, qrRef.current, bg, building, logo);
+      drawIdCard(ctx, { name, roleLabel, avatar }, qrRef.current, bg, logo);
       const link = document.createElement('a');
       link.download = `ID-CARD-${employeeId || 'staff'}.png`;
       link.href = canvas.toDataURL('image/png');
@@ -243,13 +210,7 @@ export default function StaffIdCard({ badgeValue, name, roleLabel, employeeId, a
         <img src={BG_URL} alt="" className="absolute inset-0 h-full w-full object-cover" />
 
         <div className="relative aspect-[2/3] w-full">
-          <div className="absolute inset-x-0 top-[72.9%] bottom-0 z-10 bg-[#F5ECDB]" />
-
-          <div className="absolute left-[4.3%] top-[73.7%] z-20 h-[22.8%] w-[91.4%] overflow-hidden rounded-[18px] ring-1 ring-white/70">
-            <img src={BUILDING_URL} alt="Gedung DRW Prime" className="h-full w-full object-cover object-[center_18%]" />
-          </div>
-
-          <div className="absolute left-[27%] top-[27%] z-20 h-[31.3%] w-[46%] overflow-hidden rounded-[999px_999px_0_0] bg-[#FBF7EF] ring-1 ring-[#C9A24B]/80">
+          <div className="absolute left-[24.6%] top-[16.5%] z-20 h-[31%] w-[50.8%] overflow-hidden rounded-[999px_999px_0_0] bg-[#FBF7EF] ring-1 ring-[#C9A24B]/80">
             {avatarUrl ? (
               <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
             ) : (
@@ -257,12 +218,12 @@ export default function StaffIdCard({ badgeValue, name, roleLabel, employeeId, a
             )}
           </div>
 
-          <div className="absolute left-[29.5%] top-[61.9%] z-20 w-[50.5%] overflow-hidden">
+          <div className="absolute left-[31%] top-[51%] z-20 w-[47%] overflow-hidden">
             <p className="truncate font-sans text-[11px] font-bold leading-[1.35] text-[#3A2C17]">{name}</p>
             <p className="truncate text-[8px] font-semibold leading-[1.8] text-[#A97B2E]">{roleLabel}</p>
           </div>
 
-          <div className="absolute left-[39%] top-[83.87%] z-30 aspect-square w-[22%] rounded-[10px] bg-white p-[1.4%] shadow-md ring-1 ring-[#C9A24B]">
+          <div className="absolute left-[36%] top-[79.67%] z-30 aspect-square w-[28%] rounded-[12px] bg-white p-[1.4%] shadow-md ring-1 ring-[#C9A24B]">
             <QRCodeCanvas ref={qrRef} value={badgeValue} size={170} level="H" style={{ width: '100%', height: '100%', display: 'block' }} />
           </div>
         </div>
