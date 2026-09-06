@@ -36,13 +36,22 @@ export async function GET(request: Request) {
     });
     if (!selectedStaff) throw new OpsError(404, 'Staf aktif tidak ditemukan pada cakupan Anda.');
 
-    const [dayOffs, staff] = await Promise.all([
+    const [dayOffs, staff, pending] = await Promise.all([
       prisma.opsStaffDayOff.findMany({
         where: {
           staffId: selectedStaff.id,
           date: { gte: dateKeyToDate(from), lte: dateKeyToDate(to) },
         },
-        select: { id: true, staffId: true, date: true, note: true, createdAt: true },
+        select: {
+          id: true,
+          staffId: true,
+          date: true,
+          note: true,
+          createdAt: true,
+          status: true,
+          approvedAt: true,
+          approvedBy: { select: { id: true, name: true } },
+        },
         orderBy: { date: 'asc' },
       }),
       canManageDayOffs(actor.role)
@@ -50,6 +59,23 @@ export async function GET(request: Request) {
             where: { active: true, ...branchScope(actor) },
             select: { id: true, branchId: true, employeeId: true, name: true, role: true },
             orderBy: { name: 'asc' },
+          })
+        : Promise.resolve([]),
+      canManageDayOffs(actor.role)
+        ? prisma.opsStaffDayOff.findMany({
+            where: {
+              status: 'PENDING',
+              date: { gte: dateKeyToDate(from), lte: dateKeyToDate(to) },
+              staff: { active: true, ...branchScope(actor) },
+            },
+            select: {
+              id: true,
+              date: true,
+              note: true,
+              createdAt: true,
+              staff: { select: { id: true, employeeId: true, name: true, role: true } },
+            },
+            orderBy: { createdAt: 'asc' },
           })
         : Promise.resolve([]),
     ]);
@@ -61,6 +87,7 @@ export async function GET(request: Request) {
       selectedStaffId: selectedStaff.id,
       staff,
       dayOffs: dayOffs.map(serializeDayOff),
+      pending,
     }), { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return handleOpsError(error, 'list staff day offs');
@@ -90,6 +117,7 @@ export async function POST(request: Request) {
     const note = typeof body.note === 'string' ? body.note.trim() : '';
     if (note.length > 240) throw new OpsError(422, 'Catatan libur maksimal 240 karakter.');
 
+    const managerAction = canManageDayOffs(actor.role);
     const dayOff = await prisma.$transaction(async (tx) => {
       const created = await tx.opsStaffDayOff.create({
         data: {
@@ -97,8 +125,20 @@ export async function POST(request: Request) {
           date: dateKeyToDate(date),
           note: note || null,
           createdById: actor.id,
+          status: managerAction ? 'APPROVED' : 'PENDING',
+          approvedById: managerAction ? actor.id : null,
+          approvedAt: managerAction ? new Date() : null,
         },
-        select: { id: true, staffId: true, date: true, note: true, createdAt: true },
+        select: {
+          id: true,
+          staffId: true,
+          date: true,
+          note: true,
+          createdAt: true,
+          status: true,
+          approvedAt: true,
+          approvedBy: { select: { id: true, name: true } },
+        },
       });
       await tx.opsAuditLog.create({
         data: {
@@ -107,7 +147,12 @@ export async function POST(request: Request) {
           entityType: 'STAFF_DAY_OFF',
           entityId: created.id,
           action: 'CREATE',
-          afterData: { staffId: targetStaff.id, date, note: note || null },
+          afterData: {
+            staffId: targetStaff.id,
+            date,
+            note: note || null,
+            status: managerAction ? 'APPROVED' : 'PENDING',
+          },
         },
       });
       return created;

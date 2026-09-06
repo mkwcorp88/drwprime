@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, CalendarOff, CheckCircle2, ChevronDown, Info, Search, Trash2, UserRound, UsersRound, X } from 'lucide-react';
+import { CalendarDays, CalendarOff, Check, CheckCircle2, ChevronDown, Hourglass, Info, Search, Trash2, UserRound, UsersRound, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { dateKeyFromDate, formatDateKey } from '@/lib/treatment-operations/date';
 import { roleLabels } from '@/lib/treatment-operations/constants';
 import DayOffCalendar from '@/components/treatment-ops/DayOffCalendar';
-import type { OpsStaffDayOffView } from '@/types/treatment-operations';
+import type { OpsDayOffPendingView, OpsStaffDayOffView } from '@/types/treatment-operations';
 
 type StaffOption = {
   id: string;
@@ -17,6 +17,17 @@ type StaffOption = {
 
 type SelectedStaff = StaffOption & { branchId: string | null };
 
+const dayOffStatusStyle: Record<string, string> = {
+  PENDING: 'bg-amber-400/15 text-amber-300',
+  APPROVED: 'bg-emerald-400/15 text-emerald-300',
+  REJECTED: 'bg-rose-400/15 text-rose-300',
+};
+const dayOffStatusLabel: Record<string, string> = {
+  PENDING: 'Menunggu',
+  APPROVED: 'Disetujui',
+  REJECTED: 'Ditolak',
+};
+
 export default function StaffDayOffDashboard() {
   const router = useRouter();
   const [todayKey, setTodayKey] = useState('');
@@ -24,12 +35,14 @@ export default function StaffDayOffDashboard() {
   const [selectedStaff, setSelectedStaff] = useState<SelectedStaff | null>(null);
   const [staff, setStaff] = useState<StaffOption[]>([]);
   const [dayOffs, setDayOffs] = useState<OpsStaffDayOffView[]>([]);
+  const [pending, setPending] = useState<OpsDayOffPendingView[]>([]);
   const [canManageAll, setCanManageAll] = useState(false);
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -54,12 +67,41 @@ export default function StaffDayOffDashboard() {
         setSelectedStaff(data.selectedStaff || null);
         setSelectedStaffId((current) => current || data.selectedStaffId || '');
         setDayOffs(data.dayOffs || []);
+        setPending(data.pending || []);
         setError('');
       })
       .catch(() => { if (active) setError('Gagal memuat jadwal libur.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [router, selectedStaffId]);
+
+  const decideDayOff = async (pendingItem: OpsDayOffPendingView, action: 'APPROVE' | 'REJECT') => {
+    setError('');
+    setNotice('');
+    setDecidingId(pendingItem.id);
+    try {
+      const response = await fetch(`/api/treatment-ops/day-off/${pendingItem.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) router.replace('/treatment-ops/login');
+        setError(data.error || 'Pengajuan tidak dapat diproses.');
+        return;
+      }
+      setPending((current) => current.filter((item) => item.id !== pendingItem.id));
+      if (data.dayOff.staffId === selectedStaffId) {
+        setDayOffs((current) => [...current, data.dayOff].sort((left, right) => left.date.localeCompare(right.date)));
+      }
+      setNotice(`Libur ${pendingItem.staff.name} pada ${formatDateKey(dateKeyFromDate(pendingItem.date))} ${action === 'APPROVE' ? 'disetujui' : 'ditolak'}.`);
+    } catch {
+      setError('Pengajuan tidak dapat diproses.');
+    } finally {
+      setDecidingId(null);
+    }
+  };
 
   const saveDayOff = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -82,7 +124,11 @@ export default function StaffDayOffDashboard() {
       }
       setDayOffs((current) => [...current, data.dayOff].sort((left, right) => left.date.localeCompare(right.date)));
       setNote('');
-      setNotice(`Jadwal libur ${formatDateKey(data.dayOff.date)} berhasil disimpan.`);
+      setNotice(
+        canManageAll
+          ? `Jadwal libur ${formatDateKey(data.dayOff.date)} berhasil disimpan.`
+          : `Pengajuan libur ${formatDateKey(data.dayOff.date)} terkirim dan menunggu persetujuan Super Admin/Manajemen.`,
+      );
     } catch {
       setError('Jadwal libur tidak dapat disimpan.');
     } finally {
@@ -123,11 +169,37 @@ export default function StaffDayOffDashboard() {
         <CalendarOff className="size-8 text-primary" />
         <p className="mt-8 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Perencanaan tim</p>
         <h1 className="font-playfair mt-2 text-4xl font-bold">Jadwal Libur</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">Tandai tanggal ketika karyawan tidak bertugas. Pada tanggal tersebut, karyawan otomatis disembunyikan dari pilihan eksekutor order treatment.</p>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">{canManageAll
+          ? 'Tandai tanggal ketika karyawan tidak bertugas. Pada tanggal tersebut, karyawan otomatis disembunyikan dari pilihan eksekutor order treatment.'
+          : 'Ajukan tanggal libur Anda. Pengajuan perlu disetujui Super Admin/Manajemen sebelum berlaku dan menyembunyikan Anda dari pilihan eksekutor.'}</p>
       </section>
 
       {error && <p className="mt-5 flex items-center justify-between rounded-xl border border-red-400/25 bg-red-500/10 p-4 text-sm text-red-200"><span>{error}</span><button onClick={() => setError('')} aria-label="Tutup pesan error"><X className="size-4" /></button></p>}
       {notice && <p className="mt-5 flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm text-emerald-200"><CheckCircle2 className="size-4 shrink-0" />{notice}</p>}
+
+      {canManageAll && pending.length > 0 && (
+        <section className="mt-6 rounded-3xl border border-amber-400/20 bg-amber-400/[0.05] p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5"><span className="flex size-9 items-center justify-center rounded-full bg-amber-400/15 text-amber-300"><Hourglass className="size-4" /></span>
+              <div><h2 className="font-playfair text-lg font-bold">Menunggu persetujuan</h2><p className="text-[11px] text-white/45">{pending.length} pengajuan libur karyawan belum diproses.</p></div>
+            </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            {pending.map((item) => (
+              <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-black/20 p-3 ring-1 ring-white/10">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{item.staff.name} <span className="font-normal text-white/40">· {item.staff.employeeId}</span></p>
+                  <p className="mt-0.5 text-[11px] capitalize text-white/55">{formatDateKey(dateKeyFromDate(item.date))}{item.note ? ` — ${item.note}` : ''}</p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <button disabled={decidingId === item.id} onClick={() => void decideDayOff(item, 'APPROVE')} className="flex h-9 items-center gap-1.5 rounded-full bg-emerald-500/90 px-4 text-xs font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"><Check className="size-3.5" /> Setujui</button>
+                  <button disabled={decidingId === item.id} onClick={() => void decideDayOff(item, 'REJECT')} className="flex h-9 items-center gap-1.5 rounded-full border border-red-400/40 px-4 text-xs font-bold text-red-300 transition hover:bg-red-500 hover:text-white disabled:opacity-50"><X className="size-3.5" /> Tolak</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <form onSubmit={saveDayOff} className="fo-glass-card-soft rounded-3xl p-5 sm:p-7">
@@ -143,7 +215,7 @@ export default function StaffDayOffDashboard() {
 
           <label className="mt-6 block text-xs font-bold text-white/55">
             Tanggal libur
-            <span className="mt-2 block"><DayOffCalendar value={date} todayKey={todayKey} markedDates={dayOffs.map((item) => item.date)} onSelect={(selected) => { setDate(selected); setNotice(''); }} /></span>
+            <span className="mt-2 block"><DayOffCalendar value={date} todayKey={todayKey} markedDates={dayOffs.filter((item) => item.status === 'APPROVED').map((item) => item.date)} onSelect={(selected) => { setDate(selected); setNotice(''); }} /></span>
           </label>
           <label className="mt-4 block text-xs font-bold text-white/55">
             Catatan <span className="font-normal text-white/35">(opsional)</span>
@@ -170,13 +242,21 @@ export default function StaffDayOffDashboard() {
             <div className="mt-5 rounded-2xl border border-dashed border-white/15 px-5 py-12 text-center"><UserRound className="mx-auto size-7 text-white/25" /><p className="mt-3 text-sm text-white/45">Belum ada jadwal libur.</p><p className="mt-1 text-xs text-white/30">Tambahkan tanggal pertama dari formulir di samping.</p></div>
           ) : (
             <div className="mt-5 space-y-2">
-              {dayOffs.map((dayOff) => (
-                <article key={dayOff.id} className="flex items-center gap-3 rounded-2xl bg-white/[0.04] p-3 ring-1 ring-white/10">
-                  <div className="flex size-11 shrink-0 flex-col items-center justify-center rounded-xl bg-primary/10 text-primary"><span className="text-[9px] font-bold uppercase">{dayOff.date.slice(5, 7)}</span><span className="text-lg font-bold leading-none">{dayOff.date.slice(8, 10)}</span></div>
-                  <div className="min-w-0 flex-1"><p className="text-sm font-semibold capitalize">{formatDateKey(dayOff.date)}</p><p className="mt-0.5 truncate text-[11px] text-white/40">{dayOff.note || 'Tidak ada catatan'}</p></div>
-                  <button disabled={deletingId === dayOff.id} onClick={() => void removeDayOff(dayOff)} className="flex size-9 shrink-0 items-center justify-center rounded-full text-white/35 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40" aria-label={`Hapus jadwal ${formatDateKey(dayOff.date)}`}><Trash2 className="size-4" /></button>
-                </article>
-              ))}
+              {dayOffs.map((dayOff) => {
+                const canDelete = canManageAll || dayOff.status !== 'APPROVED';
+                return (
+                  <article key={dayOff.id} className="flex items-center gap-3 rounded-2xl bg-white/[0.04] p-3 ring-1 ring-white/10">
+                    <div className="flex size-11 shrink-0 flex-col items-center justify-center rounded-xl bg-primary/10 text-primary"><span className="text-[9px] font-bold uppercase">{dayOff.date.slice(5, 7)}</span><span className="text-lg font-bold leading-none">{dayOff.date.slice(8, 10)}</span></div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold capitalize">{formatDateKey(dayOff.date)}</p>
+                      <p className="mt-0.5 truncate text-[11px] text-white/40">{dayOff.note || 'Tidak ada catatan'}</p>
+                      {dayOff.approvedBy && dayOff.status === 'APPROVED' && <p className="mt-0.5 text-[10px] text-white/30">Disetujui {dayOff.approvedBy.name}</p>}
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${dayOffStatusStyle[dayOff.status] || 'bg-white/10 text-white/60'}`}>{dayOffStatusLabel[dayOff.status] || dayOff.status}</span>
+                    {canDelete && <button disabled={deletingId === dayOff.id} onClick={() => void removeDayOff(dayOff)} className="flex size-9 shrink-0 items-center justify-center rounded-full text-white/35 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40" aria-label={`Hapus jadwal ${formatDateKey(dayOff.date)}`}><Trash2 className="size-4" /></button>}
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>

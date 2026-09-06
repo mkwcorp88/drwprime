@@ -38,6 +38,7 @@ export async function GET(request: Request) {
       : await prisma.opsStaffDayOff.findMany({
           where: {
             date: { in: visitDateKeys.map(dateKeyToDate) },
+            status: 'APPROVED',
             staff: actor.role === 'SUPER_ADMIN' ? {} : { branchId: actor.branchId || '' },
           },
           select: { staffId: true, date: true },

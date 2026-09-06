@@ -115,8 +115,8 @@ export async function assignAction(actor: OpsStaff, actionId: string, staffId: s
     if (action.requiredRoleSnapshot && staff.role !== action.requiredRoleSnapshot) {
       throw new OpsError(422, `Tindakan ini memerlukan eksekutor berperan ${action.requiredRoleSnapshot.replaceAll('_', ' ').toLowerCase()}.`);
     }
-    const dayOff = await tx.opsStaffDayOff.findUnique({
-      where: { staffId_date: { staffId: staff.id, date: action.order.visitDate } },
+    const dayOff = await tx.opsStaffDayOff.findFirst({
+      where: { staffId: staff.id, date: action.order.visitDate, status: 'APPROVED' },
       select: { date: true },
     });
     if (dayOff) throw new OpsError(409, `${staff.name} sedang libur pada ${formatDateKey(dateKeyFromDate(dayOff.date))}.`);
@@ -161,8 +161,8 @@ export async function startAction(actor: OpsStaff, actionId: string) {
     if (action.assignedTherapistId && action.assignedTherapistId !== actor.id) {
       throw new OpsError(403, 'Tindakan ini ditugaskan kepada terapis lain.');
     }
-    const dayOff = await tx.opsStaffDayOff.findUnique({
-      where: { staffId_date: { staffId: actor.id, date: action.order.visitDate } },
+    const dayOff = await tx.opsStaffDayOff.findFirst({
+      where: { staffId: actor.id, date: action.order.visitDate, status: 'APPROVED' },
       select: { date: true },
     });
     if (dayOff) throw new OpsError(409, `Anda sedang libur pada ${formatDateKey(dateKeyFromDate(dayOff.date))}.`);

@@ -50,6 +50,17 @@ export type OpsStaffDayOffView = {
   date: string;
   note: string | null;
   createdAt: string;
+  status: string;
+  approvedAt: string | null;
+  approvedBy: { id: string; name: string } | null;
+};
+
+export type OpsDayOffPendingView = {
+  id: string;
+  date: string;
+  note: string | null;
+  createdAt: string;
+  staff: { id: string; employeeId: string; name: string; role: string };
 };
 
 export type OpsStaffDayOffSummary = {
