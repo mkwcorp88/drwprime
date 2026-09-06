@@ -70,7 +70,7 @@ describe('WhatsApp operational login OTP', () => {
     vi.stubGlobal('fetch', vi.fn());
 
     await expect(sendOpsLoginOtpWhatsApp('081234567890', '123456'))
-      .rejects.toThrow('Konfigurasi WhatsApp OTP belum lengkap.');
+      .rejects.toThrow('Konfigurasi WhatsApp OTP (Meta) belum lengkap.');
     expect(fetch).not.toHaveBeenCalled();
   });
 

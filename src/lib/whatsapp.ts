@@ -228,15 +228,11 @@ function getOpsOtpWhatsAppConfig() {
   return { accessToken, phoneNumberId, templateName, languageCode, graphVersion };
 }
 
-export async function sendOpsLoginOtpWhatsApp(to: string, code: string) {
+async function sendOpsLoginOtpViaMeta(to: string, code: string, target: string) {
   const { accessToken, phoneNumberId, graphVersion, templateName, languageCode } = getOpsOtpWhatsAppConfig();
-  const target = normalizePhoneNumber(to);
 
   if (!accessToken || !phoneNumberId) {
-    throw new Error('Konfigurasi WhatsApp OTP belum lengkap.');
-  }
-  if (!target || !/^\d{6}$/.test(code)) {
-    throw new Error('Tujuan atau kode WhatsApp OTP tidak valid.');
+    throw new Error('Konfigurasi WhatsApp OTP (Meta) belum lengkap.');
   }
 
   const response = await fetch(`https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`, {
@@ -272,6 +268,60 @@ export async function sendOpsLoginOtpWhatsApp(to: string, code: string) {
   }
 
   return raw ? JSON.parse(raw) : null;
+}
+
+// ===== Operational login OTP via Cekat Open API (DRW Prime WABA) =====
+// DRW Prime sends from +62 811-3880-0039 through the Cekat platform. When
+// OPS_WHATSAPP_PROVIDER=cekat, the sender uses the Cekat Open API instead of
+// the Meta Cloud API so the message is delivered from the DRW Prime number,
+// never from the shared POS account.
+// Docs: https://docs.cekat.ai/chat/broadcast-template-authentication-otp.md
+
+async function sendOpsLoginOtpViaCekat(to: string, code: string, target: string) {
+  const apiKey = process.env.OPS_CEKAT_API_KEY?.trim();
+  const inboxId = process.env.OPS_CEKAT_INBOX_ID?.trim();
+  const waTemplateId = process.env.OPS_CEKAT_WA_TEMPLATE_ID?.trim()
+    || process.env.OPS_WHATSAPP_TEMPLATE?.trim()
+    || 'drwprime_login_otp';
+
+  if (!apiKey || !inboxId) {
+    throw new Error('Konfigurasi WhatsApp OTP (Cekat) belum lengkap.');
+  }
+
+  const response = await fetch('https://api.cekat.ai/templates/send', {
+    method: 'POST',
+    headers: {
+      'api_key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      wa_template_id: waTemplateId,
+      template_body_variables: [],
+      otp_code: code,
+      inbox_id: inboxId,
+      phone_number: target,
+      phone_name: '',
+    }),
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error(`Cekat OTP API error ${response.status}: ${raw}`);
+  }
+
+  return raw ? JSON.parse(raw) : null;
+}
+
+export async function sendOpsLoginOtpWhatsApp(to: string, code: string) {
+  const target = normalizePhoneNumber(to);
+  if (!target || !/^\d{6}$/.test(code)) {
+    throw new Error('Tujuan atau kode WhatsApp OTP tidak valid.');
+  }
+  const provider = (process.env.OPS_WHATSAPP_PROVIDER?.trim() || 'meta').toLowerCase();
+  if (provider === 'cekat') {
+    return sendOpsLoginOtpViaCekat(to, code, target);
+  }
+  return sendOpsLoginOtpViaMeta(to, code, target);
 }
 
 // ===== Message Builders =====

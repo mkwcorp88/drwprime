@@ -68,6 +68,16 @@ OPS_WHATSAPP_TEMPLATE_LANG="id"
 OPS_OTP_SECRET="random-secret-minimal-32-karakter"
 ```
 
+**Alternatif via Cekat (nomor DRW Prime dikelola Cekat):** set `OPS_WHATSAPP_PROVIDER=cekat`. Pengirim lalu memakai Cekat Open API (`https://api.cekat.ai/templates/send`) sehingga pesan OTP dikirim dari nomor 0039 lewat platform Cekat, bukan Cloud API:
+
+```bash
+OPS_WHATSAPP_PROVIDER=cekat
+OPS_CEKAT_API_KEY="kunci-API-dari-halaman-Developers-Cekat"
+OPS_CEKAT_INBOX_ID="inbox-id-WhatsApp-DRW-Prime-0039"
+OPS_CEKAT_WA_TEMPLATE_ID="id-template-drwprime_login_otp"
+OPS_OTP_SECRET="random-secret-minimal-32-karakter"
+```
+
 `OPS_OTP_SECRET` direkomendasikan. Jika belum ada, aplikasi sementara memakai fallback pepper untuk HMAC. Untuk rollback terkontrol ke login email/password, set `OPS_WHATSAPP_OTP_ENABLED=false`; kode password lama tetap tersedia tetapi endpoint-nya dinonaktifkan saat OTP aktif.
 
 ## Alur MVP
