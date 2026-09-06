@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FlaskConical, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, FlaskConical, Pencil, Plus, Trash2, X } from 'lucide-react';
 import type { OpsTreatmentView } from '@/types/treatment-operations';
 
 type ActionRow = {
@@ -36,7 +36,7 @@ const emptyForm: TreatmentForm = {
   actions: [emptyAction(1)],
 };
 
-const roleLabels: Record<string, string> = { '': 'Semua eksekutor', THERAPIST: 'Terapis', DOCTOR: 'Dokter', PERAWAT: 'Perawat' };
+const roleLabels: Record<string, string> = { '': 'Semua eksekutor', THERAPIST: 'Terapis', DOCTOR: 'Dokter', APOTEKER: 'Apoteker', ASISTEN_APOTEKER: 'Asisten Apoteker', PERAWAT: 'Perawat' };
 const incentiveLabels: Record<string, string> = { FIXED: 'Nominal', PERCENTAGE: 'Persen', POINTS: 'Poin', NONE: 'Tanpa insentif' };
 const mappingLabels: Record<string, string> = {
   EXACT_NAME: 'Mapping eksak',
@@ -128,6 +128,16 @@ export default function TreatmentManagement() {
     });
   };
 
+  const moveAction = (index: number, direction: -1 | 1) => {
+    setForm((current) => {
+      const target = index + direction;
+      if (target < 0 || target >= current.actions.length) return current;
+      const actions = [...current.actions];
+      [actions[index], actions[target]] = [actions[target], actions[index]];
+      return { ...current, actions: actions.map((action, i) => ({ ...action, sequenceNumber: i + 1 })) };
+    });
+  };
+
   const removeTreatment = async (treatment: OpsTreatmentView) => {
     const confirmed = window.confirm(`Hapus treatment "${treatment.name}"? Tindakan ini tidak dapat dibatalkan.`);
     if (!confirmed) return;
@@ -166,6 +176,14 @@ export default function TreatmentManagement() {
     }
     if (form.reason.trim().length < 2) {
       setError('Alasan perubahan wajib diisi.');
+      return;
+    }
+    if (form.actions.length === 0) {
+      setError('Minimal satu tahap tindakan wajib diisi. Tambahkan tahap dahulu.');
+      return;
+    }
+    if (form.actions.some((action) => !action.actionName.trim())) {
+      setError('Nama tindakan pada setiap tahap wajib diisi.');
       return;
     }
     setBusy(true);
@@ -281,6 +299,13 @@ export default function TreatmentManagement() {
             <div className="mt-3 space-y-2">
               {form.actions.map((action, index) => (
                 <div key={index} className="grid gap-2 rounded-2xl bg-white/[0.04] p-3 ring-1 ring-white/10 sm:grid-cols-12">
+                  <div className="flex items-center justify-center gap-0.5 sm:col-span-1 sm:flex-col">
+                    <span className="text-[10px] font-bold text-primary/70">{action.sequenceNumber}</span>
+                    <span className="flex items-center gap-0.5">
+                      <button type="button" onClick={() => moveAction(index, -1)} disabled={index === 0} aria-label="Naikkan urutan" className="rounded-md bg-white/10 p-1 text-white/60 transition hover:text-primary disabled:opacity-30"><ArrowUp className="size-3.5" /></button>
+                      <button type="button" onClick={() => moveAction(index, 1)} disabled={index === form.actions.length - 1} aria-label="Turunkan urutan" className="rounded-md bg-white/10 p-1 text-white/60 transition hover:text-primary disabled:opacity-30"><ArrowDown className="size-3.5" /></button>
+                    </span>
+                  </div>
                   <div className="sm:col-span-3"><input value={action.actionName} onChange={(e) => setAction(index, { actionName: e.target.value })} placeholder={`Tindakan ${action.sequenceNumber}`} className="h-10 w-full rounded-lg bg-black/30 px-3 text-sm outline-none ring-1 ring-white/15 focus:ring-primary/60" /></div>
                   <div className="sm:col-span-2"><select value={action.requiredRole} onChange={(e) => setAction(index, { requiredRole: e.target.value })} className="h-10 w-full rounded-lg bg-black px-2 text-xs outline-none ring-1 ring-white/15">{Object.entries(roleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
                   <div className="sm:col-span-2"><select value={action.incentiveType} onChange={(e) => setAction(index, { incentiveType: e.target.value })} className="h-10 w-full rounded-lg bg-black px-2 text-xs outline-none ring-1 ring-white/15">{Object.entries(incentiveLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
