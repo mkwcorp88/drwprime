@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { CalendarDays, CalendarOff, CheckCircle2, Info, Trash2, UserRound, UsersRound, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { CalendarDays, CalendarOff, CheckCircle2, ChevronDown, Info, Search, Trash2, UserRound, UsersRound, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { dateKeyFromDate, formatDateKey } from '@/lib/treatment-operations/date';
 import { roleLabels } from '@/lib/treatment-operations/constants';
@@ -137,12 +137,7 @@ export default function StaffDayOffDashboard() {
           {canManageAll && (
             <label className="mt-6 block text-xs font-bold text-white/55">
               Karyawan
-              <span className="mt-2 block">
-                <select value={selectedStaffId} onChange={(event) => { setSelectedStaffId(event.target.value); setNotice(''); }} className="h-12 w-full rounded-xl border border-white/15 bg-black/30 px-4 text-sm text-white outline-none focus:border-primary/60">
-                  <option value="">Pilih karyawan</option>
-                  {staff.map((member) => <option key={member.id} value={member.id}>{member.name} · {member.employeeId}</option>)}
-                </select>
-              </span>
+              <span className="mt-2 block"><StaffCombobox options={staff} value={selectedStaffId} onChange={(id) => { setSelectedStaffId(id); setNotice(''); }} /></span>
             </label>
           )}
 
@@ -186,6 +181,88 @@ export default function StaffDayOffDashboard() {
           )}
         </section>
       </section>
+    </div>
+  );
+}
+
+function StaffCombobox({ options, value, onChange }: { options: StaffOption[]; value: string; onChange: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selected = options.find((member) => member.id === value);
+  const normalized = query.trim().toLocaleLowerCase('id-ID');
+  const filtered = options.filter((member) =>
+    [member.name, member.employeeId, member.role].some((field) => field.toLocaleLowerCase('id-ID').includes(normalized)),
+  );
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (event: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  const choose = (id: string) => {
+    onChange(id);
+    setQuery('');
+    setOpen(false);
+  };
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/15 bg-black/30 px-4 text-left text-sm text-white outline-none transition hover:border-primary/50 focus:border-primary/60"
+      >
+        <span className={selected ? 'truncate' : 'truncate text-white/45'}>
+          {selected ? `${selected.name} · ${selected.employeeId}` : 'Pilih karyawan'}
+        </span>
+        <ChevronDown className={`size-4 shrink-0 text-white/45 transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+0.45rem)] z-30 overflow-hidden rounded-2xl border border-white/15 bg-[#121212] shadow-2xl shadow-black/50">
+          <div className="flex items-center gap-2 border-b border-white/10 px-3">
+            <Search className="size-4 shrink-0 text-white/40" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); }}
+              placeholder="Cari nama atau ID karyawan"
+              aria-label="Cari karyawan"
+              className="h-11 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
+            />
+          </div>
+          <div role="listbox" aria-label="Daftar karyawan" className="max-h-64 overflow-y-auto p-1.5">
+            {filtered.length === 0 ? (
+              <p className="px-3 py-5 text-center text-xs text-white/40">Karyawan tidak ditemukan.</p>
+            ) : filtered.map((member) => {
+              const roleText = roleLabels[member.role as keyof typeof roleLabels] || member.role;
+              return (
+                <button
+                  key={member.id}
+                  type="button"
+                  role="option"
+                  aria-selected={member.id === value}
+                  onClick={() => choose(member.id)}
+                  className="flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-white/10 aria-selected:bg-primary/10"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-white">{member.name}</span>
+                    <span className="mt-0.5 block text-[10px] text-white/45">{member.employeeId} · {roleText}</span>
+                  </span>
+                  {member.id === value && <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
