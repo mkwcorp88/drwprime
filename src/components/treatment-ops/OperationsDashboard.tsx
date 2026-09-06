@@ -427,7 +427,7 @@ export default function OperationsDashboard() {
                 canEnterManual={canCreate}
               />
               <Field label="Dokter"><select value={form.doctorId} onChange={(e) => setForm({ ...form, doctorId: e.target.value })}><option value="">Tanpa dokter</option>{bootstrap.doctors.filter((item) => item.branchId === form.branchId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
-               <div className="sm:col-span-2"><div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-white/60">Treatment</span><button type="button" onClick={() => setForm((current) => ({ ...current, treatments: [...current.treatments, { treatmentId: '', originalPrice: '', discountAmount: '0' }] }))} className="flex items-center gap-1 rounded-full border border-primary/40 px-3 py-1.5 text-[10px] font-bold text-primary hover:bg-primary hover:text-black"><Plus className="size-3" /> Tambah treatment</button></div><div className="space-y-3">{form.treatments.map((item, index) => <div key={index} className="rounded-2xl border border-white/10 bg-black/20 p-3"><div className="mb-3 flex items-center justify-between"><span className="text-[10px] font-bold text-primary">Treatment {index + 1}</span>{form.treatments.length > 1 && <button type="button" onClick={() => setForm((current) => ({ ...current, treatments: current.treatments.filter((_, itemIndex) => itemIndex !== index) }))} className="text-white/45 hover:text-red-300"><X className="size-4" /></button>}</div><label className="block text-xs font-bold text-white/60">Nama treatment<TreatmentPicker treatments={bootstrap.treatments} value={item.treatmentId} onChange={(id) => selectTreatment(index, id)} /></label><div className="mt-3 grid gap-3 sm:grid-cols-2"><Field label="Harga aktual"><input required inputMode="numeric" value={item.originalPrice} onChange={(e) => setForm((current) => ({ ...current, treatments: current.treatments.map((currentItem, itemIndex) => itemIndex === index ? { ...currentItem, originalPrice: e.target.value } : currentItem) }))} /></Field><Field label="Diskon"><input inputMode="numeric" value={item.discountAmount} onChange={(e) => setForm((current) => ({ ...current, treatments: current.treatments.map((currentItem, itemIndex) => itemIndex === index ? { ...currentItem, discountAmount: e.target.value } : currentItem) }))} /></Field></div></div>)}</div></div>
+               <div className="sm:col-span-2"><div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-white/60">Treatment</span><button type="button" onClick={() => setForm((current) => ({ ...current, treatments: [...current.treatments, { treatmentId: '', originalPrice: '', discountAmount: '0' }] }))} className="flex items-center gap-1 rounded-full border border-primary/40 px-3 py-1.5 text-[10px] font-bold text-primary hover:bg-primary hover:text-black"><Plus className="size-3" /> Tambah treatment</button></div><div className="space-y-3">{form.treatments.map((item, index) => <div key={index} className="rounded-2xl border border-white/10 bg-black/20 p-3"><div className="mb-3 flex items-center justify-between"><span className="text-[10px] font-bold text-primary">Treatment {index + 1}</span>{form.treatments.length > 1 && <button type="button" onClick={() => setForm((current) => ({ ...current, treatments: current.treatments.filter((_, itemIndex) => itemIndex !== index) }))} className="text-white/45 hover:text-red-300"><X className="size-4" /></button>}</div><label className="block text-xs font-bold text-white/60">Nama treatment<TreatmentPicker treatments={bootstrap.treatments} value={item.treatmentId} onChange={(id) => selectTreatment(index, id)} /></label><StepPreview treatment={bootstrap.treatments.find((tx) => tx.id === item.treatmentId)} /><div className="mt-3 grid gap-3 sm:grid-cols-2"><Field label="Harga aktual"><input required inputMode="numeric" value={item.originalPrice} onChange={(e) => setForm((current) => ({ ...current, treatments: current.treatments.map((currentItem, itemIndex) => itemIndex === index ? { ...currentItem, originalPrice: e.target.value } : currentItem) }))} /></Field><Field label="Diskon"><input inputMode="numeric" value={item.discountAmount} onChange={(e) => setForm((current) => ({ ...current, treatments: current.treatments.map((currentItem, itemIndex) => itemIndex === index ? { ...currentItem, discountAmount: e.target.value } : currentItem) }))} /></Field></div></div>)}</div></div>
               <Field label="Catatan internal"><input value={form.internalNote} onChange={(e) => setForm({ ...form, internalNote: e.target.value })} placeholder="Opsional" /></Field>
             </div>
             <button className="mt-7 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-primary text-sm font-bold text-black transition hover:bg-primary-light"><Plus className="size-4" /> Buat order & QR</button>
@@ -468,6 +468,27 @@ type TreatmentPickerProps = {
   value: string;
   onChange: (id: string) => void;
 };
+
+function StepPreview({ treatment }: { treatment?: OpsBootstrap['treatments'][number] }) {
+  if (!treatment) return null;
+  const steps = treatment.actionTemplates.filter((step) => step.active !== false);
+  if (steps.length === 0) {
+    return <p className="mt-2 text-[10px] font-semibold text-amber-300">Tahapan belum tersedia — hubungi Super Admin untuk melengkapi.</p>;
+  }
+  return (
+    <div className="mt-3 rounded-xl bg-white/[0.04] p-3 ring-1 ring-white/10">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">Tahapan treatment ({steps.length})</p>
+      <ol className="mt-2 space-y-1">
+        {steps.map((step) => (
+          <li key={step.id} className="flex items-center justify-between gap-2 text-[11px]">
+            <span className="text-white/80"><span className="font-bold text-primary">{step.sequenceNumber}.</span> {step.actionName}</span>
+            <span className="shrink-0 text-[10px] text-white/40">{roleLabel(step.requiredRole ?? '') || 'Semua eksekutor'}{step.isRequired ? ' · Wajib' : ' · Opsional'}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 
 function TreatmentPicker({ treatments, value, onChange }: TreatmentPickerProps) {
   const [open, setOpen] = useState(false);

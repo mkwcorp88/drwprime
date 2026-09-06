@@ -15,7 +15,21 @@ export async function GET() {
     const [branches, treatments, doctors, therapists, patients, assignableStaff] = await Promise.all([
       prisma.opsBranch.findMany({ where: { ...branchWhere, active: true }, orderBy: { name: 'asc' } }),
       prisma.opsTreatment.findMany({
-        include: { actionTemplates: { where: { active: true }, orderBy: { sequenceNumber: 'asc' } } },
+        include: {
+          actionTemplates: {
+            where: { active: true },
+            orderBy: { sequenceNumber: 'asc' },
+            select: {
+              id: true,
+              actionName: true,
+              sequenceNumber: true,
+              isRequired: true,
+              requiredRole: true,
+              active: true,
+              incentiveValue: true,
+            },
+          },
+        },
         orderBy: { name: 'asc' },
       }),
       prisma.opsDoctor.findMany({

@@ -67,7 +67,7 @@ export type OpsBootstrap = {
     category: string | null;
     defaultPrice: number;
     active: boolean;
-    actionTemplates: Array<{ id: string; actionName: string; sequenceNumber: number; incentiveValue: number }>;
+    actionTemplates: OpsTreatmentActionTemplateView[];
   }>;
   doctors: Array<{ id: string; branchId: string; name: string }>;
   therapists: Array<{ id: string; branchId: string | null; employeeId: string; name: string }>;
