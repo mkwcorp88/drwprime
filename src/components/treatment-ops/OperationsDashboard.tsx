@@ -8,9 +8,9 @@ import Link from 'next/link';
 import AidoPatientPicker from '@/components/treatment-ops/AidoPatientPicker';
 import BadgeScannerModal from '@/components/treatment-ops/BadgeScannerModal';
 import { ORDER_MANAGEMENT_ROLES, roleLabels } from '@/lib/treatment-operations/constants';
-import { dateKeyFromDate } from '@/lib/treatment-operations/date';
+import { dateKeyFromDate, formatDateKey } from '@/lib/treatment-operations/date';
 import { formatPhone } from '@/lib/phone';
-import type { OpsActionView, OpsBootstrap, OpsOrderView, OpsStaffDayOffSummary } from '@/types/treatment-operations';
+import type { OpsActionView, OpsBootstrap, OpsOrderView, OpsStaffDayOffAvailability, OpsStaffDayOffSummary } from '@/types/treatment-operations';
 
 const statusStyle: Record<string, string> = {
   CREATED: 'bg-sky-400/15 text-sky-300', ASSIGNED: 'bg-indigo-400/15 text-indigo-300',
@@ -94,6 +94,9 @@ export default function OperationsDashboard() {
   const [bootstrap, setBootstrap] = useState<OpsBootstrap | null>(null);
   const [orders, setOrders] = useState<OpsOrderView[]>([]);
   const [staffDayOffs, setStaffDayOffs] = useState<OpsStaffDayOffSummary[]>([]);
+  const [formStaffDayOffs, setFormStaffDayOffs] = useState<OpsStaffDayOffAvailability[]>([]);
+  const [formDayOffLoading, setFormDayOffLoading] = useState(false);
+  const [formDayOffError, setFormDayOffError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -212,6 +215,32 @@ export default function OperationsDashboard() {
   const canCreate = Boolean(bootstrap && ORDER_MANAGEMENT_ROLES.includes(bootstrap.staff.role));
   const canAssign = Boolean(bootstrap && ['SUPER_ADMIN', 'SUPERVISOR'].includes(bootstrap.staff.role));
   const canScan = bootstrap?.staff.role === 'SUPER_ADMIN';
+
+  useEffect(() => {
+    if (!showForm || !canCreate || !form.branchId || !form.visitDate) {
+      setFormStaffDayOffs([]);
+      setFormDayOffError('');
+      setFormDayOffLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setFormDayOffLoading(true);
+    setFormDayOffError('');
+    const query = new URLSearchParams({ branchId: form.branchId, date: form.visitDate });
+    void fetch(`/api/treatment-ops/staff-day-offs?${query.toString()}`, { cache: 'no-store' })
+      .then(async (response) => ({ response, data: await response.json() }))
+      .then(({ response, data }) => {
+        if (!active) return;
+        if (response.status === 401) { router.replace('/treatment-ops/login'); return; }
+        if (!response.ok) { setFormDayOffError(data.error || 'Gagal memuat daftar staf tidak masuk.'); return; }
+        setFormStaffDayOffs(data.staffDayOffs || []);
+      })
+      .catch(() => { if (active) setFormDayOffError('Gagal memuat daftar staf tidak masuk.'); })
+      .finally(() => { if (active) setFormDayOffLoading(false); });
+
+    return () => { active = false; };
+  }, [canCreate, form.branchId, form.visitDate, router, showForm]);
 
   const isPersonalRole = Boolean(bootstrap && PERSONAL_ROLES.has(bootstrap.staff.role));
   const personalOrders = bootstrap
@@ -427,6 +456,37 @@ export default function OperationsDashboard() {
                 canEnterManual={canCreate}
               />
               <Field label="Dokter"><select value={form.doctorId} onChange={(e) => setForm({ ...form, doctorId: e.target.value })}><option value="">Tanpa dokter</option>{bootstrap.doctors.filter((item) => item.branchId === form.branchId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
+               <div className="sm:col-span-2 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-4">
+                 <div className="flex items-start justify-between gap-3">
+                   <div className="flex min-w-0 items-start gap-2.5">
+                     <UsersRound className="mt-0.5 size-4 shrink-0 text-amber-300" />
+                     <div className="min-w-0">
+                       <p className="text-xs font-bold text-amber-100">Staf tidak masuk</p>
+                       <p className="mt-1 text-[11px] text-white/50">Jadwal disetujui untuk {form.visitDate ? formatDateKey(form.visitDate) : 'tanggal ini'}.</p>
+                     </div>
+                   </div>
+                   {!formDayOffLoading && <span className="shrink-0 rounded-full bg-amber-300/10 px-2.5 py-1 text-[10px] font-bold text-amber-200">{formStaffDayOffs.length} staf</span>}
+                 </div>
+                 {formDayOffLoading ? (
+                   <p className="mt-3 text-[11px] text-white/45">Memuat jadwal staf...</p>
+                 ) : formDayOffError ? (
+                   <p className="mt-3 text-[11px] text-red-200">{formDayOffError}</p>
+                 ) : formStaffDayOffs.length === 0 ? (
+                   <p className="mt-3 text-[11px] text-white/45">Tidak ada staf dengan jadwal libur yang disetujui.</p>
+                 ) : (
+                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                     {formStaffDayOffs.map((dayOff) => (
+                       <div key={dayOff.staffId} className="flex min-w-0 items-center gap-2.5 rounded-xl bg-black/20 px-3 py-2.5 ring-1 ring-white/10">
+                         <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-300/10 text-[10px] font-bold text-amber-200">{initials(dayOff.staff.name)}</span>
+                         <div className="min-w-0">
+                           <p className="truncate text-xs font-semibold text-white">{dayOff.staff.name}</p>
+                           <p className="truncate text-[10px] text-white/40">{dayOff.staff.employeeId} · {roleLabel(dayOff.staff.role)}</p>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 )}
+               </div>
                <div className="sm:col-span-2"><div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-white/60">Treatment</span><button type="button" onClick={() => setForm((current) => ({ ...current, treatments: [...current.treatments, { treatmentId: '', originalPrice: '', discountAmount: '0' }] }))} className="flex items-center gap-1 rounded-full border border-primary/40 px-3 py-1.5 text-[10px] font-bold text-primary hover:bg-primary hover:text-black"><Plus className="size-3" /> Tambah treatment</button></div><div className="space-y-3">{form.treatments.map((item, index) => <div key={index} className="rounded-2xl border border-white/10 bg-black/20 p-3"><div className="mb-3 flex items-center justify-between"><span className="text-[10px] font-bold text-primary">Treatment {index + 1}</span>{form.treatments.length > 1 && <button type="button" onClick={() => setForm((current) => ({ ...current, treatments: current.treatments.filter((_, itemIndex) => itemIndex !== index) }))} className="text-white/45 hover:text-red-300"><X className="size-4" /></button>}</div><label className="block text-xs font-bold text-white/60">Nama treatment<TreatmentPicker treatments={bootstrap.treatments} value={item.treatmentId} onChange={(id) => selectTreatment(index, id)} /></label><StepPreview treatment={bootstrap.treatments.find((tx) => tx.id === item.treatmentId)} /><div className="mt-3 grid gap-3 sm:grid-cols-2"><Field label="Harga aktual"><input required inputMode="numeric" value={item.originalPrice} onChange={(e) => setForm((current) => ({ ...current, treatments: current.treatments.map((currentItem, itemIndex) => itemIndex === index ? { ...currentItem, originalPrice: e.target.value } : currentItem) }))} /></Field><Field label="Diskon"><input inputMode="numeric" value={item.discountAmount} onChange={(e) => setForm((current) => ({ ...current, treatments: current.treatments.map((currentItem, itemIndex) => itemIndex === index ? { ...currentItem, discountAmount: e.target.value } : currentItem) }))} /></Field></div></div>)}</div></div>
               <Field label="Catatan internal"><input value={form.internalNote} onChange={(e) => setForm({ ...form, internalNote: e.target.value })} placeholder="Opsional" /></Field>
             </div>
