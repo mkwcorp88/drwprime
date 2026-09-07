@@ -12,6 +12,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const order = await prisma.opsTreatmentOrder.findUnique({ where: { id } });
     if (!order) throw new OpsError(404, 'Order tidak ditemukan.');
     if (actor.role !== 'SUPER_ADMIN' && actor.branchId !== order.branchId) throw new OpsError(403, 'Order berasal dari cabang lain.');
+    if (order.status === 'CANCELLED') throw new OpsError(409, 'Order yang dibatalkan tidak dapat dibuatkan QR baru.');
     const token = createQrToken();
     await prisma.opsTreatmentOrder.update({
       where: { id }, data: { qrTokenHash: hashQrToken(token), qrRevokedAt: null },

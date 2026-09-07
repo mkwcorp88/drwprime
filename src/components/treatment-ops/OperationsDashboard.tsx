@@ -190,7 +190,7 @@ export default function OperationsDashboard() {
     await load();
   };
 
-  const removeOrder = async (order: OpsOrderView) => {
+  const cancelOrder = async (order: OpsOrderView) => {
     const confirmed = window.confirm(`Batalkan order ${order.orderNumber} untuk ${order.patientNameSnapshot}?`);
     if (!confirmed) return;
     const reason = window.prompt('Masukkan alasan pembatalan order:');
@@ -206,6 +206,28 @@ export default function OperationsDashboard() {
     finally { setBusyAssign(null); }
   };
 
+  const deleteCancelledOrder = async (order: OpsOrderView) => {
+    const confirmed = window.confirm(`Hapus permanen order ${order.orderNumber} untuk ${order.patientNameSnapshot}? Data order tidak dapat dipulihkan.`);
+    if (!confirmed) return;
+    const reason = window.prompt('Masukkan alasan penghapusan permanen order:');
+    if (reason === null) return;
+    if (reason.trim().length < 2) { setError('Alasan penghapusan wajib diisi.'); return; }
+    setError(''); setBusyAssign(order.id);
+    try {
+      const response = await fetch(`/api/treatment-ops/orders/${order.id}/permanent`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: reason.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) router.replace('/treatment-ops/login');
+        setError(data.error || 'Order tidak dapat dihapus permanen.');
+        return;
+      }
+      await load();
+    } catch { setError('Gagal menghapus order permanen.'); }
+    finally { setBusyAssign(null); }
+  };
+
   const isStaffDayOff = (staffId: string, visitDate: string) => staffDayOffs.some(
     (dayOff) => dayOff.staffId === staffId && dayOff.date === dateKeyFromDate(visitDate),
   );
@@ -217,6 +239,7 @@ export default function OperationsDashboard() {
     ) || [];
 
   const canCreate = Boolean(bootstrap && ORDER_MANAGEMENT_ROLES.includes(bootstrap.staff.role));
+  const canDeleteCancelled = bootstrap?.staff.role === 'SUPER_ADMIN';
   const canAssign = Boolean(bootstrap && ['SUPER_ADMIN', 'SUPERVISOR'].includes(bootstrap.staff.role));
   const canScan = bootstrap?.staff.role === 'SUPER_ADMIN';
 
@@ -441,7 +464,7 @@ export default function OperationsDashboard() {
                   <p className="mt-2 text-lg font-semibold">{order.patientNameSnapshot} <span className="font-normal text-white/30">·</span> {order.treatmentNameSnapshot}</p>
                     <p className="mt-1 text-xs text-white/45">{schedule(order)} · {order.doctor?.name || 'Tanpa dokter'} · {money(order.finalPrice)}</p>
                 </div>
-               <div className="flex flex-wrap gap-2"><button onClick={() => void openQr(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-primary/30 px-5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"><QrCode className="size-4" /> Tampilkan QR</button>{canCreate && ['CREATED', 'ASSIGNED'].includes(order.status) && order.actions.every((action) => ['PENDING', 'ASSIGNED'].includes(action.status)) && <button disabled={busyAssign === order.id} onClick={() => void removeOrder(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-red-400/30 px-4 text-xs font-bold text-red-300 transition hover:bg-red-500 hover:text-white disabled:opacity-50"><Trash2 className="size-4" /> Hapus</button>}</div>
+               <div className="flex flex-wrap gap-2">{order.status !== 'CANCELLED' && <button onClick={() => void openQr(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-primary/30 px-5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"><QrCode className="size-4" /> Tampilkan QR</button>}{canCreate && ['CREATED', 'ASSIGNED'].includes(order.status) && order.actions.every((action) => ['PENDING', 'ASSIGNED'].includes(action.status)) && <button disabled={busyAssign === order.id} onClick={() => void cancelOrder(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-red-400/30 px-4 text-xs font-bold text-red-300 transition hover:bg-red-500 hover:text-white disabled:opacity-50"><X className="size-4" /> Batalkan</button>}{canDeleteCancelled && order.status === 'CANCELLED' && <button disabled={busyAssign === order.id} onClick={() => void deleteCancelledOrder(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-red-500/50 bg-red-500/10 px-4 text-xs font-bold text-red-200 transition hover:bg-red-500 hover:text-white disabled:opacity-50"><Trash2 className="size-4" /> Hapus permanen</button>}</div>
               </div>
               <div className="p-5">
                 <div className="mb-4 flex items-center gap-3">
