@@ -69,7 +69,7 @@ export type OpsStaffDayOffSummary = {
 };
 
 export type OpsStaffDayOffAvailability = OpsStaffDayOffSummary & {
-  staff: { id: string; employeeId: string; name: string; role: OpsRole };
+  staff: { id: string; employeeId: string; name: string; role: OpsRole; branch: { id: string; name: string } | null };
 };
 
 export type OpsBootstrap = {

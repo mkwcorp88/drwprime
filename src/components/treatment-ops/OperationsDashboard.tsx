@@ -94,6 +94,9 @@ export default function OperationsDashboard() {
   const [bootstrap, setBootstrap] = useState<OpsBootstrap | null>(null);
   const [orders, setOrders] = useState<OpsOrderView[]>([]);
   const [staffDayOffs, setStaffDayOffs] = useState<OpsStaffDayOffSummary[]>([]);
+  const [todayStaffDayOffs, setTodayStaffDayOffs] = useState<OpsStaffDayOffAvailability[]>([]);
+  const [todayDayOffLoading, setTodayDayOffLoading] = useState(false);
+  const [todayDayOffError, setTodayDayOffError] = useState('');
   const [formStaffDayOffs, setFormStaffDayOffs] = useState<OpsStaffDayOffAvailability[]>([]);
   const [formDayOffLoading, setFormDayOffLoading] = useState(false);
   const [formDayOffError, setFormDayOffError] = useState('');
@@ -105,6 +108,7 @@ export default function OperationsDashboard() {
   const [scanBusy, setScanBusy] = useState(false);
   const [busyAssign, setBusyAssign] = useState<string | null>(null);
   const [form, setForm] = useState({ branchId: '', patientId: '', doctorId: '', visitDate: dateKeyFromDate(new Date()), visitTime: '', treatments: [{ treatmentId: '', originalPrice: '', discountAmount: '0' }], internalNote: '' });
+  const todayKey = dateKeyFromDate(new Date());
 
   const load = async () => {
     setLoading(true);
@@ -242,13 +246,39 @@ export default function OperationsDashboard() {
     return () => { active = false; };
   }, [canCreate, form.branchId, form.visitDate, router, showForm]);
 
+  useEffect(() => {
+    if (!canCreate || !bootstrap || (bootstrap.staff.role !== 'SUPER_ADMIN' && !form.branchId)) {
+      setTodayStaffDayOffs([]);
+      setTodayDayOffError('');
+      setTodayDayOffLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setTodayDayOffLoading(true);
+    setTodayDayOffError('');
+    const query = new URLSearchParams({ date: todayKey });
+    if (bootstrap.staff.role !== 'SUPER_ADMIN') query.set('branchId', form.branchId);
+    void fetch(`/api/treatment-ops/staff-day-offs?${query.toString()}`, { cache: 'no-store' })
+      .then(async (response) => ({ response, data: await response.json() }))
+      .then(({ response, data }) => {
+        if (!active) return;
+        if (response.status === 401) { router.replace('/treatment-ops/login'); return; }
+        if (!response.ok) { setTodayDayOffError(data.error || 'Gagal memuat staf tidak masuk hari ini.'); return; }
+        setTodayStaffDayOffs(data.staffDayOffs || []);
+      })
+      .catch(() => { if (active) setTodayDayOffError('Gagal memuat staf tidak masuk hari ini.'); })
+      .finally(() => { if (active) setTodayDayOffLoading(false); });
+
+    return () => { active = false; };
+  }, [bootstrap, canCreate, form.branchId, router, todayKey]);
+
   const isPersonalRole = Boolean(bootstrap && PERSONAL_ROLES.has(bootstrap.staff.role));
   const personalOrders = bootstrap
     ? orders.filter((order) => order.actions.some((action) => action.assignedTherapistId === bootstrap.staff.id || action.performedByTherapistId === bootstrap.staff.id))
     : [];
   const dashboardOrders = isPersonalRole ? personalOrders : orders;
   const personalActions = personalOrders.flatMap((order) => order.actions.filter((action) => action.assignedTherapistId === bootstrap?.staff.id || action.performedByTherapistId === bootstrap?.staff.id));
-   const todayKey = dateKeyFromDate(new Date());
    const todayPersonalActions = personalOrders.flatMap((order) => dateKeyFromDate(order.visitDate) === todayKey
     ? order.actions.filter((action) => action.assignedTherapistId === bootstrap?.staff.id || action.performedByTherapistId === bootstrap?.staff.id)
     : []);
@@ -358,9 +388,44 @@ export default function OperationsDashboard() {
          ).map(({ label, value, icon: Icon }) => (
            <div key={label} className="mobile-surface-soft fo-fade-up fo-stagger-1 rounded-3xl p-4 sm:p-5"><Icon className="mb-5 size-5 text-primary" /><p className={`${typeof value === 'string' ? 'text-lg sm:text-2xl' : 'text-3xl'} font-bold`}>{value}</p><p className="mt-1 text-xs text-white/50">{label}</p></div>
          ))}
-       </section>
+        </section>
 
-       <section className="mt-8 fo-fade-up fo-stagger-2">
+        {canCreate && (
+          <section className="mt-5 rounded-3xl border border-amber-300/20 bg-amber-300/[0.06] p-5 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-amber-300/10 text-amber-200"><UsersRound className="size-5" /></span>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/80">Kesiapan tim</p>
+                  <h2 className="font-playfair mt-1 text-xl font-bold">Staf tidak masuk hari ini</h2>
+                  <p className="mt-1 text-xs text-white/50">{formatDateKey(todayKey)} · jadwal libur yang sudah disetujui</p>
+                </div>
+              </div>
+              {!todayDayOffLoading && <span className="rounded-full bg-amber-300/10 px-3 py-1.5 text-[10px] font-bold text-amber-200">{todayStaffDayOffs.length} staf</span>}
+            </div>
+            {todayDayOffLoading ? (
+              <p className="mt-4 text-xs text-white/45">Memuat jadwal staf...</p>
+            ) : todayDayOffError ? (
+              <p className="mt-4 text-xs text-red-200">{todayDayOffError}</p>
+            ) : todayStaffDayOffs.length === 0 ? (
+              <p className="mt-4 text-xs text-white/45">Tidak ada staf dengan jadwal libur yang disetujui hari ini.</p>
+            ) : (
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {todayStaffDayOffs.map((dayOff) => (
+                  <div key={`${dayOff.staffId}-${dayOff.date}`} className="flex min-w-0 items-center gap-2.5 rounded-2xl bg-black/20 px-3 py-2.5 ring-1 ring-white/10">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-300/10 text-[10px] font-bold text-amber-200">{initials(dayOff.staff.name)}</span>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold text-white">{dayOff.staff.name}</p>
+                      <p className="truncate text-[10px] text-white/40">{dayOff.staff.employeeId} · {roleLabel(dayOff.staff.role)}{dayOff.staff.branch ? ` · ${dayOff.staff.branch.name}` : ''}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        <section className="mt-8 fo-fade-up fo-stagger-2">
          <div className="mb-4 flex items-end justify-between gap-4">
            <div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">{isPersonalRole ? 'Tugas yang ditugaskan' : 'Antrean operasional'}</p><h2 className="mobile-page-title font-playfair mt-1 text-2xl font-bold">{isPersonalRole ? 'Tugas saya' : 'Order treatment'}</h2></div>
            <span className="text-xs text-white/40">{bootstrap?.staff.name} · {bootstrap?.staff.role.replaceAll('_', ' ')}</span>

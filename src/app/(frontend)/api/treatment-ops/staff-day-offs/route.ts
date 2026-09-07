@@ -16,34 +16,44 @@ export async function GET(request: Request) {
     const date = parseOpsDateOnly(requestedDate);
     const requestedBranchId = params.get('branchId')?.trim() || '';
     const branchId = actor.role === 'SUPER_ADMIN' ? requestedBranchId : actor.branchId || '';
-    if (!branchId) throw new OpsError(422, 'Cabang wajib dipilih.');
+    if (actor.role !== 'SUPER_ADMIN' && !branchId) throw new OpsError(422, 'Cabang wajib dipilih.');
 
-    const branch = await prisma.opsBranch.findFirst({
-      where: {
-        id: branchId,
-        active: true,
-        ...(actor.role === 'SUPER_ADMIN' ? {} : { id: actor.branchId || '' }),
-      },
-      select: { id: true },
-    });
-    if (!branch) throw new OpsError(404, 'Cabang aktif tidak ditemukan pada cakupan Anda.');
+    const branch = branchId
+      ? await prisma.opsBranch.findFirst({
+          where: {
+            id: branchId,
+            active: true,
+            ...(actor.role === 'SUPER_ADMIN' ? {} : { id: actor.branchId || '' }),
+          },
+          select: { id: true },
+        })
+      : null;
+    if (branchId && !branch) throw new OpsError(404, 'Cabang aktif tidak ditemukan pada cakupan Anda.');
 
     const dayOffs = await prisma.opsStaffDayOff.findMany({
       where: {
         date: dateKeyToDate(date),
         status: 'APPROVED',
-        staff: { active: true, branchId: branch.id },
+        staff: { active: true, ...(branch ? { branchId: branch.id } : {}) },
       },
       select: {
         staffId: true,
         date: true,
-        staff: { select: { id: true, employeeId: true, name: true, role: true } },
+        staff: {
+          select: {
+            id: true,
+            employeeId: true,
+            name: true,
+            role: true,
+            branch: { select: { id: true, name: true } },
+          },
+        },
       },
     });
 
     return NextResponse.json(serialize({
       date,
-      branchId: branch.id,
+      branchId: branch?.id || null,
       staffDayOffs: dayOffs
         .map((dayOff) => ({ staffId: dayOff.staffId, date: dateKeyFromDate(dayOff.date), staff: dayOff.staff }))
         .sort((left, right) => left.staff.name.localeCompare(right.staff.name, 'id-ID')),
