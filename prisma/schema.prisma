@@ -863,6 +863,7 @@ model OpsBranch {
   orders           OpsTreatmentOrder[]
   incentiveEntries OpsIncentiveLedger[]
   incentivePeriods OpsIncentivePeriod[]
+  monthlyRevenueTargets OpsMonthlyRevenueTarget[]
   auditLogs        OpsAuditLog[]
 
   @@map("ops_branches")
@@ -902,6 +903,7 @@ model OpsStaff {
   incentiveEntries   OpsIncentiveLedger[]   @relation("OpsTherapistLedger")
   verifiedIncentives OpsIncentiveLedger[]   @relation("OpsIncentiveVerifier")
   lockedPeriods      OpsIncentivePeriod[]
+  setRevenueTargets  OpsMonthlyRevenueTarget[] @relation("OpsRevenueTargetSetter")
   auditLogs          OpsAuditLog[]
   sessions           OpsSession[]
   loginOtps          OpsLoginOtp[]
@@ -1257,6 +1259,23 @@ model OpsIncentivePeriod {
 
   @@unique([branchId, periodStart, periodEnd])
   @@map("ops_incentive_periods")
+}
+
+model OpsMonthlyRevenueTarget {
+  id           String   @id @default(cuid())
+  branchId     String   @map("branch_id")
+  month        DateTime @db.Date
+  targetAmount Decimal  @map("target_amount") @db.Decimal(14, 2)
+  setById      String   @map("set_by_id")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  branch OpsBranch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  setBy  OpsStaff  @relation("OpsRevenueTargetSetter", fields: [setById], references: [id], onDelete: Restrict)
+
+  @@unique([branchId, month])
+  @@index([month])
+  @@map("ops_monthly_revenue_targets")
 }
 
 model OpsAuditLog {

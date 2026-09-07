@@ -29,6 +29,7 @@ export const manualPatientReasonLabels: Record<ManualPatientReasonCode, string> 
   OTHER: 'Lainnya',
 };
 export const REPORT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'FINANCE', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR'];
+export const TARGET_MANAGEMENT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'FINANCE', 'MANAGEMENT'];
 export const INCENTIVE_MANAGEMENT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'FINANCE'];
 export const GLOBAL_REPORT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'FINANCE'];
 

@@ -3,7 +3,7 @@ import { normalizeOpsEmail, validateOpsEmail, validateOpsPassword } from '@/lib/
 import { normalizeOpsPhone, validateOpsPhone } from '@/lib/treatment-operations/profile';
 import { addDateKeys, dateKeyFromDate, dateKeyToDate } from '@/lib/treatment-operations/date';
 import { parseOpsDateOnly } from '@/lib/treatment-operations/day-off';
-import { createQrToken, getPeriodRange, hashQrToken, jakartaDateKey, jakartaPeriod, maskPatientName } from '@/lib/treatment-operations/utils';
+import { createQrToken, getMonthRange, getPeriodRange, hashQrToken, jakartaDateKey, jakartaPeriod, maskPatientName, parseOpsMonth } from '@/lib/treatment-operations/utils';
 
 describe('treatment operations utilities', () => {
   it('creates opaque QR tokens and stores deterministic hashes', () => {
@@ -36,6 +36,14 @@ describe('treatment operations utilities', () => {
   it('moves day-off date keys across month and year boundaries', () => {
     expect(addDateKeys('2026-02-28', 1)).toBe('2026-03-01');
     expect(addDateKeys('2026-12-31', 1)).toBe('2027-01-01');
+  });
+
+  it('validates monthly target keys and builds Jakarta month ranges', () => {
+    expect(parseOpsMonth('2026-02')).toBe('2026-02');
+    expect(() => parseOpsMonth('2026-13')).toThrow('Bulan tidak valid.');
+    expect(() => parseOpsMonth('2026-2')).toThrow('Bulan tidak valid.');
+    expect(getMonthRange('2026-02').start.toISOString()).toBe('2026-01-31T17:00:00.000Z');
+    expect(getMonthRange('2026-02').end.toISOString()).toBe('2026-02-28T17:00:00.000Z');
   });
 
   it('computes an inclusive/exclusive month range in Jakarta time', () => {

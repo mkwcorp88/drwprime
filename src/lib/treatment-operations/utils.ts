@@ -70,6 +70,14 @@ export function serialize<T>(value: T): T {
 
 export type PeriodKey = 'today' | 'week' | 'month' | 'year' | 'custom';
 
+const OPS_MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+export function parseOpsMonth(value: unknown): string {
+  const month = typeof value === 'string' ? value.trim() : '';
+  if (!OPS_MONTH_PATTERN.test(month)) throw new OpsError(422, 'Bulan tidak valid.');
+  return month;
+}
+
 const JAKARTA_OFFSET_MS = 7 * 3600 * 1000;
 const DAY_MS = 86400000;
 
@@ -91,6 +99,14 @@ function jakartaMidnightUtc(date: Date): Date {
 function parseDateOnlyToJakartaMidnight(value: string): Date {
   const [year, month, day] = value.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day) - JAKARTA_OFFSET_MS);
+}
+
+export function getMonthRange(monthKey: string): { start: Date; end: Date } {
+  const [year, month] = monthKey.split('-').map(Number);
+  return {
+    start: new Date(Date.UTC(year, month - 1, 1) - JAKARTA_OFFSET_MS),
+    end: new Date(Date.UTC(year, month, 1) - JAKARTA_OFFSET_MS),
+  };
 }
 
 function jakartaWeekday(date: Date): number {
@@ -118,10 +134,7 @@ export function getPeriodRange(period: PeriodKey, customStart?: string, customEn
   }
 
   if (period === 'month') {
-    const [year, month] = jakartaDateKey(now).split('-').map(Number);
-    const start = new Date(Date.UTC(year, month - 1, 1) - JAKARTA_OFFSET_MS);
-    const end = new Date(Date.UTC(year, month, 1) - JAKARTA_OFFSET_MS);
-    return { start, end };
+    return getMonthRange(jakartaPeriod(now));
   }
 
   const year = Number(jakartaDateKey(now).slice(0, 4));
