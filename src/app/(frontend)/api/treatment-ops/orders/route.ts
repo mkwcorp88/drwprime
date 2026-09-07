@@ -11,10 +11,13 @@ import { OpsError, serialize } from '@/lib/treatment-operations/utils';
 export async function GET(request: Request) {
   try {
     const actor = await requireOpsStaff(OPS_ROLES.filter((role) => role !== 'FINANCE'));
-    const status = new URL(request.url).searchParams.get('status');
+    const params = new URL(request.url).searchParams;
+    const status = params.get('status');
+    const visitDate = parseOpsDateOnly(params.get('date') ?? dateKeyFromDate(new Date()));
     const orders = await prisma.opsTreatmentOrder.findMany({
       where: {
         ...(actor.role === 'SUPER_ADMIN' ? {} : { branchId: actor.branchId || '' }),
+        visitDate: dateKeyToDate(visitDate),
         ...(status ? { status: status as never } : {}),
       },
       include: {

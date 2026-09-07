@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck, Clock3, Phone, Play, Plus, QrCode, Search, Sparkles, Trash2, UserRound, UsersRound, WalletCards, X } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Clock3, Phone, Play, Plus, QrCode, Search, Sparkles, Trash2, UserRound, UsersRound, WalletCards, X } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AidoPatientPicker from '@/components/treatment-ops/AidoPatientPicker';
 import BadgeScannerModal from '@/components/treatment-ops/BadgeScannerModal';
 import { ORDER_MANAGEMENT_ROLES, roleLabels } from '@/lib/treatment-operations/constants';
-import { dateKeyFromDate, formatDateKey } from '@/lib/treatment-operations/date';
+import { addDateKeys, dateKeyFromDate, formatDateKey } from '@/lib/treatment-operations/date';
 import { formatPhone } from '@/lib/phone';
 import type { OpsActionView, OpsBootstrap, OpsOrderView, OpsStaffDayOffAvailability, OpsStaffDayOffSummary } from '@/types/treatment-operations';
 
@@ -107,13 +107,15 @@ export default function OperationsDashboard() {
   const [scanTarget, setScanTarget] = useState<{ actionId: string; actionName: string; operation: 'start' | 'complete' } | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
   const [busyAssign, setBusyAssign] = useState<string | null>(null);
+  const [queueDate, setQueueDate] = useState(() => dateKeyFromDate(new Date()));
   const [form, setForm] = useState({ branchId: '', patientId: '', doctorId: '', visitDate: dateKeyFromDate(new Date()), visitTime: '', treatments: [{ treatmentId: '', originalPrice: '', discountAmount: '0' }], internalNote: '' });
   const todayKey = dateKeyFromDate(new Date());
 
   const load = async () => {
     setLoading(true);
     try {
-      const [bootstrapResponse, ordersResponse] = await Promise.all([fetch('/api/treatment-ops/bootstrap'), fetch('/api/treatment-ops/orders')]);
+      const ordersQuery = new URLSearchParams({ date: queueDate });
+      const [bootstrapResponse, ordersResponse] = await Promise.all([fetch('/api/treatment-ops/bootstrap'), fetch(`/api/treatment-ops/orders?${ordersQuery.toString()}`)]);
       const boot = await bootstrapResponse.json();
       const orderData = await ordersResponse.json();
       if (bootstrapResponse.status === 401) { router.replace('/treatment-ops/login'); return; }
@@ -131,7 +133,8 @@ export default function OperationsDashboard() {
 
   useEffect(() => {
     let active = true;
-    void Promise.all([fetch('/api/treatment-ops/bootstrap'), fetch('/api/treatment-ops/orders')]).then(async ([bootstrapResponse, ordersResponse]) => {
+    const ordersQuery = new URLSearchParams({ date: queueDate });
+    void Promise.all([fetch('/api/treatment-ops/bootstrap'), fetch(`/api/treatment-ops/orders?${ordersQuery.toString()}`)]).then(async ([bootstrapResponse, ordersResponse]) => {
       const boot = await bootstrapResponse.json();
       const orderData = await ordersResponse.json();
       if (!active) return;
@@ -146,7 +149,7 @@ export default function OperationsDashboard() {
       setLoading(false);
     });
     return () => { active = false; };
-  }, [router]);
+  }, [queueDate, router]);
 
   const selectTreatment = (index: number, id: string) => {
     const treatment = bootstrap?.treatments.find((item) => item.id === id);
@@ -302,9 +305,6 @@ export default function OperationsDashboard() {
     : [];
   const dashboardOrders = isPersonalRole ? personalOrders : orders;
   const personalActions = personalOrders.flatMap((order) => order.actions.filter((action) => action.assignedTherapistId === bootstrap?.staff.id || action.performedByTherapistId === bootstrap?.staff.id));
-   const todayPersonalActions = personalOrders.flatMap((order) => dateKeyFromDate(order.visitDate) === todayKey
-    ? order.actions.filter((action) => action.assignedTherapistId === bootstrap?.staff.id || action.performedByTherapistId === bootstrap?.staff.id)
-    : []);
   const personalIncentive = personalActions
     .filter((action) => action.status === 'COMPLETED')
     .reduce((sum, action) => sum + Number(action.calculatedIncentive ?? 0), 0);
@@ -396,14 +396,14 @@ export default function OperationsDashboard() {
 
        <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
          {(isPersonalRole
-           ? [
-               { label: 'Tugas saya', value: personalActions.length, icon: ClipboardCheck },
-               { label: 'Jadwal hari ini', value: todayPersonalActions.length, icon: CalendarDays },
+            ? [
+                { label: 'Tugas saya', value: personalOrders.length, icon: ClipboardCheck },
+                { label: queueDate === todayKey ? 'Jadwal hari ini' : 'Jadwal tanggal dipilih', value: personalActions.length, icon: CalendarDays },
                { label: 'Selesai', value: personalActions.filter((action) => action.status === 'COMPLETED').length, icon: CheckCircle2 },
                { label: 'Insentif tercatat', value: money(personalIncentive), icon: WalletCards },
              ]
            : [
-               { label: 'Order hari ini', value: dashboardOrders.length, icon: CalendarDays },
+                { label: queueDate === todayKey ? 'Order hari ini' : 'Order tanggal dipilih', value: dashboardOrders.length, icon: CalendarDays },
                { label: 'Sedang berjalan', value: running, icon: Clock3 },
                { label: 'Selesai', value: completed, icon: CheckCircle2 },
                { label: 'Eksekutor aktif', value: bootstrap?.assignableStaff.length || 0, icon: UsersRound },
@@ -449,11 +449,17 @@ export default function OperationsDashboard() {
         )}
 
         <section className="mt-8 fo-fade-up fo-stagger-2">
-         <div className="mb-4 flex items-end justify-between gap-4">
-           <div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">{isPersonalRole ? 'Tugas yang ditugaskan' : 'Antrean operasional'}</p><h2 className="mobile-page-title font-playfair mt-1 text-2xl font-bold">{isPersonalRole ? 'Tugas saya' : 'Order treatment'}</h2></div>
-           <span className="text-xs text-white/40">{bootstrap?.staff.name} · {bootstrap?.staff.role.replaceAll('_', ' ')}</span>
-         </div>
-         {dashboardOrders.length === 0 ? <div className="rounded-3xl border border-dashed border-white/20 bg-white/[0.02] px-6 py-16 text-center text-sm text-white/40">{isPersonalRole ? 'Belum ada tugas yang ditugaskan kepadamu.' : 'Belum ada order. Buat order pertama untuk memulai.'}</div> : <div className="space-y-4">{dashboardOrders.map((order) => {
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">{isPersonalRole ? 'Tugas yang ditugaskan' : 'Antrean operasional'}</p><h2 className="mobile-page-title font-playfair mt-1 text-2xl font-bold">{isPersonalRole ? 'Tugas saya' : 'Order treatment'}</h2><p className="mt-1 text-xs text-white/45">{formatDateKey(queueDate)}</p></div>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setQueueDate((current) => addDateKeys(current, -1))} aria-label="Lihat antrean tanggal sebelumnya" className="flex size-10 items-center justify-center rounded-xl border border-white/15 text-white/60 transition hover:border-primary/50 hover:text-primary"><ChevronLeft className="size-4" /></button>
+              <div className="min-w-28 text-center"><p className="text-[10px] font-bold uppercase tracking-wider text-primary">{queueDate === todayKey ? 'Hari ini' : 'Tanggal dipilih'}</p><p className="text-xs text-white/50">{queueDate}</p></div>
+              <button type="button" disabled={queueDate >= todayKey} onClick={() => setQueueDate((current) => addDateKeys(current, 1))} aria-label="Lihat antrean tanggal berikutnya" className="flex size-10 items-center justify-center rounded-xl border border-white/15 text-white/60 transition hover:border-primary/50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"><ChevronRight className="size-4" /></button>
+              {queueDate !== todayKey && <button type="button" onClick={() => setQueueDate(todayKey)} className="h-10 rounded-xl border border-primary/30 px-3 text-[10px] font-bold text-primary transition hover:bg-primary hover:text-black">Hari ini</button>}
+            </div>
+            <span className="hidden text-xs text-white/40 sm:block">{bootstrap?.staff.name} · {bootstrap?.staff.role.replaceAll('_', ' ')}</span>
+          </div>
+          {dashboardOrders.length === 0 ? <div className="rounded-3xl border border-dashed border-white/20 bg-white/[0.02] px-6 py-16 text-center text-sm text-white/40">{isPersonalRole ? 'Belum ada tugas pada tanggal ini.' : `Belum ada order pada ${formatDateKey(queueDate)}.`}</div> : <div className="space-y-4">{dashboardOrders.map((order) => {
           const done = order.actions.filter((action) => action.status === 'COMPLETED').length;
           const progress = order.actions.length ? Math.round(done / order.actions.length * 100) : 0;
           return (
