@@ -4,6 +4,7 @@ import {
   AidoClient,
   AidoConfigurationError,
   AidoRequestError,
+  type AidoSession,
 } from '@/lib/aido/client';
 import {
   assertAidoCanonicalSpending,
@@ -129,6 +130,12 @@ function tierForSpending(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 
 type IncomeMatchStatus = 'MATCHED' | 'UNMATCHED' | 'CONFLICT';
 
 type IncomeLedgerResult = 'created' | 'updated' | 'unchanged';
+
+export type AidoSyncSource = {
+  login: () => Promise<AidoSession>;
+  getAllPatients: (session: AidoSession, onPage?: () => Promise<void>) => Promise<unknown[]>;
+  getIncome: (session: AidoSession, date: string, onPage?: () => Promise<void>) => Promise<unknown[]>;
+};
 
 function deduplicate<T>(rows: T[], getKey: (row: T) => string): T[] {
   const values = new Map<string, T>();
@@ -912,6 +919,7 @@ export async function runAidoSync(options: {
   date: string;
   dryRun?: boolean;
   mode?: string;
+  source?: AidoSyncSource;
 }): Promise<AidoSyncSummary> {
   const owner = randomUUID();
   if (!(await acquireLock(owner))) throw new AidoSyncAlreadyRunningError();
@@ -952,16 +960,16 @@ export async function runAidoSync(options: {
     });
     runId = run.id;
 
-    const client = AidoClient.fromEnv();
-    const session = await client.login();
+    const source = options.source || AidoClient.fromEnv();
+    const session = await source.login();
     await prisma.aidoSyncRun.update({
       where: { id: runId },
       data: { hospitalId: session.hospitalId },
     });
     await renewLock(owner);
     const [rawPatients, rawIncome] = await Promise.all([
-      client.getAllPatients(session, () => renewLock(owner)),
-      client.getIncome(session, options.date, () => renewLock(owner)),
+      source.getAllPatients(session, () => renewLock(owner)),
+      source.getIncome(session, options.date, () => renewLock(owner)),
     ]);
 
     const mappedPatients = rawPatients.map(mapAidoPatient);

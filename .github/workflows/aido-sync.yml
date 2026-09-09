@@ -1,13 +1,10 @@
-name: Daily AIDO Sync
+name: Manual AIDO API Sync (Legacy)
 
 concurrency:
   group: aido-sync-production
   cancel-in-progress: false
 
 on:
-  schedule:
-    # GitHub cron uses UTC. 19:00 UTC is 02:00 WIB on the next day.
-    - cron: '0 19 * * *'
   workflow_dispatch:
     inputs:
       date:
@@ -22,7 +19,7 @@ on:
 
 jobs:
   sync:
-    name: Sync previous day
+    name: Manual API sync
     runs-on: ubuntu-latest
     steps:
       - name: Trigger protected sync endpoint
@@ -38,9 +35,6 @@ jobs:
             url="$url&date=$SYNC_DATE"
           fi
           max_dates=1
-          if [ -z "$SYNC_DATE" ] && [ "$DRY_RUN" = "false" ]; then
-            max_dates=3
-          fi
 
           for batch in $(seq 1 "$max_dates"); do
             response=""

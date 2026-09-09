@@ -1,9 +1,10 @@
 # AIDO Daily Sync
 
 DRW Prime imports the AIDO patient directory and the previous complete income
-date through AIDO's authenticated API. The scheduled GitHub workflow starts at
-19:00 UTC (02:00 WIB) and retries failed requests. Successful scheduled calls
-also drain up to three pending dates, oldest first.
+date through an authenticated AIDO browser session. The production VPS job
+runs at 19:00 UTC (02:00 WIB), retries failed requests, and sends the captured
+rows to the protected DRW Prime sync endpoint. The performance dashboard reads
+the resulting AIDO income ledger; it does not read the old Google Sheet.
 
 ## Required configuration
 
@@ -32,12 +33,53 @@ AIDO_TIMEOUT_MS=30000
 account must be dedicated to this integration, read-only, and limited to the
 configured hospital's patient directory and income report.
 
+The browser runner uses these host-only settings (they are not required by the
+Next.js container):
+
+```env
+AIDO_BROWSER_SESSION=drwprime-aido
+AIDO_BROWSER_PROFILE=aido-production
+AIDO_BROWSER_SYNC_URL=http://127.0.0.1:5054/api/internal/aido-browser-sync
+```
+
 Configure this in the GitHub repository:
 
 - Secret `AIDO_SYNC_SECRET`, identical to the application secret.
 
 Never commit AIDO credentials, report exports, patient identifiers, or API
 responses. Sync audit rows store aggregate counts and error codes only.
+
+## Production browser job
+
+The production path is `scripts/aido-browser-job.mjs`, run by
+`scripts/aido-browser-cron.sh` on the VPS. The runner opens AIDO with a
+persistent `agent-browser` session, refreshes the login from the local auth
+profile when the session expires, fetches patients and the complete income
+report, and posts only the required mapped fields to the internal sync route.
+
+Set up the auth profile once on the VPS without putting the password in shell
+history:
+
+```bash
+set -a; . /opt/git/drwprime.env; set +a
+printf '%s' "$AIDO_PASSWORD" | agent-browser auth save aido-production \
+  --url https://klinika.aido.id/ \
+  --username "$AIDO_EMAIL" \
+  --password-stdin
+```
+
+The daily job is scheduled on the VPS, not on a GitHub runner, so it uses the
+same source IP and persistent browser profile as the AIDO login:
+
+```cron
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+0 19 * * * root /bin/bash /opt/git/drwprime-work/scripts/aido-browser-cron.sh >> /var/log/drwprime-aido-browser.log 2>&1
+```
+
+`--allow-review` keeps the job successful when safe matching leaves rows for
+manual review. The rows are still recorded in `AidoSyncRun` and
+`AidoIncomeRecord`; they are never silently discarded.
 
 ## Activation
 

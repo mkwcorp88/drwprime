@@ -10,8 +10,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 
 type DayResult = { visits: number; omzet: number };
 type DayEntry = { date: string; visit: DayResult; homeTreatment: DayResult };
-type PerformanceData = { date: string; visit: DayResult; homeTreatment: DayResult; generatedAt: string };
-type RangeData = { range: string; date: string; days: DayEntry[]; generatedAt: string };
+type PerformanceData = { date: string; visit: DayResult; homeTreatment: DayResult; generatedAt: string; source?: string };
+type RangeData = { range: string; date: string; days: DayEntry[]; generatedAt: string; source?: string };
 
 type ViewMode = 'daily' | 'weekly' | 'monthly';
 
@@ -53,13 +53,13 @@ function dayLabel(dateKey: string): string {
 }
 
 const omzetConfig = {
-  visit: { label: 'Visit Klinik', color: '#22d3ee' },
-  ht: { label: 'Home Treatment', color: '#a78bfa' },
+  visit: { label: 'Pendapatan AIDO', color: '#22d3ee' },
+  ht: { label: 'Home Treatment AIDO', color: '#a78bfa' },
 };
 
 const visitConfig = {
-  visit: { label: 'Visit Klinik', color: '#22d3ee' },
-  ht: { label: 'Home Treatment', color: '#a78bfa' },
+  visit: { label: 'Pendapatan AIDO', color: '#22d3ee' },
+  ht: { label: 'Home Treatment AIDO', color: '#a78bfa' },
 };
 
 const AUTO_REFRESH_MS = 300_000;
@@ -176,8 +176,8 @@ export default function PerformancePage() {
           <div className="fo-fade-up">
             <h1 className="text-2xl font-bold text-white">Performance</h1>
             <p className="mt-1 text-sm text-white/50">
-              {viewMode === 'daily' ? 'Rekap harian Visit Klinik & Home Treatment' :
-               viewMode === 'weekly' ? 'Tren 7 hari terakhir' : 'Tren 30 hari terakhir'}
+              {viewMode === 'daily' ? 'Rekap harian langsung dari AIDO' :
+               viewMode === 'weekly' ? 'Tren 7 hari terakhir dari AIDO' : 'Tren 30 hari terakhir dari AIDO'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 fo-fade-up fo-stagger-1">
@@ -255,7 +255,7 @@ export default function PerformancePage() {
         {/* Loading */}
         {loading && !dailyData && !rangeData && (
           <div className="mt-5 grid gap-4 md:grid-cols-2">
-            {['Home Treatment', 'Visit Klinik'].map(label => (
+            {['Home Treatment (AIDO)', 'Pendapatan AIDO'].map(label => (
               <div key={label} className="fo-glass-card animate-pulse rounded-2xl p-5 sm:p-6">
                 <div className="mb-5 h-4 w-28 rounded bg-white/10" />
                 <div className="mb-2 h-9 w-36 rounded bg-white/10" />
@@ -268,8 +268,8 @@ export default function PerformancePage() {
         {/* ===== DAILY VIEW ===== */}
         {viewMode === 'daily' && dailyData && (
           <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <DayCard title="Home Treatment" date={selectedDate} result={dailyData.homeTreatment} showEmpty={showEmptyDaily} />
-            <DayCard title="Visit Klinik" date={selectedDate} result={dailyData.visit} showEmpty={showEmptyDaily} />
+            <DayCard title="Home Treatment (AIDO)" date={selectedDate} result={dailyData.homeTreatment} showEmpty={showEmptyDaily} />
+            <DayCard title="Pendapatan AIDO" date={selectedDate} result={dailyData.visit} showEmpty={showEmptyDaily} countLabel="Transaksi" />
           </div>
         )}
 
@@ -298,8 +298,8 @@ export default function PerformancePage() {
                       <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.06)" />
                       <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
                       <ChartTooltip content={<ChartTooltipContent indicator="dashed" />} />
-                      <Bar dataKey="visitOmzet" fill="#22d3ee" radius={[4, 4, 0, 0]} name="Visit Klinik" />
-                      <Bar dataKey="htOmzet" fill="#a78bfa" radius={[4, 4, 0, 0]} name="Home Treatment" />
+                      <Bar dataKey="visitOmzet" fill="#22d3ee" radius={[4, 4, 0, 0]} name="Pendapatan AIDO" />
+                      <Bar dataKey="htOmzet" fill="#a78bfa" radius={[4, 4, 0, 0]} name="Home Treatment AIDO" />
                     </BarChart>
                   </ChartContainer>
                 )}
@@ -320,8 +320,8 @@ export default function PerformancePage() {
                       <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.06)" />
                       <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
                       <ChartTooltip content={<ChartTooltipContent indicator="dashed" />} />
-                      <Bar dataKey="visitVisits" fill="#22d3ee" radius={[4, 4, 0, 0]} name="Visit Klinik" />
-                      <Bar dataKey="htVisits" fill="#a78bfa" radius={[4, 4, 0, 0]} name="Home Treatment" />
+                      <Bar dataKey="visitVisits" fill="#22d3ee" radius={[4, 4, 0, 0]} name="Pendapatan AIDO" />
+                      <Bar dataKey="htVisits" fill="#a78bfa" radius={[4, 4, 0, 0]} name="Home Treatment AIDO" />
                     </BarChart>
                   </ChartContainer>
                 )}
@@ -339,10 +339,10 @@ export default function PerformancePage() {
                     <thead>
                       <tr className="text-left text-white/40 text-xs uppercase">
                         <th className="px-3 py-2">Tanggal</th>
-                        <th className="px-3 py-2 text-right">Visit</th>
-                        <th className="px-3 py-2 text-right">HT</th>
-                        <th className="px-3 py-2 text-right">Omzet Visit (Bruto)</th>
-                        <th className="px-3 py-2 text-right">Omzet HT (Bruto)</th>
+                        <th className="px-3 py-2 text-right">Transaksi AIDO</th>
+                        <th className="px-3 py-2 text-right">Transaksi HT</th>
+                        <th className="px-3 py-2 text-right">Omzet AIDO</th>
+                        <th className="px-3 py-2 text-right">Omzet HT</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -365,7 +365,7 @@ export default function PerformancePage() {
 
         {/* Footer */}
         <p className="mt-6 text-center text-[10px] text-white/20">
-          Data disinkronkan dari Google Sheets setiap 5 menit. Tekan ikon refresh untuk pembaruan instan.
+          Sumber data: AIDO income ledger. Data diperbarui otomatis setiap hari.
         </p>
       </div>
     </div>
@@ -374,7 +374,7 @@ export default function PerformancePage() {
 
 // --------------- sub-components ---------------
 
-function DayCard({ title, date, result, showEmpty }: { title: string; date: string; result: DayResult; showEmpty: boolean }) {
+function DayCard({ title, date, result, showEmpty, countLabel = 'Transaksi' }: { title: string; date: string; result: DayResult; showEmpty: boolean; countLabel?: string }) {
   return (
     <section className="fo-glass-card fo-fade-up rounded-2xl overflow-hidden">
       <div className="border-b border-white/10 fo-glass-card-soft flex items-center justify-between px-5 py-4 sm:px-6">
@@ -388,7 +388,7 @@ function DayCard({ title, date, result, showEmpty }: { title: string; date: stri
         </div>
       ) : (
         <div className="divide-y divide-white/10">
-          <StatRow label="Kunjungan" value={formatNumber(result.visits)} icon="users" color="cyan" />
+           <StatRow label={countLabel} value={formatNumber(result.visits)} icon="users" color="cyan" />
           <StatRow label="Omzet (Bruto)" value={formatCurrency(result.omzet)} icon="money" color="emerald" />
         </div>
       )}

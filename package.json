@@ -16,6 +16,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "treatments:sync": "tsx scripts/sync-treatments.ts",
+    "aido:browser-sync": "tsx scripts/aido-browser-sync.ts",
+    "aido:browser-job": "node scripts/aido-browser-job.mjs",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:treatment-ops": "tsx prisma/seed-treatment-ops.ts",

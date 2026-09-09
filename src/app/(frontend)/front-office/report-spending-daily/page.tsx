@@ -223,7 +223,7 @@ export default function ReportSpendingDailyPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
                 <h1 className="text-2xl font-bold text-white">Report Spending Daily</h1>
-                <p className="text-white/60 text-sm">Upload harian data spending customer untuk kebutuhan membership</p>
+                 <p className="text-white/60 text-sm">Data aktif diambil otomatis dari AIDO; Excel hanya untuk histori sebelum cutover</p>
               </div>
               <Link
                 href="/front-office"
@@ -234,7 +234,7 @@ export default function ReportSpendingDailyPage() {
             </div>
 
             <div className="fo-glass-card fo-fade-up fo-stagger-1 rounded-xl p-4 md:p-6 mb-6">
-              <h2 className="text-white font-semibold mb-4">Upload File Harian (.xlsx)</h2>
+               <h2 className="text-white font-semibold mb-4">Import Histori Sebelum Cutover (.xlsx)</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-1">
@@ -248,7 +248,7 @@ export default function ReportSpendingDailyPage() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-white/70 text-sm mb-2">Pilih file VisitReport</label>
+                   <label className="block text-white/70 text-sm mb-2">Pilih file VisitReport lama</label>
                   <input
                     id="spending-file-input"
                     type="file"
@@ -431,7 +431,7 @@ export default function ReportSpendingDailyPage() {
 
             <div className="fo-glass-card fo-fade-up fo-stagger-3 rounded-xl overflow-hidden">
               <div className="p-4 border-b border-white/10 fo-glass-card-soft flex items-center justify-between gap-3">
-                <h3 className="text-white font-semibold">Riwayat Upload</h3>
+                 <h3 className="text-white font-semibold">Riwayat Import Histori</h3>
                 {data.uploads.length > 0 && (
                   <button
                     onClick={() => handleDelete()}

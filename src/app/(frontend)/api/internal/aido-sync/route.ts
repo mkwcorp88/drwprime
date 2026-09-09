@@ -1,8 +1,8 @@
-import { timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getPreviousJakartaDate, isValidSyncDate } from '@/lib/aido/mapping';
 import { getAidoCutoverDate } from '@/lib/aido/config';
 import { prisma } from '@/lib/prisma';
+import { hasValidAidoSyncSecret } from '@/lib/aido/sync-auth';
 import {
   AidoSyncAlreadyRunningError,
   AidoSyncIncompleteError,
@@ -11,18 +11,6 @@ import {
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 900;
-
-function hasValidSecret(req: NextRequest): boolean {
-  const expected = process.env.AIDO_SYNC_SECRET;
-  const authorization = req.headers.get('authorization');
-  if (!expected || !authorization?.startsWith('Bearer ')) return false;
-
-  const received = authorization.slice('Bearer '.length);
-  const expectedBuffer = Buffer.from(expected);
-  const receivedBuffer = Buffer.from(received);
-  return expectedBuffer.length === receivedBuffer.length
-    && timingSafeEqual(expectedBuffer, receivedBuffer);
-}
 
 function nextDate(date: string): string {
   const value = new Date(`${date}T00:00:00Z`);
@@ -56,7 +44,7 @@ export async function POST(req: NextRequest) {
   if (!process.env.AIDO_SYNC_SECRET) {
     return NextResponse.json({ error: 'Sync is not configured' }, { status: 503 });
   }
-  if (!hasValidSecret(req)) {
+  if (!hasValidAidoSyncSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

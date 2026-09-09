@@ -4,7 +4,7 @@ import ExcelJS from 'exceljs';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
-import { isAidoManagedSpendingDate } from '@/lib/aido/config';
+import { getAidoCutoverStart, isAidoManagedSpendingDate } from '@/lib/aido/config';
 
 type ParsedRow = {
   nomorInvoice: string;
@@ -205,7 +205,13 @@ export async function GET(req: NextRequest) {
       range = { gte: from, lt: to };
     }
 
-    const whereByDate = range ? { tanggalKunjungan: range } : {};
+    const cutoverStart = getAidoCutoverStart();
+    const legacyDateFilter = cutoverStart ? { lt: cutoverStart } : {};
+    const whereByDate = range
+      ? { tanggalKunjungan: { ...range, ...legacyDateFilter } }
+      : cutoverStart
+        ? { tanggalKunjungan: legacyDateFilter }
+        : {};
 
     const uploads = await prisma.dailySpendingUpload.findMany({
       orderBy: { createdAt: 'desc' },

@@ -72,6 +72,26 @@ describe('AIDO income mapping', () => {
     expect(mapAidoIncome({ trxnumber: 'TRX-001' })).toBeNull();
   });
 
+  it('maps patient identity nested in the income description', () => {
+    const income = mapAidoIncome({
+      id: 2793058,
+      paymentdate: '2026-08-19 14:30:00',
+      totalbill: 212_500,
+      description: {
+        patientId: 2530429,
+        mrNumber: 'MR-002',
+        name: 'Dewi Sari',
+      },
+    });
+
+    expect(income).toMatchObject({
+      externalId: '2793058',
+      externalPatientNumericId: '2530429',
+      mrNumber: 'MR-002',
+      patientName: 'Dewi Sari',
+    });
+  });
+
   it('requires a stable source transaction identifier', () => {
     expect(mapAidoIncome({
       registrationnumber: 'REG-001',
