@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import ExcelJS from 'exceljs';
 import { Hourglass } from '@/components/LoadingScreen';
 
 interface CompletedProfile {
@@ -52,6 +51,8 @@ export default function CompletedProfilesPage() {
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const [tierFilter, setTierFilter] = useState('');
   const [sortBy, setSortBy] = useState('rm');
+  const [exportingCekat, setExportingCekat] = useState(false);
+  const [exportMessage, setExportMessage] = useState('');
 
   const fetchProfiles = useCallback(async (page: number, search: string, tier: string, sort: string) => {
     setLoading(true);
@@ -157,65 +158,38 @@ export default function CompletedProfilesPage() {
     });
   };
 
-  const exportToExcel = async () => {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Membership Profil');
+  const exportForCekat = async () => {
+    setExportingCekat(true);
+    setExportMessage('');
 
-    worksheet.columns = [
-      { header: 'Nama', key: 'nama', width: 25 },
-      { header: 'Email', key: 'email', width: 32 },
-      { header: 'No. HP', key: 'phone', width: 18 },
-      { header: 'Jenis Kelamin', key: 'gender', width: 14 },
-      { header: 'Tanggal Lahir', key: 'dob', width: 16 },
-      { header: 'NIK', key: 'nik', width: 22 },
-      { header: 'Alamat', key: 'address', width: 40 },
-      { header: 'Kota', key: 'city', width: 18 },
-      { header: 'Provinsi', key: 'province', width: 20 },
-      { header: 'Kode Afiliasi', key: 'affiliateCode', width: 14 },
-      { header: 'Poin', key: 'points', width: 10 },
-      { header: 'Level', key: 'level', width: 12 },
-      { header: 'Pendapatan', key: 'earnings', width: 18 },
-      { header: 'Tanggal Melengkapi', key: 'completedAt', width: 18 },
-    ];
+    try {
+      const response = await fetch('/api/front-office/members/export');
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || 'Gagal mengekspor data member');
+      }
 
-    worksheet.getRow(1).font = { bold: true };
-    worksheet.getRow(1).fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFD4AF37' },
-    };
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `drwprime-members-cekat-${new Date().toISOString().split('T')[0]}.csv`;
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-    profiles.forEach((p) => {
-      worksheet.addRow({
-        nama: `${p.firstName} ${p.lastName}`.trim(),
-        email: p.email,
-        phone: p.phone,
-        gender: p.gender,
-        dob: formatDate(p.dateOfBirth),
-        nik: p.nik,
-        address: p.address,
-        city: p.city,
-        province: p.province,
-        affiliateCode: p.affiliateCode,
-        points: p.points,
-        level: p.loyaltyLevel,
-        earnings: formatCurrency(p.totalEarnings),
-        completedAt: formatDate(p.profileCompletedAt),
-      });
-    });
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Report_Profil_Lengkap_${new Date().toISOString().split('T')[0]}.xlsx`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const exported = response.headers.get('X-Export-Exported') || '0';
+      const skipped = Number(response.headers.get('X-Export-Skipped') || '0');
+      setExportMessage(
+         `${Number(exported).toLocaleString('id-ID')} kontak siap diupload ke Cekat${skipped > 0 ? `; ${skipped.toLocaleString('id-ID')} member dengan nomor WA tidak valid atau duplikat dilewati` : ''}.`,
+      );
+    } catch (error) {
+      setExportMessage(error instanceof Error ? error.message : 'Gagal mengekspor data member');
+    } finally {
+      setExportingCekat(false);
+    }
   };
 
   if (loading) {
@@ -243,17 +217,26 @@ export default function CompletedProfilesPage() {
                   Daftar member yang sudah melengkapi profil di My Prime
                 </p>
               </div>
-              <button
-                onClick={exportToExcel}
-                disabled={profiles.length === 0}
-                className="fo-glass-card-soft border-green-500/35 text-green-300 px-4 py-2 rounded-lg hover:bg-green-500/20 transition-colors text-sm font-semibold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export Excel
-              </button>
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={exportForCekat}
+                  disabled={exportingCekat || totalMembers === 0}
+                  className="fo-glass-card-soft flex items-center gap-2 rounded-lg border border-green-500/35 px-4 py-2 text-sm font-semibold text-green-300 transition-colors hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14a2 2 0 002-2v-3M3 16v3a2 2 0 002 2" />
+                   </svg>
+                   {exportingCekat ? 'Menyiapkan...' : 'Download Kontak Cekat'}
+                </button>{/* Legacy Excel icon removed.
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              */}</div>
             </div>
+            <p className="mt-2 text-right text-xs text-white/40">
+              Satu CSV berisi semua member dengan nomor WA valid dalam format Cekat.
+            </p>
+            {exportMessage && (
+              <p role="status" className="mt-2 text-right text-xs text-primary/80">{exportMessage}</p>
+            )}
           </div>
 
           {/* Total Count Card & Search */}
