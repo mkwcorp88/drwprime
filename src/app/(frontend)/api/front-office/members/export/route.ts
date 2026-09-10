@@ -1,7 +1,23 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
-import { normalizePhone } from '@/lib/phone';
+
+/**
+ * Normalisasi nomor untuk export Cekat.
+ * Lebih toleran daripada normalizePhone(): buang SEMUA non-digit,
+ * ambil nomor pertama bila satu field berisi beberapa nomor
+ * ("0812.../0813...", "0812, 0813"), dan samakan ke format 62...
+ */
+function normalizeForExport(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const first = trimmed.split(/[/;,|]/)[0].trim();
+  const digits = first.replace(/\D/g, '').replace(/^0+/, '');
+  if (!digits) return '';
+  if (digits.startsWith('62')) return digits;
+  return `62${digits}`;
+}
 
 function csvCell(value: unknown): string {
   const text = value === null || value === undefined ? '' : String(value);
@@ -26,7 +42,7 @@ export async function GET() {
     const seenPhones = new Set<string>();
 
     const rows = users.flatMap((user) => {
-      const phone = normalizePhone(user.phone || '');
+      const phone = normalizeForExport(user.phone);
       if (!/^62\d{8,13}$/.test(phone) || seenPhones.has(phone)) return [];
       seenPhones.add(phone);
 
