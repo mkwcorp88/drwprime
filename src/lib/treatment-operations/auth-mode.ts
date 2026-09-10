@@ -3,6 +3,10 @@ export function isOpsWhatsAppOtpEnabled(): boolean {
   return configured?.trim().toLowerCase() === 'true';
 }
 
+export function isOpsLoginDisabled(): boolean {
+  return process.env.OPS_LOGIN_DISABLED?.trim().toLowerCase() === 'true';
+}
+
 export function requiresOpsPasswordChange(staff: { mustChangePassword: boolean }): boolean {
   return !isOpsWhatsAppOtpEnabled() && staff.mustChangePassword;
 }

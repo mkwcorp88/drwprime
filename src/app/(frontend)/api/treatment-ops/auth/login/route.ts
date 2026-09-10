@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { loginOpsStaff } from '@/lib/treatment-operations/auth';
-import { isOpsWhatsAppOtpEnabled } from '@/lib/treatment-operations/auth-mode';
+import { isOpsLoginDisabled, isOpsWhatsAppOtpEnabled } from '@/lib/treatment-operations/auth-mode';
 import { handleOpsError, readJson } from '@/lib/treatment-operations/http';
 import { OpsError } from '@/lib/treatment-operations/utils';
 
 export async function POST(request: Request) {
   try {
+    if (isOpsLoginDisabled()) {
+      throw new OpsError(503, 'Login sedang dinonaktifkan.', 'LOGIN_DISABLED');
+    }
     if (isOpsWhatsAppOtpEnabled()) {
       throw new OpsError(403, 'Login password sedang dinonaktifkan.', 'PASSWORD_LOGIN_DISABLED');
     }
