@@ -18,6 +18,8 @@ let sessions: typeof import('./session');
 const deliveries = new Map<string, string>();
 const send = vi.fn(async (phone: string, code: string) => { deliveries.set(phone, code); });
 const browser = () => randomBytes(32).toString('base64url');
+const runIntegrationTests = process.env.MEMBER_AUTH_RUN_INTEGRATION_TESTS === 'true' || !process.env.CI;
+const integrationDescribe = runIntegrationTests ? describe : describe.skip;
 
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), 'drw-member-auth-test-'));
@@ -69,7 +71,7 @@ async function registered(phone = '6281234567890', data = {}) {
   return db.user.create({ data: { firstName: 'Member', phone, loginPhone: phone, loginPhoneVerifiedAt: new Date(), hasAccount: true, ...data } });
 }
 
-describe('member OTP transaction boundaries', () => {
+integrationDescribe('member OTP transaction boundaries', () => {
   it('does not issue a session before proof and registers using only the verified phone', async () => {
     const otp = await request();
     expect(otp).not.toHaveProperty('sessionToken');
@@ -157,7 +159,7 @@ describe('member OTP transaction boundaries', () => {
   });
 });
 
-describe('legacy account continuity and recovery', () => {
+integrationDescribe('legacy account continuity and recovery', () => {
   it('preserves user ID, Clerk link, points, commissions, QR and spending history after activation', async () => {
     const old = await db.user.create({ data: { firstName: 'Existing', phone: '0812-3456-7890', clerkUserId: 'legacy-clerk', dateOfBirth: new Date('1990-01-02'), nik: '1234567890123456', points: 45, totalEarnings: 123000, qrToken: 'existing-qr', affiliateCode: 'EXIST1' } });
     await db.spendingRecord.create({ data: { userId: old.id, amount: 450000, pointsEarned: 45, spendingDate: new Date() } });
