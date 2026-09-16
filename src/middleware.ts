@@ -50,6 +50,18 @@ const isPublicRoute = createRouteMatcher([
   '/robots.txt',
   '/sign-in(.*)',
   '/sign-up(.*)',
+  '/staff/sign-in(.*)',
+  // These routes validate the opaque member session in Node route/layout code.
+  '/my-prime(.*)',
+  '/affiliate-dashboard(.*)',
+  '/api/member-auth(.*)',
+  '/api/staff/session',
+  '/api/user',
+  '/api/user/affiliate-code',
+  '/api/profile',
+  '/api/membership',
+  '/api/member-qr',
+  '/api/withdrawals',
   '/reservation(.*)',
   // Payload CMS (has its own auth)
   '/cms(.*)',
@@ -106,18 +118,19 @@ const withClerk = clerkMiddleware(async (auth, req: NextRequest) => {
       !url.pathname.startsWith("/marketing") &&
       !url.pathname.startsWith("/api") &&
       !url.pathname.startsWith("/sign-in") &&
-      !url.pathname.startsWith("/sign-up")
+      !url.pathname.startsWith("/sign-up") &&
+      !url.pathname.startsWith("/staff/")
     ) {
       const rewritten = url.clone();
       rewritten.pathname = `/marketing${url.pathname === "/" ? "" : url.pathname}`;
       const res = NextResponse.rewrite(rewritten);
-      if (!isPublicRoute(req)) await auth.protect();
+      await auth.protect({ unauthenticatedUrl: new URL('/staff/sign-in', req.url).toString() });
       return res;
     }
   }
 
   if (!isPublicRoute(req)) {
-    await auth.protect();
+    await auth.protect({ unauthenticatedUrl: new URL('/staff/sign-in', req.url).toString() });
   }
 });
 

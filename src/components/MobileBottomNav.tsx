@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useMemberAuth } from '@/components/member-auth/MemberAuthProvider';
 import MobileBottomNavFO from "./MobileBottomNavFO";
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded } = useMemberAuth();
   const [isTeamLeader, setIsTeamLeader] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [roleChecked, setRoleChecked] = useState(false);
@@ -24,6 +24,8 @@ export default function MobileBottomNav() {
         })
         .catch(() => setRoleChecked(true));
     } else if (isLoaded && !user) {
+      setIsTeamLeader(false);
+      setIsAdmin(false);
       setRoleChecked(true);
     }
   }, [isLoaded, user]);

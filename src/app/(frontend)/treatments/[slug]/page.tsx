@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useMemberAuth } from '@/components/member-auth/MemberAuthProvider';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import MobileLayout from '@/components/MobileLayout';
@@ -26,7 +26,7 @@ interface Treatment {
 export default function TreatmentDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded } = useMemberAuth();
   const [treatment, setTreatment] = useState<Treatment | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReservationForm, setShowReservationForm] = useState(false);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useMemberAuth } from '@/components/member-auth/MemberAuthProvider';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import MobileLayout from '@/components/MobileLayout';
@@ -58,7 +58,7 @@ interface UserData {
 }
 
 export default function AffiliateDashboardPage() {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded } = useMemberAuth();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -91,10 +91,9 @@ export default function AffiliateDashboardPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: user?.emailAddresses[0]?.emailAddress,
+            email: user?.email,
             firstName: user?.firstName,
             lastName: user?.lastName,
-            referralCode: user?.unsafeMetadata?.referralCode as string | undefined
           })
         });
         if (!syncResponse.ok) {
@@ -121,6 +120,8 @@ export default function AffiliateDashboardPage() {
   useEffect(() => {
     if (isLoaded && user) {
       syncAndFetchUser();
+    } else if (isLoaded) {
+      setLoading(false);
     }
   }, [isLoaded, user, syncAndFetchUser]);
 

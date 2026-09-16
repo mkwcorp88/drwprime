@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Society() {
   const benefits = [
     {
@@ -45,6 +47,15 @@ export default function Society() {
               </p>
             </div>
           ))}
+        </div>
+        <div className="mt-12 text-center">
+          <Link
+            href="/sign-in?redirect_url=/my-prime"
+            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-primary to-primary-light px-8 py-3 text-sm font-bold tracking-wide text-dark transition hover:scale-105 hover:shadow-xl hover:shadow-primary/25"
+          >
+            Join Membership
+          </Link>
+          <p className="mt-3 text-sm text-white/55">Masuk dengan nomor WhatsApp untuk bergabung dengan DRW Prime.</p>
         </div>
       </div>
     </section>

@@ -46,8 +46,6 @@ export async function GET(
             status: true,
             finalPrice: true,
             createdAt: true,
-          },
-          include: {
             treatment: {
               select: {
                 name: true,

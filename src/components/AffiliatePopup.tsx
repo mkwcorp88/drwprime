@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useMemberAuth } from '@/components/member-auth/MemberAuthProvider';
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function AffiliatePopup() {
   const [isOpen, setIsOpen] = useState(false);
-  const { isSignedIn } = useAuth();
+  const { isSignedIn } = useMemberAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export default function AffiliatePopup() {
   const handleClick = () => {
     setIsOpen(false);
     if (isSignedIn) {
-      router.push("/admin");
+      router.push("/affiliate-dashboard");
     } else {
       router.push("/sign-in");
     }

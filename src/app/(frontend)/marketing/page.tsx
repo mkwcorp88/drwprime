@@ -84,7 +84,7 @@ export default function MarketingDashboardPage() {
   }, [filterStatus, filterType, filterPriority, search]);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) router.push('/sign-in');
+    if (isLoaded && !isSignedIn) router.push('/staff/sign-in');
   }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {

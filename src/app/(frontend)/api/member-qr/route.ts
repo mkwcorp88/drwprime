@@ -1,17 +1,15 @@
-import { auth } from '@clerk/nextjs/server';
+import { requireMember } from '@/lib/member-auth/session';
+import { memberError, memberResponse } from '@/lib/member-auth/http';
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const member = await requireMember();
 
     const user = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
+      where: { id: member.id },
       select: { id: true, qrToken: true, firstName: true, lastName: true },
     });
 
@@ -28,12 +26,11 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({
+    return memberResponse({
       qrToken,
       name: [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Member',
     });
   } catch (error) {
-    console.error('Error getting member QR:', error);
-    return NextResponse.json({ error: 'Failed to get member QR' }, { status: 500 });
+    return memberError(error);
   }
 }

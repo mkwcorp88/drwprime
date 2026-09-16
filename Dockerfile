@@ -5,22 +5,27 @@ RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --ignore-scripts
+RUN npm rebuild @embedded-postgres/linux-$(node -p 'process.arch')
 
 FROM node:22-bookworm-slim AS builder
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=deps --chown=node:node /app/node_modules ./node_modules
+COPY --chown=node:node . .
+RUN chown node:node /app
 
+# The isolated PostgreSQL authentication tests must run as a non-root user.
+USER node
 RUN npx prisma generate
 RUN npm run typecheck && npm run lint && npm run test
+USER root
 
 ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 ARG RELEASE_SHA=unknown
 ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
 ENV RELEASE_SHA=${RELEASE_SHA}
-ENV NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
-ENV NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
+ENV NEXT_PUBLIC_CLERK_SIGN_IN_URL="/staff/sign-in"
+ENV NEXT_PUBLIC_CLERK_SIGN_UP_URL="/staff/sign-in"
 ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL="/admin"
 ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL="/admin"
 ENV NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL="/admin"
@@ -55,8 +60,8 @@ ARG RELEASE_SHA=unknown
 ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
 ENV RELEASE_SHA=${RELEASE_SHA}
 LABEL org.opencontainers.image.revision=${RELEASE_SHA}
-ENV NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
-ENV NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
+ENV NEXT_PUBLIC_CLERK_SIGN_IN_URL="/staff/sign-in"
+ENV NEXT_PUBLIC_CLERK_SIGN_UP_URL="/staff/sign-in"
 ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL="/admin"
 ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL="/admin"
 ENV NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL="/admin"

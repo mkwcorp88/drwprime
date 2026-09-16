@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useMemberAuth } from '@/components/member-auth/MemberAuthProvider';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
@@ -53,7 +53,7 @@ const TIER_RING: Record<Tier, string> = {
 };
 
 export default function ProfilePage() {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded, updateAvatar } = useMemberAuth();
   const router = useRouter();
   const [form, setForm] = useState<ProfileForm>(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -78,10 +78,10 @@ export default function ProfilePage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: user?.emailAddresses[0]?.emailAddress,
+            email: user?.email,
             firstName: user?.firstName,
             lastName: user?.lastName,
-            phone: user?.phoneNumbers[0]?.phoneNumber,
+            phone: user?.phone,
           }),
         });
         if (!syncRes.ok) {
@@ -225,8 +225,7 @@ export default function ProfilePage() {
     setAvatarBusy(true);
     setAvatarError('');
     try {
-      await user.setProfileImage({ file });
-      await user.reload();
+      await updateAvatar(file);
     } catch (err) {
       console.error('Avatar upload error:', err);
       setAvatarError('Gagal mengunggah foto. Coba lagi.');
@@ -365,19 +364,19 @@ export default function ProfilePage() {
                 <h3 className="text-sm font-semibold text-white">Data Pribadi</h3>
 
                 <div>
-                  <label className="block text-white/70 text-xs mb-1.5">Nomor HP / WhatsApp *</label>
+                  <label className="block text-white/70 text-xs mb-1.5">Nomor WhatsApp login terverifikasi</label>
                   <input
                     type="tel"
                     name="phone"
                     inputMode="tel"
                     value={form.phone}
-                    onChange={handleChange}
+                    readOnly
                     placeholder="08123456789"
                     maxLength={15}
                     className={inputClass}
                   />
                   <p className="mt-1 text-white/40 text-[11px]">
-                    Ketik 08xxx akan otomatis jadi 62xxx
+                    Untuk mengubah nomor login, hubungi Front Office agar identitas Anda diverifikasi.
                   </p>
                   {form.phone && (
                     <p className="mt-0.5 text-primary text-[11px] font-medium">

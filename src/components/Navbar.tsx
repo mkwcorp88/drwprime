@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
+import { UserButton, useUser } from '@clerk/nextjs';
+import { useMemberAuth } from '@/components/member-auth/MemberAuthProvider';
 import AnnouncementTicker from './AnnouncementTicker';
 
 const PUBLIC_LINKS = [
@@ -25,17 +26,21 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isAffiliate, setIsAffiliate] = useState(false);
-  const { user, isLoaded } = useUser();
+  const { user } = useMemberAuth();
+  const { user: staffUser, isLoaded } = useUser();
+  const isAffiliate = Boolean(user?.isTeamLeader);
+  const hasAccount = Boolean(user || isAdmin);
   const adminMenuRef = useRef<HTMLLIElement>(null);
 
   const hasWorkspaceMenu = isAffiliate || isAdmin;
 
   useEffect(() => {
-    if (isLoaded && user) {
+    if (isLoaded && staffUser) {
       checkAdminStatus();
+    } else if (isLoaded) {
+      setIsAdmin(false);
     }
-  }, [isLoaded, user]);
+  }, [isLoaded, staffUser]);
 
   useEffect(() => {
     if (!adminMenuOpen) return;
@@ -63,10 +68,9 @@ export default function Navbar() {
 
   const checkAdminStatus = async () => {
     try {
-      const response = await fetch('/api/user');
+      const response = await fetch('/api/staff/session', { cache: 'no-store' });
       const data = await response.json();
-      setIsAdmin(data.user?.isAdmin || false);
-      setIsAffiliate(data.user?.isTeamLeader || false);
+      setIsAdmin(Boolean(data.isAdmin));
     } catch (error) {
       console.error('Error checking admin status:', error);
     }
@@ -76,6 +80,12 @@ export default function Navbar() {
     setIsOpen(false);
     setAdminMenuOpen(false);
   };
+
+  const accountButton = user ? (
+    <Link href="/my-prime" aria-label="Akun My Prime" className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">
+      {user.firstName.slice(0, 1).toUpperCase()}
+    </Link>
+  ) : <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: 'w-8 h-8' } }} />;
 
   return (
     <nav className="hidden lg:block fixed top-0 w-full bg-black/95 backdrop-blur-md z-50 border-b border-primary/20">
@@ -100,7 +110,7 @@ export default function Navbar() {
             </li>
           ))}
 
-          <SignedIn>
+          {hasAccount && <>
             <li>
               <Link href="/my-prime" className={memberLinkClass}>
                 MY PRIME
@@ -161,17 +171,10 @@ export default function Navbar() {
               </li>
             )}
             <li className="shrink-0">
-              <UserButton
-                afterSignOutUrl="/"
-                appearance={{
-                  elements: {
-                    avatarBox: 'w-8 h-8',
-                  },
-                }}
-              />
+              {accountButton}
             </li>
-          </SignedIn>
-          <SignedOut>
+          </>}
+          {!hasAccount && <>
             <li>
               <Link href="/sign-in">
                 <button className="whitespace-nowrap rounded-lg border border-primary bg-primary/20 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/30">
@@ -179,20 +182,11 @@ export default function Navbar() {
                 </button>
               </Link>
             </li>
-          </SignedOut>
+          </>}
         </ul>
 
         <div className="flex items-center gap-3 xl:hidden">
-          <SignedIn>
-            <UserButton
-              afterSignOutUrl="/"
-              appearance={{
-                elements: {
-                  avatarBox: 'w-8 h-8',
-                },
-              }}
-            />
-          </SignedIn>
+          {hasAccount && accountButton}
           <button
             type="button"
             onClick={() => setIsOpen((open) => !open)}
@@ -225,7 +219,7 @@ export default function Navbar() {
                 </Link>
               </li>
             ))}
-            <SignedIn>
+            {hasAccount && <>
               <li>
                 <Link
                   href="/my-prime"
@@ -268,8 +262,8 @@ export default function Navbar() {
                   </li>
                 </>
               )}
-            </SignedIn>
-            <SignedOut>
+            </>}
+            {!hasAccount && <>
               <li className="px-5 py-3">
                 <Link href="/sign-in">
                   <button
@@ -280,7 +274,7 @@ export default function Navbar() {
                   </button>
                 </Link>
               </li>
-            </SignedOut>
+            </>}
           </ul>
         </div>
       )}

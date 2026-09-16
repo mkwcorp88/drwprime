@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireUser, handleAuthError } from '@/lib/auth';
+import { requireMember } from '@/lib/member-auth/session';
+import { assertMemberOrigin, memberError, memberResponse } from '@/lib/member-auth/http';
 import { createWithdrawal, WithdrawalError } from '@/lib/services/withdrawal';
 
 export async function POST(req: NextRequest) {
   try {
-    const { clerkUserId } = await requireUser();
+    const member = await requireMember();
+    assertMemberOrigin(req);
 
     const body = await req.json();
     const { amount, accountType, bankName, accountNumber, accountName } = body;
@@ -15,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { clerkUserId },
+      where: { id: member.id },
       select: { id: true },
     });
 
@@ -40,16 +42,16 @@ export async function POST(req: NextRequest) {
     if (error instanceof WithdrawalError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    return handleAuthError(error);
+    return memberError(error);
   }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const { clerkUserId } = await requireUser();
+    const member = await requireMember();
 
     const user = await prisma.user.findUnique({
-      where: { clerkUserId },
+      where: { id: member.id },
       select: { id: true },
     });
 
@@ -63,8 +65,8 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ success: true, withdrawals });
+    return memberResponse({ success: true, withdrawals });
   } catch (error) {
-    return handleAuthError(error);
+    return memberError(error);
   }
 }

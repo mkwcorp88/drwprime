@@ -247,12 +247,22 @@ docker run --rm \
       "DATABASE_URL", "DATABASE_URI", "PAYLOAD_SECRET", "CLERK_SECRET_KEY",
       "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "S3_ENDPOINT", "S3_BUCKET",
       "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY",
+      "MEMBER_WHATSAPP_ACCESS_TOKEN", "MEMBER_WHATSAPP_PHONE_NUMBER_ID", "MEMBER_OTP_SECRET",
+      "NEXT_PUBLIC_APP_URL",
     ];
     const opsOtpEnabled = (process.env.OPS_WHATSAPP_OTP_ENABLED ?? process.env.WHATSAPP_OTP_ENABLED)?.toLowerCase() === "true";
     if (opsOtpEnabled) required.push("OPS_WHATSAPP_ACCESS_TOKEN", "OPS_WHATSAPP_PHONE_NUMBER_ID");
     const missing = required.filter((name) => !process.env[name]);
     if (missing.length > 0) {
       console.error(`Missing required environment: ${missing.join(", ")}`);
+      process.exit(1);
+    }
+    if (process.env.MEMBER_OTP_SECRET.trim().length < 32 || !/^\d+$/.test(process.env.MEMBER_WHATSAPP_PHONE_NUMBER_ID.trim())) {
+      console.error("Invalid member OTP secret or sender configuration");
+      process.exit(1);
+    }
+    if (process.env.MEMBER_TRUST_PROXY !== "true") {
+      console.error("Set MEMBER_TRUST_PROXY=true only after the reverse proxy overwrites X-Real-IP");
       process.exit(1);
     }
   '

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useMemberAuth } from '@/components/member-auth/MemberAuthProvider';
 
 interface ReservationFormProps {
   treatmentId: string;
@@ -16,15 +16,15 @@ export default function ReservationForm({
   treatmentPrice,
   onClose
 }: ReservationFormProps) {
-  const { user } = useUser();
+  const { user } = useMemberAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
     patientName: user?.fullName || '',
-    email: user?.emailAddresses[0]?.emailAddress || '',
-    phone: '',
+    email: user?.email || '',
+    phone: user?.phone || '',
     preferredDate: '',
     preferredTime: '',
     notes: '',

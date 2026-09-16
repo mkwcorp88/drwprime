@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { requireMember } from '@/lib/member-auth/session';
+import { assertMemberOrigin, memberError } from '@/lib/member-auth/http';
 import { prisma } from '@/lib/prisma';
 import { validateAffiliateCode, canUpdateAffiliateCode } from '@/lib/affiliate';
 
@@ -17,7 +18,8 @@ export async function OPTIONS() {
 
 export async function PUT(req: NextRequest) {
   try {
-    const { userId } = await auth();
+    const { id: userId } = await requireMember();
+    assertMemberOrigin(req);
 
     if (!userId) {
       return NextResponse.json(
@@ -38,7 +40,7 @@ export async function PUT(req: NextRequest) {
 
     // Get current user
     const user = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
+      where: { id: userId },
       select: {
         id: true,
         affiliateCode: true,
@@ -141,18 +143,14 @@ export async function PUT(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error updating affiliate code:', error);
-    return NextResponse.json(
-      { error: 'Terjadi kesalahan saat memperbarui kode affiliate' },
-      { status: 500 }
-    );
+    return memberError(error);
   }
 }
 
 // Get affiliate code info
 export async function GET() {
   try {
-    const { userId } = await auth();
+    const { id: userId } = await requireMember();
 
     if (!userId) {
       return NextResponse.json(
@@ -162,7 +160,7 @@ export async function GET() {
     }
 
     const user = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
+      where: { id: userId },
       select: {
         affiliateCode: true,
         affiliateCodeUpdatedAt: true,
@@ -187,10 +185,6 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error('Error fetching affiliate code info:', error);
-    return NextResponse.json(
-      { error: 'Terjadi kesalahan' },
-      { status: 500 }
-    );
+    return memberError(error);
   }
 }

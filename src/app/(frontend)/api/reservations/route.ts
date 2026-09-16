@@ -1,4 +1,5 @@
-import { auth } from '@clerk/nextjs/server';
+import { getMember, requireMember } from '@/lib/member-auth/session';
+import { assertMemberOrigin, memberError, memberResponse } from '@/lib/member-auth/http';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { calculateCommission } from '@/lib/affiliate';
@@ -7,7 +8,9 @@ import { normalizePhone } from '@/lib/phone';
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
+    const member = await getMember();
+    if (member) assertMemberOrigin(req);
+    const userId = member?.id;
     
     const body = await req.json();
     const treatmentId = body.treatmentId;
@@ -50,7 +53,7 @@ export async function POST(req: Request) {
     // If user is logged in, get their data
     if (userId) {
       user = await prisma.user.findUnique({
-        where: { clerkUserId: userId }
+        where: { id: userId }
       });
 
       if (!user) {
@@ -123,24 +126,20 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ reservation });
   } catch (error) {
-    console.error('Error creating reservation:', error);
-    return NextResponse.json(
-      { error: 'Failed to create reservation' },
-      { status: 500 }
-    );
+    return memberError(error);
   }
 }
 
 export async function GET() {
   try {
-    const { userId } = await auth();
+    const { id: userId } = await requireMember();
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { clerkUserId: userId }
+      where: { id: userId }
     });
 
     if (!user) {
@@ -161,12 +160,8 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json({ reservations });
+    return memberResponse({ reservations });
   } catch (error) {
-    console.error('Error fetching reservations:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch reservations' },
-      { status: 500 }
-    );
+    return memberError(error);
   }
 }

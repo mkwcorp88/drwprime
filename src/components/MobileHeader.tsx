@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useMemberAuth } from '@/components/member-auth/MemberAuthProvider';
 import Image from "next/image";
 import Link from "next/link";
 
@@ -10,7 +10,7 @@ interface MobileHeaderProps {
 }
 
 export default function MobileHeader({ embedded = false }: MobileHeaderProps) {
-  const { user } = useUser();
+  const { user } = useMemberAuth();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {

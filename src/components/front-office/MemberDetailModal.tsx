@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import MemberLoginRecovery from './MemberLoginRecovery';
 
 interface MemberDetail {
   id: string;
@@ -185,6 +186,7 @@ export default function MemberDetailModal({
         </div>
 
         {/* Transaction History */}
+        <MemberLoginRecovery memberId={member.id} />
         <div className="mb-4">
           <h3 className="mb-3 font-semibold">Riwayat Transaksi ({member.spendingRecords.length})</h3>
           <div className="max-h-64 overflow-y-auto rounded-lg border">

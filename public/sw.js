@@ -1,5 +1,5 @@
-const STATIC_CACHE = "drwprime-static-v3";
-const RUNTIME_CACHE = "drwprime-runtime-v3";
+const STATIC_CACHE = "drwprime-static-v4";
+const RUNTIME_CACHE = "drwprime-runtime-v4";
 const STATIC_ASSETS = [
   "/offline.html",
   "/drwprime-icon.png",
@@ -44,6 +44,15 @@ self.addEventListener("fetch", (event) => {
   }
 
   const url = new URL(request.url);
+
+  const privatePaths = ['/api', '/my-prime', '/affiliate-dashboard', '/sign-in', '/sign-up', '/staff', '/front-office', '/admin', '/marketing', '/treatment-ops', '/cms', '/cms-api'];
+  const isPrivate = privatePaths.some((path) => url.pathname === path || url.pathname.startsWith(path + '/'));
+  if (isPrivate) {
+    if (request.mode === 'navigate') {
+      event.respondWith(fetch(request).catch(() => caches.match('/offline.html')));
+    }
+    return;
+  }
 
   // For page navigations, always try network first so HTML stays fresh.
   if (request.mode === "navigate") {

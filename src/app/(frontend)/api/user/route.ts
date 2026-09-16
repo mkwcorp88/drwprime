@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { ensureUniqueAffiliateCode } from '@/lib/affiliate';
-import { requireUser, handleAuthError } from '@/lib/auth';
+import { requireAdmin, handleAuthError } from '@/lib/auth';
+import { getMember } from '@/lib/member-auth/session';
+import { MemberAuthError } from '@/lib/member-auth/policy';
+import { assertMemberOrigin, memberError, memberResponse } from '@/lib/member-auth/http';
 import { isHardcodedAdmin } from '@/lib/admin';
 import { normalizePhone } from '@/lib/phone';
 import { calculateCommission } from '@/lib/policies/commission';
@@ -21,7 +24,11 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   try {
-    const authUser = await requireUser();
+    assertMemberOrigin(req);
+    const member = await getMember();
+    if (member) return memberResponse({ user: { ...member, isAdmin: false } });
+    // Clerk is reserved for staff. WhatsApp enrollment creates member records.
+    const authUser = await requireAdmin();
     const { clerkUserId } = authUser;
 
     // Identity comes from Clerk — NEVER from request body.
@@ -166,6 +173,7 @@ export async function POST(req: Request) {
       identityVerificationRequired: Boolean(walkInMember),
     });
   } catch (error) {
+    if (error instanceof MemberAuthError) return memberError(error);
     if (error instanceof Error && error.name === 'AuthError') {
       return handleAuthError(error);
     }
@@ -179,10 +187,11 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    const { clerkUserId } = await requireUser();
+    const member = await getMember();
+    const staff = member ? null : await requireAdmin();
 
     const user = await prisma.user.findUnique({
-      where: { clerkUserId },
+      where: member ? { id: member.id } : { clerkUserId: staff!.clerkUserId },
       include: {
         reservations: { include: { treatment: true }, orderBy: { createdAt: 'desc' } },
         referrals: {
@@ -201,10 +210,10 @@ export async function GET() {
     }
 
     // isAdmin from hardcoded list — never trusted from request body or email alone.
-    const isAdmin = isHardcodedAdmin(clerkUserId) || user.isAdmin;
+    const isAdmin = Boolean(staff?.isAdmin);
     if (isAdmin && !user.isAdmin) {
       await prisma.user.update({
-        where: { clerkUserId },
+        where: { id: user.id },
         data: { isAdmin: true },
       });
     }
@@ -213,10 +222,10 @@ export async function GET() {
     const loyaltyLevel = getLoyaltyLevel(user.loyaltyPoints);
 
     const teamMembersCount = await prisma.user.count({
-      where: { affiliateCode: user.affiliateCode, clerkUserId: { not: clerkUserId } },
+      where: { affiliateCode: user.affiliateCode, id: { not: user.id } },
     });
 
-    return NextResponse.json({
+    return memberResponse({
       user: {
         ...user,
         phone: user.phone ? normalizePhone(user.phone) : null,

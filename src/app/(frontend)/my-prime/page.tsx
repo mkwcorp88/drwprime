@@ -1,8 +1,7 @@
 ﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useUser, useClerk } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
+import { useMemberAuth } from '@/components/member-auth/MemberAuthProvider';
 import Link from 'next/link';
 import Image from 'next/image';
 import Navbar from '@/components/Navbar';
@@ -142,13 +141,12 @@ function TierBadge({ tier }: { tier: MembershipTier }) {
 }
 
 export default function MyPrimePage() {
-  const { user, isLoaded } = useUser();
-  const { signOut } = useClerk();
-  const router = useRouter();
+  const { user, isLoaded, signOut, updateAvatar } = useMemberAuth();
   const [membership, setMembership] = useState<MembershipData | null>(null);
   const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [logoutError, setLogoutError] = useState('');
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState('');
 
@@ -162,10 +160,10 @@ export default function MyPrimePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: user?.emailAddresses[0]?.emailAddress,
+          email: user?.email,
           firstName: user?.firstName,
           lastName: user?.lastName,
-          phone: user?.phoneNumbers[0]?.phoneNumber,
+          phone: user?.phone,
         }),
       });
       if (!syncRes.ok) {
@@ -248,8 +246,7 @@ export default function MyPrimePage() {
     setAvatarBusy(true);
     setAvatarError('');
     try {
-      await user.setProfileImage({ file });
-      await user.reload();
+      await updateAvatar(file);
     } catch (error) {
       console.error('Avatar upload error:', error);
       setAvatarError('Gagal mengunggah foto. Silakan coba lagi.');
@@ -347,7 +344,7 @@ export default function MyPrimePage() {
 
   const tier = TIER_CONFIG[membership.tier];
   const displayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Member';
-  const phone = user.phoneNumbers?.[0]?.phoneNumber || '-';
+  const phone = user.phone || '-';
   const initials = [user.firstName, user.lastName]
     .filter(Boolean)
     .map((name) => name?.charAt(0))
@@ -635,8 +632,9 @@ export default function MyPrimePage() {
 
             {/* Logout */}
             <div className="mt-8 mb-4 fo-fade-up">
+              {logoutError && <p role="alert" className="mb-3 text-sm text-red-400">{logoutError}</p>}
               <button
-                onClick={() => signOut(() => router.push('/'))}
+                onClick={() => { setLogoutError(''); void signOut().catch(() => setLogoutError('Belum dapat keluar. Silakan coba lagi.')); }}
                  className="mobile-surface-soft w-full rounded-[20px] border-red-500/20 py-3.5 text-sm font-semibold text-red-400 transition-all duration-300 hover:border-red-500/35 hover:bg-red-500/10 hover:text-red-300 group flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">

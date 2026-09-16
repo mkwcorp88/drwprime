@@ -20,6 +20,12 @@ model User {
 
   // Personal info (member profile completion)
   phone              String?   @unique // Collected when the member completes their profile
+  // Verified login identity. Contact imports must never write these fields.
+  loginPhone         String?   @unique @map("login_phone")
+  loginPhoneVerifiedAt DateTime? @map("login_phone_verified_at")
+  memberLoginBlockedAt DateTime? @map("member_login_blocked_at")
+  avatarUrl          String?   @map("avatar_url")
+  avatarKey          String?   @map("avatar_key")
   nomorRekamMedis    String?   @unique @map("nomor_rekam_medis") // Linked to AIDO patient MR number
   nik                String?   @unique // Nomor Induk Kependudukan (KTP)
   gender             String? // "Pria" | "Wanita"
@@ -67,12 +73,68 @@ model User {
   riwayatTindakan    RiwayatTindakan[]
   aidoPatientLinks   AidoPatientLink[]
   aidoIncomeRecords  AidoIncomeRecord[]
+  memberSessions     MemberSession[]
+  memberPhoneRecoveries MemberPhoneRecovery[]
 
   @@index([phone])
   @@index([hasAccount])
   @@index([lastTransactionAt])
   @@index([totalSpending])
   @@map("users")
+}
+
+model MemberSession {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("member_sessions")
+}
+
+model MemberLoginOtp {
+  id            String    @id
+  phone         String
+  phoneHash     String    @map("phone_hash")
+  requestIpHash String    @map("request_ip_hash")
+  bindingHash   String    @map("binding_hash")
+  codeHash      String    @map("code_hash")
+  attempts      Int       @default(0)
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(3)
+  deliveredAt   DateTime? @map("delivered_at") @db.Timestamptz(3)
+  consumedAt    DateTime? @map("consumed_at") @db.Timestamptz(3)
+  verifiedAt    DateTime? @map("verified_at") @db.Timestamptz(3)
+  grantHash     String?   @unique @map("grant_hash")
+  grantExpiresAt DateTime? @map("grant_expires_at") @db.Timestamptz(3)
+  enrollmentAttempts Int @default(0) @map("enrollment_attempts")
+  targetUserId  String?   @map("target_user_id")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([phoneHash, createdAt])
+  @@index([requestIpHash, createdAt])
+  @@index([createdAt])
+  @@map("member_login_otps")
+}
+
+// FO verifies identity before approving a new login number. The member must
+// still prove possession via OTP; an approval never creates a logged-in session.
+model MemberPhoneRecovery {
+  id               String    @id @default(cuid())
+  userId           String    @map("user_id")
+  phone            String
+  approvedByClerkId String    @map("approved_by_clerk_id")
+  reason           String    @db.VarChar(500)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  consumedAt       DateTime? @map("consumed_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([phone, expiresAt])
+  @@index([userId, createdAt])
+  @@map("member_phone_recoveries")
 }
 
 // Pre-claim affiliate codes - codes created by admin that can be claimed later

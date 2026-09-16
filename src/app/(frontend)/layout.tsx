@@ -5,6 +5,7 @@ import "./globals.css";
 import { SITE_URL, SITE_NAME, DEFAULT_OG_IMAGE } from "@/lib/seo";
 import { getRunningText } from "@/lib/running-text";
 import { RunningTextProvider } from "@/components/RunningTextProvider";
+import { MemberAuthProvider } from '@/components/member-auth/MemberAuthProvider';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -65,7 +66,7 @@ export default async function RootLayout({
   const runningText = await getRunningText();
 
   return (
-    <ClerkProvider>
+    <ClerkProvider signInUrl="/staff/sign-in" signUpUrl="/staff/sign-in">
       <html lang="id">
         <head>
           <meta name="mobile-web-app-capable" content="yes" />
@@ -149,7 +150,7 @@ export default async function RootLayout({
             />
           </noscript>
           <RunningTextProvider initialText={runningText}>
-            {children}
+            <MemberAuthProvider>{children}</MemberAuthProvider>
           </RunningTextProvider>
         </body>
       </html>
