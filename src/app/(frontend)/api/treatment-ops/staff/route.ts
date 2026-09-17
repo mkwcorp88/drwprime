@@ -39,16 +39,22 @@ export async function POST(request: Request) {
     const body = await readJson(request);
     const otpEnabled = isOpsWhatsAppOtpEnabled();
     if (
-      typeof body.email !== 'string' || typeof body.phone !== 'string' ||
+      typeof body.phone !== 'string' ||
       typeof body.employeeId !== 'string' || typeof body.name !== 'string' ||
-      typeof body.role !== 'string' || (!otpEnabled && typeof body.password !== 'string')
+      typeof body.role !== 'string' ||
+      (!otpEnabled && (typeof body.email !== 'string' || typeof body.password !== 'string'))
     ) {
-      throw new OpsError(400, 'Email, WhatsApp, ID karyawan, nama, dan role wajib diisi.');
+      throw new OpsError(400, otpEnabled
+        ? 'WhatsApp, ID karyawan, nama, dan role wajib diisi.'
+        : 'Email, WhatsApp, ID karyawan, nama, dan role wajib diisi.');
     }
 
-    const email = normalizeOpsEmail(body.email);
-    const emailError = validateOpsEmail(email);
-    if (emailError) throw new OpsError(422, emailError);
+    const emailInput = typeof body.email === 'string' ? body.email : '';
+    const email = emailInput.trim() ? normalizeOpsEmail(emailInput) : null;
+    if (!otpEnabled || email) {
+      const emailError = validateOpsEmail(email || '');
+      if (emailError) throw new OpsError(422, emailError);
+    }
     const phone = normalizeOpsPhone(body.phone);
     const phoneError = validateOpsPhone(body.phone);
     if (phoneError) throw new OpsError(422, phoneError);
@@ -77,11 +83,14 @@ export async function POST(request: Request) {
       if (!branch) throw new OpsError(404, 'Cabang aktif tidak ditemukan.');
     }
 
+    const username = email || `otp:${phone}`;
+    const identifiers: Prisma.OpsStaffWhereInput[] = [{ phone }, { employeeId }, { username }];
+    if (email) identifiers.push({ email });
     const existing = await prisma.opsStaff.findFirst({
-      where: { OR: [{ email }, { phone }, { employeeId }, { username: email }] },
+      where: { OR: identifiers },
       select: { email: true, phone: true, employeeId: true },
     });
-    if (existing?.email === email) throw new OpsError(409, 'Email sudah digunakan akun staf lain.');
+    if (email && existing?.email === email) throw new OpsError(409, 'Email sudah digunakan akun staf lain.');
     if (existing?.phone === phone) throw new OpsError(409, 'Nomor WhatsApp sudah digunakan akun staf lain.');
     if (existing) throw new OpsError(409, 'ID karyawan sudah digunakan akun staf lain.');
 
@@ -91,9 +100,9 @@ export async function POST(request: Request) {
       const created = await tx.opsStaff.create({
         data: {
           branchId,
-          username: email,
+          username,
           passwordHash,
-          mustChangePassword: true,
+          mustChangePassword: !otpEnabled,
           employeeId,
           name,
           email,
@@ -111,7 +120,7 @@ export async function POST(request: Request) {
           entityType: 'STAFF_ACCOUNT',
           entityId: created.id,
           action: 'CREATE',
-          afterData: { email, phone, employeeId, name, role, branchId, mustChangePassword: true },
+          afterData: { email, phone, employeeId, name, role, branchId, mustChangePassword: !otpEnabled },
         },
       });
       return created;

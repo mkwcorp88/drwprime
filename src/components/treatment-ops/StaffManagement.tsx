@@ -153,7 +153,7 @@ export default function StaffManagement({ otpEnabled }: { otpEnabled: boolean })
         <form onSubmit={createStaff} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="ID karyawan"><input required value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} placeholder="TRP-003" /></Field>
           <Field label="Nama lengkap"><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-          <Field label="Email login"><input required type="email" autoComplete="off" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nama@drwprime.com" /></Field>
+          {!otpEnabled && <Field label="Email login"><input required type="email" autoComplete="off" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nama@drwprime.com" /></Field>}
           <Field label="WhatsApp login"><input required inputMode="tel" autoComplete="off" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0812xxxxxxx" /></Field>
           <Field label="Role"><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>{roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
           <Field label="Cabang"><select required={!['SUPER_ADMIN', 'FINANCE'].includes(form.role)} value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}><option value="">{['SUPER_ADMIN', 'FINANCE'].includes(form.role) ? 'Semua cabang' : 'Pilih cabang'}</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></Field>
@@ -168,7 +168,7 @@ export default function StaffManagement({ otpEnabled }: { otpEnabled: boolean })
         {loading ? <p className="py-12 text-sm text-white/45">Memuat staf...</p> : staff.map((member) => (
           <article key={member.id} className="fo-glass-card-soft rounded-3xl p-5">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0"><h3 className="truncate font-bold">{member.name}</h3><p className="mt-1 truncate text-[11px] text-white/45">{member.email || 'Email belum diatur'}</p><p className="mt-1 truncate text-[11px] text-white/45">{member.phone ? formatPhone(member.phone) : 'WhatsApp belum diatur'}</p></div>
+              <div className="min-w-0"><h3 className="truncate font-bold">{member.name}</h3>{!otpEnabled && <p className="mt-1 truncate text-[11px] text-white/45">{member.email || 'Email belum diatur'}</p>}<p className="mt-1 truncate text-[11px] text-white/45">{member.phone ? formatPhone(member.phone) : 'WhatsApp belum diatur'}</p></div>
               <span className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-[10px] font-bold text-primary">{roleLabel[member.role] || member.role}</span>
             </div>
             <p className="mt-4 text-xs text-white/45">{member.employeeId} · {member.branch?.name || 'Semua cabang'}</p>
