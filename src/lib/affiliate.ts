@@ -68,8 +68,7 @@ export function calculateLoyaltyPoints(amount: number): number {
 export function getLoyaltyLevel(points: number): string {
   if (points >= 10000) return 'Platinum';
   if (points >= 5000) return 'Gold';
-  if (points >= 2000) return 'Silver';
-  return 'Bronze';
+  return 'Silver';
 }
 
 /**

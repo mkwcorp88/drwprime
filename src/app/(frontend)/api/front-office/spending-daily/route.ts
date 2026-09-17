@@ -37,11 +37,10 @@ function sameDate(left: Date | null, right: Date | null): boolean {
     && left!.toISOString().slice(0, 10) === right!.toISOString().slice(0, 10);
 }
 
-function tierForSpending(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {
+function tierForSpending(totalSpending: number): 'Silver' | 'Gold' | 'Platinum' {
   if (totalSpending >= 10_000_000) return 'Platinum';
   if (totalSpending >= 5_000_000) return 'Gold';
-  if (totalSpending >= 1_000_000) return 'Silver';
-  return 'Bronze';
+  return 'Silver';
 }
 
 function normalizeHeader(value: unknown): string {

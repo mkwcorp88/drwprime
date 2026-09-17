@@ -5,7 +5,7 @@
 
 // --- Membership ---
 
-export type MembershipTier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+export type MembershipTier = 'Silver' | 'Gold' | 'Platinum';
 
 export interface MemberProfile {
   firstName: string | null;

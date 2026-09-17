@@ -163,7 +163,12 @@ export default function CompletedProfilesPage() {
     setExportMessage('');
 
     try {
-      const response = await fetch('/api/front-office/members/export');
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (tierFilter) params.set('tier', tierFilter);
+      const urlQuery = params.toString() ? `?${params.toString()}` : '';
+
+      const response = await fetch(`/api/front-office/members/export${urlQuery}`);
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         throw new Error(data?.error || 'Gagal mengekspor data member');
@@ -226,12 +231,12 @@ export default function CompletedProfilesPage() {
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14a2 2 0 002-2v-3M3 16v3a2 2 0 002 2" />
                    </svg>
-                   {exportingCekat ? 'Menyiapkan...' : 'Download Kontak Cekat'}
+                   {exportingCekat ? 'Menyiapkan...' : 'Export'}
                 </button>
               </div>
             </div>
             <p className="mt-2 text-right text-xs text-white/40">
-              Satu CSV berisi semua member dengan nomor WA valid dalam format Cekat.
+              CSV berisi member sesuai filter pencarian/tier aktif dengan nomor WA valid dalam format Cekat.
             </p>
             {exportMessage && (
               <p role="status" className="mt-2 text-right text-xs text-primary/80">{exportMessage}</p>
@@ -263,7 +268,7 @@ export default function CompletedProfilesPage() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-white/40 text-xs mr-1">Tier:</span>
-                {['', 'Bronze', 'Silver', 'Gold', 'Platinum'].map(tier => (
+                {['', 'Silver', 'Gold', 'Platinum'].map(tier => (
                   <button
                     key={tier}
                     onClick={() => { setTierFilter(tier); setCurrentPage(1); }}

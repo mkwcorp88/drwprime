@@ -30,11 +30,10 @@ export class ReservationError extends Error {
   }
 }
 
-function tierForSpending(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {
+function tierForSpending(totalSpending: number): 'Silver' | 'Gold' | 'Platinum' {
   if (totalSpending >= 10_000_000) return 'Platinum';
   if (totalSpending >= 5_000_000) return 'Gold';
-  if (totalSpending >= 1_000_000) return 'Silver';
-  return 'Bronze';
+  return 'Silver';
 }
 
 export async function confirmReservation(reservationId: string) {

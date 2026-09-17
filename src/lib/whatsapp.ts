@@ -122,17 +122,16 @@ function formatDateId(date: Date) {
 }
 
 function tierLabel(tier: string): string {
-  return tier === 'Platinum' ? 'Platinum' : tier === 'Gold' ? 'Gold' : tier === 'Silver' ? 'Silver' : 'Bronze';
+  return tier === 'Platinum' ? 'Platinum' : tier === 'Gold' ? 'Gold' : 'Silver';
 }
 
 /**
  * Compute member tier from totalSpending.
  */
-export function computeMemberTier(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {
+export function computeMemberTier(totalSpending: number): 'Silver' | 'Gold' | 'Platinum' {
   if (totalSpending >= 10_000_000) return 'Platinum';
   if (totalSpending >= 5_000_000) return 'Gold';
-  if (totalSpending >= 1_000_000) return 'Silver';
-  return 'Bronze';
+  return 'Silver';
 }
 
 /**
@@ -148,18 +147,10 @@ function getNearTierText(totalSpending: number): string | null {
     }
     return null;
   }
-  if (totalSpending >= 1_000_000) {
-    const remaining = 5_000_000 - totalSpending;
-    const pct = Math.round((totalSpending / 5_000_000) * 100);
-    if (pct >= 60 && totalSpending > 0) {
-      return `Tinggal ${formatRupiah(remaining)} lagi ke tier Gold.`;
-    }
-    return null;
-  }
-  const remaining = 1_000_000 - totalSpending;
-  const pct = Math.round((totalSpending / 1_000_000) * 100);
+  const remaining = 5_000_000 - totalSpending;
+  const pct = Math.round((totalSpending / 5_000_000) * 100);
   if (pct >= 60 && totalSpending > 0) {
-    return `Tinggal ${formatRupiah(remaining)} lagi ke tier Silver.`;
+    return `Tinggal ${formatRupiah(remaining)} lagi ke tier Gold.`;
   }
   return null;
 }

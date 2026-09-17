@@ -20,7 +20,6 @@ interface Member {
 }
 
 const TIER_LABELS: Record<string, { label: string; color: string }> = {
-  Bronze: { label: 'Bronze', color: 'bg-amber-100 text-amber-700' },
   Silver: { label: 'Silver', color: 'bg-gray-200 text-gray-700' },
   Gold: { label: 'Gold', color: 'bg-yellow-100 text-yellow-700' },
   Platinum: { label: 'Platinum', color: 'bg-purple-100 text-purple-700' },
@@ -114,7 +113,7 @@ export default function MembersPage() {
             </thead>
             <tbody className="divide-y">
               {members.map((m) => {
-                const tier = TIER_LABELS[m.tier] || TIER_LABELS.Bronze;
+                 const tier = TIER_LABELS[m.tier] || TIER_LABELS.Silver;
                 return (
                 <tr
                   key={m.id}
@@ -167,14 +166,10 @@ export default function MembersPage() {
       {/* Tier Legend */}
       <div className="mt-4 rounded-lg border bg-white p-4">
         <h3 className="mb-2 text-sm font-semibold text-gray-700">Keterangan Tier Membership</h3>
-        <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 md:grid-cols-4">
-          <div className="flex items-center gap-2">
-            <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Bronze</span>
-            <span>Rp 0 - 999.999</span>
-          </div>
+        <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 md:grid-cols-3">
           <div className="flex items-center gap-2">
             <span className="inline-block rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">Silver</span>
-            <span>Rp 1jt - 4,9jt</span>
+            <span>Rp 0 - 4,9jt</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">Gold</span>

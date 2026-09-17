@@ -4,20 +4,16 @@ import { memberError, memberResponse } from '@/lib/member-auth/http';
 import { prisma } from '@/lib/prisma';
 
 const TIER_THRESHOLDS = {
-  BRONZE: 0,
-  SILVER: 1_000_000,
+  SILVER: 0,
   GOLD: 5_000_000,
   PLATINUM: 10_000_000,
 };
 
 const TIER_BENEFITS = {
-  Bronze: [
+  Silver: [
     'Priority booking',
     'Diskon ulang tahun 10%',
     'Akses promo eksklusif member',
-  ],
-  Silver: [
-    'Semua benefit Bronze',
     'Free skin check bulanan',
     'Diskon 15% setiap kunjungan',
     'Early access treatment baru',
@@ -39,9 +35,9 @@ const TIER_BENEFITS = {
 };
 
 function computeTier(totalSpending: number): {
-  tier: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+  tier: 'Silver' | 'Gold' | 'Platinum';
   benefits: string[];
-  nextTier: 'Silver' | 'Gold' | 'Platinum' | null;
+  nextTier: 'Gold' | 'Platinum' | null;
   nextTierThreshold: number | null;
   progressPercent: number;
   amountToNextTier: number | null;
@@ -69,29 +65,16 @@ function computeTier(totalSpending: number): {
       amountToNextTier: TIER_THRESHOLDS.PLATINUM - totalSpending,
     };
   }
-  if (totalSpending >= TIER_THRESHOLDS.SILVER) {
-    const progress = Math.min(100, Math.round(
-      ((totalSpending - TIER_THRESHOLDS.SILVER) / (TIER_THRESHOLDS.GOLD - TIER_THRESHOLDS.SILVER)) * 100
-    ));
-    return {
-      tier: 'Silver',
-      benefits: TIER_BENEFITS.Silver,
-      nextTier: 'Gold',
-      nextTierThreshold: TIER_THRESHOLDS.GOLD,
-      progressPercent: progress,
-      amountToNextTier: TIER_THRESHOLDS.GOLD - totalSpending,
-    };
-  }
   const progress = Math.min(100, Math.round(
-    (totalSpending / TIER_THRESHOLDS.SILVER) * 100
+    (totalSpending / TIER_THRESHOLDS.GOLD) * 100
   ));
   return {
-    tier: 'Bronze',
-    benefits: TIER_BENEFITS.Bronze,
-    nextTier: 'Silver',
-    nextTierThreshold: TIER_THRESHOLDS.SILVER,
+    tier: 'Silver',
+    benefits: TIER_BENEFITS.Silver,
+    nextTier: 'Gold',
+    nextTierThreshold: TIER_THRESHOLDS.GOLD,
     progressPercent: progress,
-    amountToNextTier: TIER_THRESHOLDS.SILVER - totalSpending,
+    amountToNextTier: TIER_THRESHOLDS.GOLD - totalSpending,
   };
 }
 

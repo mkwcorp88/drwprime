@@ -247,6 +247,5 @@ export async function GET() {
 function getLoyaltyLevel(points: number): string {
   if (points >= 10000) return 'Platinum';
   if (points >= 5000) return 'Gold';
-  if (points >= 1000) return 'Silver';
-  return 'Bronze';
+  return 'Silver';
 }

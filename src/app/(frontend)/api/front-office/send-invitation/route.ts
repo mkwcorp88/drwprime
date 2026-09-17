@@ -52,9 +52,7 @@ export async function POST(req: NextRequest) {
       ? 'Platinum'
       : Number(member.totalSpending) >= 5_000_000
       ? 'Gold'
-      : Number(member.totalSpending) >= 1_000_000
-      ? 'Silver'
-      : 'Bronze';
+      : 'Silver';
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://drwprime.com';
     const inviteLink = `${appUrl}/sign-up?phone=${encodeURIComponent(member.phone)}`;

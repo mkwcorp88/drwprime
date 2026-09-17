@@ -4,14 +4,13 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { isAidoManagedSpendingDate } from '@/lib/aido/config';
 
-const TIER_THRESHOLDS = { SILVER: 1_000_000, GOLD: 5_000_000, PLATINUM: 10_000_000 };
+const TIER_THRESHOLDS = { SILVER: 0, GOLD: 5_000_000, PLATINUM: 10_000_000 };
 const RUPIAH_PER_POINT = 10_000; // Rp 10.000 = 1 poin
 
-function computeTier(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {
+function computeTier(totalSpending: number): 'Silver' | 'Gold' | 'Platinum' {
   if (totalSpending >= TIER_THRESHOLDS.PLATINUM) return 'Platinum';
   if (totalSpending >= TIER_THRESHOLDS.GOLD) return 'Gold';
-  if (totalSpending >= TIER_THRESHOLDS.SILVER) return 'Silver';
-  return 'Bronze';
+  return 'Silver';
 }
 
 export async function POST(req: Request) {

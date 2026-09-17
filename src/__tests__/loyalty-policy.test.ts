@@ -10,9 +10,9 @@ import { calculateCommission } from '@/lib/policies/commission';
 
 describe('Loyalty Tier Policy', () => {
   const testCases: [number, LoyaltyTier][] = [
-    [0, 'Bronze'],
-    [500, 'Bronze'],
-    [999, 'Bronze'],
+    [0, 'Silver'],
+    [500, 'Silver'],
+    [999, 'Silver'],
     [1000, 'Silver'],
     [2000, 'Silver'],
     [4999, 'Silver'],
@@ -31,8 +31,7 @@ describe('Loyalty Tier Policy', () => {
 });
 
 describe('TIER_THRESHOLDS constants', () => {
-  it('Bronze = 0', () => expect(TIER_THRESHOLDS.Bronze).toBe(0));
-  it('Silver = 1000', () => expect(TIER_THRESHOLDS.Silver).toBe(1000));
+  it('Silver = 0', () => expect(TIER_THRESHOLDS.Silver).toBe(0));
   it('Gold = 5000', () => expect(TIER_THRESHOLDS.Gold).toBe(5000));
   it('Platinum = 10000', () => expect(TIER_THRESHOLDS.Platinum).toBe(10000));
 });

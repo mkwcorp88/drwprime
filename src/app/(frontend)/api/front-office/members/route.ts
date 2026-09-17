@@ -3,13 +3,12 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { Prisma } from '@prisma/client';
 
-const TIER_THRESHOLDS = { Silver: 1_000_000, Gold: 5_000_000, Platinum: 10_000_000 };
+const TIER_THRESHOLDS = { Silver: 0, Gold: 5_000_000, Platinum: 10_000_000 };
 
-function computeTier(totalSpending: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {
+function computeTier(totalSpending: number): 'Silver' | 'Gold' | 'Platinum' {
   if (totalSpending >= TIER_THRESHOLDS.Platinum) return 'Platinum';
   if (totalSpending >= TIER_THRESHOLDS.Gold) return 'Gold';
-  if (totalSpending >= TIER_THRESHOLDS.Silver) return 'Silver';
-  return 'Bronze';
+  return 'Silver';
 }
 
 export async function GET(req: NextRequest) {
@@ -42,8 +41,7 @@ export async function GET(req: NextRequest) {
       where.hasAccount = false;
     }
 
-    if (tierFilter && ['Bronze', 'Silver', 'Gold', 'Platinum'].includes(tierFilter)) {
-      if (tierFilter === 'Bronze') where.totalSpending = { lt: TIER_THRESHOLDS.Silver };
+    if (tierFilter && ['Silver', 'Gold', 'Platinum'].includes(tierFilter)) {
       if (tierFilter === 'Silver') {
         where.totalSpending = { gte: TIER_THRESHOLDS.Silver, lt: TIER_THRESHOLDS.Gold };
       }

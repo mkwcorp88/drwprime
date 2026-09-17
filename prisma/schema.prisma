@@ -54,7 +54,7 @@ model User {
   isAdmin        Boolean @default(false) @map("is_admin")
   points         Int     @default(0) // Spending-based points (1 per 10k)
   loyaltyPoints  Int     @default(0) @map("loyalty_points") // Reservation-based points (legacy)
-  loyaltyLevel   String  @default("Bronze") @map("loyalty_level") // Bronze, Silver, Gold, Platinum (legacy)
+  loyaltyLevel   String  @default("Silver") @map("loyalty_level") // Silver, Gold, Platinum
   totalReferrals Int     @default(0) @map("total_referrals")
   totalEarnings  Decimal @default(0) @map("total_earnings") @db.Decimal(10, 2)
 
