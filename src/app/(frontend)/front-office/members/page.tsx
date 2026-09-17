@@ -34,7 +34,9 @@ export default function MembersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [tierFilter, setTierFilter] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [exportingCekat, setExportingCekat] = useState(false);
 
   const loadMembers = useCallback(async () => {
     setLoading(true);
@@ -42,6 +44,7 @@ export default function MembersPage() {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
       if (filter !== 'all') params.set('filter', filter);
+      if (tierFilter) params.set('tier', tierFilter);
 
       const res = await fetch(`/api/front-office/members?${params}`);
       const data = await res.json();
@@ -54,7 +57,38 @@ export default function MembersPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filter]);
+  }, [search, filter, tierFilter]);
+
+  const exportForCekat = async () => {
+    setExportingCekat(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (tierFilter) params.set('tier', tierFilter);
+      const urlQuery = params.toString() ? `?${params.toString()}` : '';
+
+      const response = await fetch(`/api/front-office/members/export${urlQuery}`);
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || 'Gagal mengekspor data member');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `drwprime-members-cekat-${new Date().toISOString().split('T')[0]}.csv`;
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Gagal mengekspor data member');
+    } finally {
+      setExportingCekat(false);
+    }
+  };
 
   useEffect(() => {
     loadMembers();
@@ -64,12 +98,21 @@ export default function MembersPage() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Daftar Member</h1>
-        <button
-          onClick={() => router.push('/front-office')}
-          className="text-sm text-gray-600 hover:text-gray-900"
-        >
-          ← Kembali
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={exportForCekat}
+            disabled={exportingCekat || members.length === 0}
+            className="flex items-center gap-2 rounded-lg border border-green-600 bg-white px-4 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-50 disabled:opacity-50"
+          >
+            {exportingCekat ? 'Menyiapkan...' : 'Export'}
+          </button>
+          <button
+            onClick={() => router.push('/front-office')}
+            className="text-sm text-gray-600 hover:text-gray-900"
+          >
+            ← Kembali
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -89,6 +132,16 @@ export default function MembersPage() {
           <option value="all">Semua Member</option>
           <option value="with_account">Punya Akun</option>
           <option value="walk_in">Walk-in Only</option>
+        </select>
+        <select
+          value={tierFilter}
+          onChange={(e) => setTierFilter(e.target.value)}
+          className="rounded-lg border px-3 py-2 focus:border-primary focus:outline-none"
+        >
+          <option value="">Semua Tier</option>
+          <option value="Silver">Silver</option>
+          <option value="Gold">Gold</option>
+          <option value="Platinum">Platinum</option>
         </select>
       </div>
 

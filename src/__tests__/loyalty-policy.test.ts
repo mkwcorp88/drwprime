@@ -1,18 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
-  getLoyaltyTier,
+  getLoyaltyTierFromPoints,
   calculateSpendingPoints,
   calculateLoyaltyPoints,
-  TIER_THRESHOLDS,
+  POINT_TIER_THRESHOLDS,
   type LoyaltyTier,
 } from '@/lib/policies/loyalty';
 import { calculateCommission } from '@/lib/policies/commission';
 
 describe('Loyalty Tier Policy', () => {
   const testCases: [number, LoyaltyTier][] = [
-    [0, 'Silver'],
-    [500, 'Silver'],
-    [999, 'Silver'],
+    [0, 'Bronze'],
+    [500, 'Bronze'],
+    [999, 'Bronze'],
     [1000, 'Silver'],
     [2000, 'Silver'],
     [4999, 'Silver'],
@@ -25,15 +25,15 @@ describe('Loyalty Tier Policy', () => {
 
   testCases.forEach(([points, expected]) => {
     it(`${points.toLocaleString()} points = ${expected}`, () => {
-      expect(getLoyaltyTier(points)).toBe(expected);
+      expect(getLoyaltyTierFromPoints(points)).toBe(expected);
     });
   });
 });
 
-describe('TIER_THRESHOLDS constants', () => {
-  it('Silver = 0', () => expect(TIER_THRESHOLDS.Silver).toBe(0));
-  it('Gold = 5000', () => expect(TIER_THRESHOLDS.Gold).toBe(5000));
-  it('Platinum = 10000', () => expect(TIER_THRESHOLDS.Platinum).toBe(10000));
+describe('POINT_TIER_THRESHOLDS constants', () => {
+  it('Silver = 1000', () => expect(POINT_TIER_THRESHOLDS.Silver).toBe(1000));
+  it('Gold = 5000', () => expect(POINT_TIER_THRESHOLDS.Gold).toBe(5000));
+  it('Platinum = 10000', () => expect(POINT_TIER_THRESHOLDS.Platinum).toBe(10000));
 });
 
 describe('Spending Points Calculation', () => {

@@ -222,12 +222,13 @@ export async function completeAction(actor: OpsStaff, actionId: string, note?: s
     const active = await tx.opsOrderAction.count({
       where: { treatmentOrderId: action.order.id, status: 'ON_PROCESS' },
     });
+    const isOrderCompleted = remainingRequired === 0;
     await tx.opsTreatmentOrder.update({
       where: { id: action.order.id },
-      data: remainingRequired === 0
+      data: isOrderCompleted
         ? { status: 'COMPLETED', completedAt: now }
         : { status: active > 0 ? 'ON_PROCESS' : 'WAITING_NEXT_ACTION' },
     });
-    return updated;
+    return { updated, isOrderCompleted };
   });
 }
