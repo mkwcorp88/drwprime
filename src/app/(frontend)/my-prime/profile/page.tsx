@@ -22,7 +22,6 @@ const PROVINCES = [
 
 interface ProfileForm {
   phone: string;
-  nik: string;
   gender: string;
   dateOfBirth: string;
   address: string;
@@ -32,7 +31,6 @@ interface ProfileForm {
 
 const EMPTY_FORM: ProfileForm = {
   phone: '',
-  nik: '',
   gender: '',
   dateOfBirth: '',
   address: '',
@@ -101,7 +99,6 @@ export default function ProfilePage() {
       const p = data.profile;
       setForm({
         phone: p.phone ?? '',
-        nik: p.nik ?? '',
         gender: p.gender ?? '',
         dateOfBirth: p.dateOfBirth ?? '',
         address: p.address ?? '',
@@ -384,21 +381,6 @@ export default function ProfilePage() {
                     </p>
                   )}
                   {renderError('phone')}
-                </div>
-
-                <div>
-                  <label className="block text-white/70 text-xs mb-1.5">NIK (No. KTP) *</label>
-                  <input
-                    type="text"
-                    name="nik"
-                    inputMode="numeric"
-                    maxLength={16}
-                    value={form.nik}
-                    onChange={handleChange}
-                    placeholder="16 digit nomor KTP"
-                    className={inputClass}
-                  />
-                  {renderError('nik')}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

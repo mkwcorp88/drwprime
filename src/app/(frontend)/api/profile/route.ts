@@ -11,7 +11,7 @@ function profile(user: User) {
     dateOfBirth: user.dateOfBirth?.toISOString().slice(0, 10) || null,
     address: user.address, city: user.city, province: user.province,
     profileCompletedAt: user.profileCompletedAt,
-    isComplete: Boolean(user.loginPhone && user.nik && user.gender && user.dateOfBirth && user.address && user.city && user.province),
+    isComplete: Boolean(user.loginPhone && user.gender && user.dateOfBirth && user.address && user.city && user.province),
   };
 }
 
@@ -35,7 +35,7 @@ export async function PUT(request: Request) {
     const city = text('city');
     const province = text('province');
     const fields: Record<string, string> = {};
-    if (!/^\d{16}$/.test(nik)) fields.nik = 'NIK harus 16 digit angka';
+    if (nik && !/^\d{16}$/.test(nik)) fields.nik = 'NIK harus 16 digit angka';
     if (!['Pria', 'Wanita'].includes(gender)) fields.gender = 'Pilih jenis kelamin';
     if (!dateOfBirth) fields.dateOfBirth = 'Tanggal lahir tidak valid';
     if (!address || address.length > 1000) fields.address = 'Isi alamat maksimal 1000 karakter';
@@ -44,10 +44,13 @@ export async function PUT(request: Request) {
     if (Object.keys(fields).length) return memberResponse({ error: 'Validasi gagal', fields }, 400);
     // Account activation has already resolved identity. Profile edits never merge
     // patients or transfer balances, and never change the verified login number.
-    const user = await prisma.user.update({ where: { id: member.id }, data: {
-      nik, gender, dateOfBirth, address, city, province,
+    const data: Prisma.UserUpdateInput = {
+      gender, dateOfBirth, address, city, province,
       profileCompletedAt: member.profileCompletedAt || new Date(),
-    } });
+    };
+    // NIK remains optional for member profile completion but can still be retained for clinical records.
+    if (nik) data.nik = nik;
+    const user = await prisma.user.update({ where: { id: member.id }, data });
     return memberResponse({ profile: profile(user), merged: false });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
