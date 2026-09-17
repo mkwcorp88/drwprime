@@ -9,6 +9,7 @@ import { assertMemberOrigin, memberError, memberResponse } from '@/lib/member-au
 import { isHardcodedAdmin } from '@/lib/admin';
 import { normalizePhone } from '@/lib/phone';
 import { calculateCommission } from '@/lib/policies/commission';
+import { computeMemberTierFromSpending } from '@/lib/policies/loyalty';
 import { payCommissionTx } from '@/lib/services/reservation';
 
 export async function OPTIONS() {
@@ -219,7 +220,7 @@ export async function GET() {
     }
 
     const totalReferrals = user.referrals.length;
-    const loyaltyLevel = getLoyaltyLevel(user.loyaltyPoints);
+    const loyaltyLevel = computeMemberTierFromSpending(Number(user.totalSpending));
 
     const teamMembersCount = await prisma.user.count({
       where: { affiliateCode: user.affiliateCode, id: { not: user.id } },
@@ -242,10 +243,4 @@ export async function GET() {
     console.error('Error fetching user:', error);
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
   }
-}
-
-function getLoyaltyLevel(points: number): string {
-  if (points >= 10000) return 'Platinum';
-  if (points >= 5000) return 'Gold';
-  return 'Silver';
 }

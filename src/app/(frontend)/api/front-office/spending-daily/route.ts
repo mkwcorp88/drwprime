@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { getAidoCutoverStart, isAidoManagedSpendingDate } from '@/lib/aido/config';
+import { computeMemberTierFromSpending } from '@/lib/policies/loyalty';
 
 type ParsedRow = {
   nomorInvoice: string;
@@ -35,12 +36,6 @@ function normalizeName(value: string): string {
 function sameDate(left: Date | null, right: Date | null): boolean {
   return Boolean(left && right)
     && left!.toISOString().slice(0, 10) === right!.toISOString().slice(0, 10);
-}
-
-function tierForSpending(totalSpending: number): 'Silver' | 'Gold' | 'Platinum' {
-  if (totalSpending >= 10_000_000) return 'Platinum';
-  if (totalSpending >= 5_000_000) return 'Gold';
-  return 'Silver';
 }
 
 function normalizeHeader(value: unknown): string {
@@ -727,7 +722,7 @@ export async function POST(req: NextRequest) {
             data: {
               totalSpending: { decrement: delta.amount },
               points: { decrement: delta.points },
-              loyaltyLevel: tierForSpending(totalSpending),
+              loyaltyLevel: computeMemberTierFromSpending(totalSpending),
             },
           });
           await recomputeLastTransactionAt(tx, userId);
@@ -763,7 +758,7 @@ export async function POST(req: NextRequest) {
           data: {
             totalSpending: { increment: linked.row.totalPendapatan },
             points: { increment: linked.pointsEarned },
-            loyaltyLevel: tierForSpending(totalSpending),
+            loyaltyLevel: computeMemberTierFromSpending(totalSpending),
             lastTransactionAt: !current.lastTransactionAt || linked.row.tanggalKunjungan > current.lastTransactionAt
               ? linked.row.tanggalKunjungan
               : undefined,
@@ -905,7 +900,7 @@ export async function DELETE(req: NextRequest) {
             data: {
               totalSpending: { decrement: delta.amount },
               points: { decrement: delta.points },
-              loyaltyLevel: tierForSpending(totalSpending),
+              loyaltyLevel: computeMemberTierFromSpending(totalSpending),
             },
           });
           await recomputeLastTransactionAt(tx, userId);

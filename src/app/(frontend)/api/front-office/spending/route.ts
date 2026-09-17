@@ -3,15 +3,9 @@ import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { isAidoManagedSpendingDate } from '@/lib/aido/config';
+import { computeMemberTierFromSpending } from '@/lib/policies/loyalty';
 
-const TIER_THRESHOLDS = { SILVER: 0, GOLD: 5_000_000, PLATINUM: 10_000_000 };
 const RUPIAH_PER_POINT = 10_000; // Rp 10.000 = 1 poin
-
-function computeTier(totalSpending: number): 'Silver' | 'Gold' | 'Platinum' {
-  if (totalSpending >= TIER_THRESHOLDS.PLATINUM) return 'Platinum';
-  if (totalSpending >= TIER_THRESHOLDS.GOLD) return 'Gold';
-  return 'Silver';
-}
 
 export async function POST(req: Request) {
   try {
@@ -82,7 +76,7 @@ export async function POST(req: Request) {
       const totalSpending = Number(updated.totalSpending);
       await tx.user.update({
         where: { id: user.id },
-        data: { loyaltyLevel: computeTier(totalSpending) },
+        data: { loyaltyLevel: computeMemberTierFromSpending(totalSpending) },
       });
       await tx.user.updateMany({
         where: {
@@ -94,7 +88,7 @@ export async function POST(req: Request) {
       return updated;
     });
     const totalSpending = Number(updatedUser.totalSpending);
-    const tier = computeTier(totalSpending);
+    const tier = computeMemberTierFromSpending(totalSpending);
 
     return NextResponse.json({
       success: true,

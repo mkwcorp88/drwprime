@@ -78,6 +78,7 @@ export default function MemberDetailModal({
   }
 
   const tierColor = {
+    Bronze: 'bg-orange-100 text-orange-700',
     Silver: 'bg-gray-100 text-gray-700',
     Gold: 'bg-yellow-100 text-yellow-700',
     Platinum: 'bg-purple-100 text-purple-700',

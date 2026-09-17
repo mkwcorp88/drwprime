@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { sendManualInvitation } from '@/lib/whatsapp';
+import { computeMemberTierFromSpending } from '@/lib/policies/loyalty';
 
 export async function POST(req: NextRequest) {
   try {
@@ -48,11 +49,7 @@ export async function POST(req: NextRequest) {
     }
 
     const memberName = [member.firstName, member.lastName].filter(Boolean).join(' ') || 'Member';
-    const tier = Number(member.totalSpending) >= 10_000_000
-      ? 'Platinum'
-      : Number(member.totalSpending) >= 5_000_000
-      ? 'Gold'
-      : 'Silver';
+    const tier = computeMemberTierFromSpending(Number(member.totalSpending));
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://drwprime.com';
     const inviteLink = `${appUrl}/sign-up?phone=${encodeURIComponent(member.phone)}`;

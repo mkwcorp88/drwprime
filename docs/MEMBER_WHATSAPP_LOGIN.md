@@ -9,6 +9,7 @@
 - Template: `drwprime_member_login_otp`, kategori Authentication, bahasa `id`.
 - Tombol: **Salin Kode**. Kedaluwarsa kode dan batas pengiriman: **5 menit**.
 - Status yang diverifikasi di Meta pada 11 September 2026: **Aktif – Menunggu kualitas**.
+- Template notifikasi treatment: `treatment_completed_member` untuk member akun dan `treatment_completed_walkin` untuk walk-in. Keduanya memakai bahasa `id`, kategori Utility, dan terverifikasi berstatus `APPROVED` melalui Meta API pada 17 September 2026.
 - Aplikasi: **DRW Prime OTP API**.
 - System user: **DRW Prime Member OTP**, role Employee, akses ke aplikasi OTP dan akun WhatsApp tersebut.
 - Izin token yang diminta: `whatsapp_business_messaging`, `whatsapp_business_management`. Izin aset WhatsApp dibatasi ke pesan dan pembacaan nomor/template.
@@ -30,6 +31,8 @@ MEMBER_WHATSAPP_PHONE_NUMBER_ID=1289265457605367
 MEMBER_WHATSAPP_API_VERSION=v25.0
 MEMBER_WHATSAPP_TEMPLATE=drwprime_member_login_otp
 MEMBER_WHATSAPP_TEMPLATE_LANG=id
+MEMBER_WHATSAPP_TREATMENT_MEMBER_TEMPLATE=treatment_completed_member
+MEMBER_WHATSAPP_TREATMENT_WALKIN_TEMPLATE=treatment_completed_walkin
 MEMBER_OTP_SECRET=<rahasia-acak-terpisah-minimal-32-karakter>
 MEMBER_TRUST_PROXY=true
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/staff/sign-in
@@ -39,6 +42,8 @@ NEXT_PUBLIC_CLERK_SIGN_UP_URL=/staff/sign-in
 `MEMBER_TRUST_PROXY=true` hanya digunakan di belakang reverse proxy yang **menimpa** `X-Real-IP` dengan IP koneksi sebenarnya, misalnya `proxy_set_header X-Real-IP $remote_addr;`. Pastikan endpoint aplikasi tidak dapat diakses langsung dengan header buatan pengguna. Tanpa pengaturan ini, permintaan memakai satu bucket IP konservatif bersama.
 
 Login member memakai konfigurasi `MEMBER_*` secara eksklusif. Kredensial notifikasi umum dan OPS tidak menjadi fallback. Jika token/secret belum lengkap, formulir menunjukkan layanan sedang disiapkan dan pengiriman mengembalikan 503. Tidak ada OTP tetap atau bypass development.
+
+Notifikasi treatment memakai sender Meta yang sama, tetapi tidak memakai template OTP. Saat seluruh tindakan wajib pada order selesai, aplikasi memberi poin satu kali berdasarkan `finalPrice`, memilih template menurut `User.hasAccount`, dan mengirim nomor yang sudah dinormalisasi ke format `628…`. Nomor yang ambigu atau tidak dapat dikaitkan dengan member dicatat sebagai audit skip agar poin tidak masuk ke orang yang salah.
 
 ## Alur akun dan data lama
 

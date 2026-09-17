@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { sendOpsLoginOtpWhatsApp } from './whatsapp';
+import { sendOpsLoginOtpWhatsApp, sendTreatmentCompletedNotification } from './whatsapp';
 
 const originalEnv = {
   accessToken: process.env.OPS_WHATSAPP_ACCESS_TOKEN,
@@ -7,6 +7,12 @@ const originalEnv = {
   graphVersion: process.env.OPS_WHATSAPP_API_VERSION,
   template: process.env.OPS_WHATSAPP_TEMPLATE,
   language: process.env.OPS_WHATSAPP_TEMPLATE_LANG,
+  memberAccessToken: process.env.MEMBER_WHATSAPP_ACCESS_TOKEN,
+  memberPhoneNumberId: process.env.MEMBER_WHATSAPP_PHONE_NUMBER_ID,
+  memberGraphVersion: process.env.MEMBER_WHATSAPP_API_VERSION,
+  memberLanguage: process.env.MEMBER_WHATSAPP_TEMPLATE_LANG,
+  memberTemplate: process.env.MEMBER_WHATSAPP_TREATMENT_MEMBER_TEMPLATE,
+  walkInTemplate: process.env.MEMBER_WHATSAPP_TREATMENT_WALKIN_TEMPLATE,
 };
 
 beforeEach(() => {
@@ -15,6 +21,12 @@ beforeEach(() => {
   process.env.OPS_WHATSAPP_API_VERSION = 'v25.0';
   process.env.OPS_WHATSAPP_TEMPLATE = 'drwprime_login_otp';
   process.env.OPS_WHATSAPP_TEMPLATE_LANG = 'id';
+  process.env.MEMBER_WHATSAPP_ACCESS_TOKEN = 'member-access-token';
+  process.env.MEMBER_WHATSAPP_PHONE_NUMBER_ID = '1234567890';
+  process.env.MEMBER_WHATSAPP_API_VERSION = 'v25.0';
+  process.env.MEMBER_WHATSAPP_TEMPLATE_LANG = 'id';
+  process.env.MEMBER_WHATSAPP_TREATMENT_MEMBER_TEMPLATE = 'treatment_completed_member';
+  process.env.MEMBER_WHATSAPP_TREATMENT_WALKIN_TEMPLATE = 'treatment_completed_walkin';
 });
 
 afterEach(() => {
@@ -25,10 +37,133 @@ afterEach(() => {
     OPS_WHATSAPP_API_VERSION: originalEnv.graphVersion,
     OPS_WHATSAPP_TEMPLATE: originalEnv.template,
     OPS_WHATSAPP_TEMPLATE_LANG: originalEnv.language,
+    MEMBER_WHATSAPP_ACCESS_TOKEN: originalEnv.memberAccessToken,
+    MEMBER_WHATSAPP_PHONE_NUMBER_ID: originalEnv.memberPhoneNumberId,
+    MEMBER_WHATSAPP_API_VERSION: originalEnv.memberGraphVersion,
+    MEMBER_WHATSAPP_TEMPLATE_LANG: originalEnv.memberLanguage,
+    MEMBER_WHATSAPP_TREATMENT_MEMBER_TEMPLATE: originalEnv.memberTemplate,
+    MEMBER_WHATSAPP_TREATMENT_WALKIN_TEMPLATE: originalEnv.walkInTemplate,
   })) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }
+});
+
+describe('WhatsApp treatment completion templates', () => {
+  it('sends the member template with every body parameter', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      messages: [{ id: 'wamid.member' }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await sendTreatmentCompletedNotification({
+      memberPhone: '0812-3456-7890',
+      hasAccount: true,
+      treatment: 'Facial Glow',
+      amount: 125_000,
+      pointsEarned: 12,
+      totalPoints: 98,
+      tier: 'Bronze',
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://graph.facebook.com/v25.0/1234567890/messages');
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer member-access-token' });
+    expect(JSON.parse(init.body as string)).toEqual({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: '6281234567890',
+      type: 'template',
+      template: {
+        name: 'treatment_completed_member',
+        language: { code: 'id' },
+        components: [{
+          type: 'body',
+          parameters: [
+            { type: 'text', text: 'Facial Glow' },
+            { type: 'text', text: 'Rp 125.000' },
+            { type: 'text', text: '12' },
+            { type: 'text', text: '98' },
+            { type: 'text', text: 'Bronze' },
+          ],
+        }],
+      },
+    });
+  });
+
+  it('sends the walk-in template with the dynamic sign-up URL parameter', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      messages: [{ id: 'wamid.walkin' }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await sendTreatmentCompletedNotification({
+      memberPhone: '+62 812 3456 7890',
+      hasAccount: false,
+      treatment: 'Laser Rejuvenation',
+      amount: 1_500_000,
+      pointsEarned: 150,
+      totalPoints: 150,
+      tier: 'Silver',
+    });
+
+    expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toEqual({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: '6281234567890',
+      type: 'template',
+      template: {
+        name: 'treatment_completed_walkin',
+        language: { code: 'id' },
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: 'Laser Rejuvenation' },
+              { type: 'text', text: 'Rp 1.500.000' },
+              { type: 'text', text: '150' },
+            ],
+          },
+          {
+            type: 'button',
+            sub_type: 'url',
+            index: '0',
+            parameters: [{ type: 'text', text: '6281234567890' }],
+          },
+        ],
+      },
+    });
+  });
+
+  it('fails closed when the dedicated notification sender is not configured', async () => {
+    delete process.env.MEMBER_WHATSAPP_ACCESS_TOKEN;
+    vi.stubGlobal('fetch', vi.fn());
+
+    await sendTreatmentCompletedNotification({
+      memberPhone: '081234567890',
+      hasAccount: true,
+      amount: 100_000,
+      pointsEarned: 10,
+      totalPoints: 10,
+      tier: 'Bronze',
+    });
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a rejected template request without provider payload data', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"error":"rejected"}', { status: 400 })));
+
+    await expect(sendTreatmentCompletedNotification({
+      memberPhone: '081234567890',
+      hasAccount: true,
+      amount: 100_000,
+      pointsEarned: 10,
+      totalPoints: 10,
+      tier: 'Bronze',
+    })).rejects.toThrow('WhatsApp treatment template API error 400');
+  });
 });
 
 describe('WhatsApp operational login OTP', () => {

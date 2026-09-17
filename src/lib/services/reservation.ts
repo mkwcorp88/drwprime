@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { calculateCommission, calculateCommissionPoints } from '@/lib/policies/commission';
-import { calculateSpendingPoints } from '@/lib/policies/loyalty';
+import { calculateSpendingPoints, computeMemberTierFromSpending } from '@/lib/policies/loyalty';
 import { isAidoManagedSpendingDate } from '@/lib/aido/config';
 
 /**
@@ -28,12 +28,6 @@ export class ReservationError extends Error {
     super(message);
     this.name = 'ReservationError';
   }
-}
-
-function tierForSpending(totalSpending: number): 'Silver' | 'Gold' | 'Platinum' {
-  if (totalSpending >= 10_000_000) return 'Platinum';
-  if (totalSpending >= 5_000_000) return 'Gold';
-  return 'Silver';
 }
 
 export async function confirmReservation(reservationId: string) {
@@ -92,7 +86,7 @@ export async function completeReservation(
             points: { increment: pointsEarned },
             totalSpending: { increment: finalPrice },
             loyaltyPoints: { increment: pointsEarned },
-            loyaltyLevel: tierForSpending(newTotalSpending),
+            loyaltyLevel: computeMemberTierFromSpending(newTotalSpending),
             lastTransactionAt: completedAt,
           },
         });

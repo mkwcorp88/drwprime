@@ -18,6 +18,7 @@ import {
   mapAidoPatient,
 } from '@/lib/aido/mapping';
 import { prisma } from '@/lib/prisma';
+import { computeMemberTierFromSpending } from '@/lib/policies/loyalty';
 
 const LOCK_NAME = 'aido-daily-sync';
 const INCOME_SOURCE = 'aido-income';
@@ -118,12 +119,6 @@ function requiresDobForPhoneMatch(user: SyncUser): boolean {
 
 function pointsForAmount(amount: number): number {
   return Math.trunc(amount / 10_000);
-}
-
-function tierForSpending(totalSpending: number): 'Silver' | 'Gold' | 'Platinum' {
-  if (totalSpending >= 10_000_000) return 'Platinum';
-  if (totalSpending >= 5_000_000) return 'Gold';
-  return 'Silver';
 }
 
 type IncomeMatchStatus = 'MATCHED' | 'UNMATCHED' | 'CONFLICT';
@@ -667,7 +662,7 @@ async function updateUserTotals(
     data: {
       totalSpending: { increment: amountDelta },
       points: { increment: pointsDelta },
-      loyaltyLevel: tierForSpending(nextTotalSpending),
+      loyaltyLevel: computeMemberTierFromSpending(nextTotalSpending),
     },
   });
 }

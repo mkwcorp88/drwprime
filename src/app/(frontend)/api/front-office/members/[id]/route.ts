@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
-
-const TIER_THRESHOLDS = { SILVER: 0, GOLD: 5_000_000, PLATINUM: 10_000_000 };
-
-function computeTier(totalSpending: number): 'Silver' | 'Gold' | 'Platinum' {
-  if (totalSpending >= TIER_THRESHOLDS.PLATINUM) return 'Platinum';
-  if (totalSpending >= TIER_THRESHOLDS.GOLD) return 'Gold';
-  return 'Silver';
-}
+import { computeMemberTierFromSpending } from '@/lib/policies/loyalty';
 
 export async function GET(
   req: NextRequest,
@@ -60,7 +53,7 @@ export async function GET(
     }
 
     // Hitung tier
-    const tier = computeTier(Number(member.totalSpending));
+    const tier = computeMemberTierFromSpending(Number(member.totalSpending));
 
     return NextResponse.json({
       success: true,

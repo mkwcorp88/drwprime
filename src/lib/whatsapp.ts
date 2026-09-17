@@ -1,3 +1,10 @@
+import {
+  computeMemberTierFromSpending,
+  getNextSpendingTier,
+  getSpendingTierThreshold,
+  type LoyaltyTier,
+} from '@/lib/policies/loyalty';
+
 export type ProductOrderItem = {
   name: string;
   price: number;
@@ -40,6 +47,16 @@ type SpendingPayload = {
   tier: string;
   treatment?: string | null;
   transactionCount?: number;
+};
+
+export type TreatmentCompletedWhatsappPayload = {
+  memberPhone: string;
+  hasAccount: boolean;
+  amount: number;
+  pointsEarned: number;
+  totalPoints: number;
+  tier: string;
+  treatment?: string | null;
 };
 
 type TierUpgradePayload = {
@@ -94,6 +111,25 @@ function getWhatsAppConfig() {
   return { accessToken, phoneNumberId, adminPhone, graphVersion };
 }
 
+function getMemberNotificationWhatsAppConfig() {
+  const accessToken = process.env.MEMBER_WHATSAPP_ACCESS_TOKEN?.trim();
+  const phoneNumberId = process.env.MEMBER_WHATSAPP_PHONE_NUMBER_ID?.trim();
+  const graphVersion = process.env.MEMBER_WHATSAPP_API_VERSION?.trim() || 'v25.0';
+
+  if (!accessToken || !phoneNumberId || !/^\d+$/.test(phoneNumberId) || !/^v\d+\.0$/.test(graphVersion)) {
+    return null;
+  }
+
+  return {
+    accessToken,
+    phoneNumberId,
+    graphVersion,
+    languageCode: process.env.MEMBER_WHATSAPP_TEMPLATE_LANG?.trim() || 'id',
+    memberTemplate: process.env.MEMBER_WHATSAPP_TREATMENT_MEMBER_TEMPLATE?.trim() || 'treatment_completed_member',
+    walkInTemplate: process.env.MEMBER_WHATSAPP_TREATMENT_WALKIN_TEMPLATE?.trim() || 'treatment_completed_walkin',
+  };
+}
+
 const DEFAULT_WHATSAPP_ADMIN_PHONE = '6281138800071';
 
 // ===== Helpers =====
@@ -122,35 +158,29 @@ function formatDateId(date: Date) {
 }
 
 function tierLabel(tier: string): string {
-  return tier === 'Platinum' ? 'Platinum' : tier === 'Gold' ? 'Gold' : 'Silver';
+  return tier;
 }
 
 /**
  * Compute member tier from totalSpending.
  */
-export function computeMemberTier(totalSpending: number): 'Silver' | 'Gold' | 'Platinum' {
-  if (totalSpending >= 10_000_000) return 'Platinum';
-  if (totalSpending >= 5_000_000) return 'Gold';
-  return 'Silver';
+export function computeMemberTier(totalSpending: number): LoyaltyTier {
+  return computeMemberTierFromSpending(totalSpending);
 }
 
 /**
  * Cek apakah member sudah > 60% menuju tier berikutnya.
  */
 function getNearTierText(totalSpending: number): string | null {
-  if (totalSpending >= 10_000_000) return null;
-  if (totalSpending >= 5_000_000) {
-    const remaining = 10_000_000 - totalSpending;
-    const pct = Math.round((totalSpending / 10_000_000) * 100);
-    if (pct >= 60 && totalSpending > 0) {
-      return `Tinggal ${formatRupiah(remaining)} lagi ke tier Platinum.`;
-    }
-    return null;
-  }
-  const remaining = 5_000_000 - totalSpending;
-  const pct = Math.round((totalSpending / 5_000_000) * 100);
-  if (pct >= 60 && totalSpending > 0) {
-    return `Tinggal ${formatRupiah(remaining)} lagi ke tier Gold.`;
+  const currentTier = computeMemberTierFromSpending(totalSpending);
+  const nextTier = getNextSpendingTier(currentTier);
+  if (!nextTier) return null;
+
+  const currentThreshold = getSpendingTierThreshold(currentTier);
+  const nextThreshold = getSpendingTierThreshold(nextTier);
+  const pct = Math.round(((totalSpending - currentThreshold) / (nextThreshold - currentThreshold)) * 100);
+  if (pct >= 60 && totalSpending > currentThreshold) {
+    return `Tinggal ${formatRupiah(nextThreshold - totalSpending)} lagi ke tier ${nextTier}.`;
   }
   return null;
 }
@@ -198,6 +228,43 @@ async function sendWhatsApp(to: string, message: string) {
 
   if (!response.ok) {
     throw new Error(`WhatsApp API error ${response.status}: ${JSON.stringify(result)}`);
+  }
+
+  return result;
+}
+
+async function sendMemberNotificationTemplate(
+  to: string,
+  templateName: string,
+  components: Array<Record<string, unknown>>,
+) {
+  const config = getMemberNotificationWhatsAppConfig();
+  if (!config) throw new Error('Konfigurasi sender DRW Prime Notif belum lengkap.');
+
+  const response = await fetch(`https://graph.facebook.com/${config.graphVersion}/${config.phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(10_000),
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to,
+      type: 'template',
+      template: {
+        name: templateName,
+        language: { code: config.languageCode },
+        components,
+      },
+    }),
+  });
+
+  const result = await response.json().catch(() => null) as { messages?: Array<{ id?: string }> } | null;
+  if (!response.ok || typeof result?.messages?.[0]?.id !== 'string') {
+    throw new Error(`WhatsApp treatment template API error ${response.status}`);
   }
 
   return result;
@@ -548,6 +615,51 @@ export async function sendSpendingNotification(payload: SpendingPayload) {
   } catch (err) {
     console.error('[WA] Gagal kirim notifikasi spending:', err);
   }
+}
+
+/** Kirim template Meta saat seluruh tindakan pada order treatment telah selesai. */
+export async function sendTreatmentCompletedNotification(payload: TreatmentCompletedWhatsappPayload) {
+  const target = normalizePhoneNumber(payload.memberPhone);
+  if (!target) return;
+
+  const config = getMemberNotificationWhatsAppConfig();
+  if (!config) {
+    console.warn('[WA] Konfigurasi sender DRW Prime Notif belum lengkap; notifikasi treatment tidak dikirim.');
+    return;
+  }
+
+  const bodyParameters = payload.hasAccount
+    ? [
+        { type: 'text', text: payload.treatment || 'Treatment DRW Prime' },
+        { type: 'text', text: formatRupiah(payload.amount) },
+        { type: 'text', text: String(payload.pointsEarned) },
+        { type: 'text', text: String(payload.totalPoints) },
+        { type: 'text', text: payload.tier },
+      ]
+    : [
+        { type: 'text', text: payload.treatment || 'Treatment DRW Prime' },
+        { type: 'text', text: formatRupiah(payload.amount) },
+        { type: 'text', text: String(payload.pointsEarned) },
+      ];
+
+  const components: Array<Record<string, unknown>> = [
+    { type: 'body', parameters: bodyParameters },
+  ];
+
+  if (!payload.hasAccount) {
+    components.push({
+      type: 'button',
+      sub_type: 'url',
+      index: '0',
+      parameters: [{ type: 'text', text: target }],
+    });
+  }
+
+  return sendMemberNotificationTemplate(
+    target,
+    payload.hasAccount ? config.memberTemplate : config.walkInTemplate,
+    components,
+  );
 }
 
 /** Kirim WA ke member — tier naik. */

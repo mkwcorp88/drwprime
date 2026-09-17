@@ -1,14 +1,103 @@
-import { Prisma } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+import { Prisma, type User } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { normalizePhone } from '@/lib/phone';
 import { calculateSpendingPoints, computeMemberTierFromSpending } from '@/lib/policies/loyalty';
-import { sendSpendingNotification } from '@/lib/whatsapp';
-import { OpsStaff } from '@prisma/client';
+
+type MemberMatch =
+  | { kind: 'not_found' }
+  | { kind: 'matched'; user: User }
+  | { kind: 'ambiguous' };
+
+function normalizedIndonesianPhone(phone: string | null): string | null {
+  if (!phone) return null;
+  const normalized = normalizePhone(phone);
+  return /^628\d{7,12}$/.test(normalized) ? normalized : null;
+}
+
+function normalizedMrNumber(mrNumber: string | null): string | null {
+  const normalized = mrNumber?.trim();
+  return normalized || null;
+}
+
+function notificationPhoneFor(user: Pick<User, 'loginPhone' | 'phone'>, fallback: string | null): string | null {
+  return normalizedIndonesianPhone(user.loginPhone)
+    ?? normalizedIndonesianPhone(user.phone)
+    ?? fallback;
+}
+
+async function lock(tx: Prisma.TransactionClient, ...keys: string[]) {
+  for (const key of [...new Set(keys)].sort()) {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))::text`;
+  }
+}
+
+async function findMemberByPhone(tx: Prisma.TransactionClient, phone: string): Promise<MemberMatch> {
+  const matches = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT id
+    FROM users
+    WHERE (
+      CASE
+        WHEN regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') LIKE '62%'
+          THEN regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g')
+        WHEN regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') LIKE '0%'
+          THEN '62' || substr(regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g'), 2)
+        WHEN regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') LIKE '8%'
+          THEN '62' || regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g')
+        ELSE NULL
+      END
+    ) = ${phone}
+    OR (
+      CASE
+        WHEN regexp_replace(COALESCE(login_phone, ''), '[^0-9]', '', 'g') LIKE '62%'
+          THEN regexp_replace(COALESCE(login_phone, ''), '[^0-9]', '', 'g')
+        WHEN regexp_replace(COALESCE(login_phone, ''), '[^0-9]', '', 'g') LIKE '0%'
+          THEN '62' || substr(regexp_replace(COALESCE(login_phone, ''), '[^0-9]', '', 'g'), 2)
+        WHEN regexp_replace(COALESCE(login_phone, ''), '[^0-9]', '', 'g') LIKE '8%'
+          THEN '62' || regexp_replace(COALESCE(login_phone, ''), '[^0-9]', '', 'g')
+        ELSE NULL
+      END
+    ) = ${phone}
+  `;
+
+  if (!matches.length) return { kind: 'not_found' };
+
+  const users = await tx.user.findMany({ where: { id: { in: matches.map((match) => match.id) } } });
+  const accountUsers = users.filter((user) => user.hasAccount);
+
+  if (accountUsers.length === 1) return { kind: 'matched', user: accountUsers[0] };
+  if (users.length === 1) return { kind: 'matched', user: users[0] };
+  return { kind: 'ambiguous' };
+}
+
+async function findMemberByMrNumber(tx: Prisma.TransactionClient, mrNumber: string | null): Promise<User | null> {
+  if (!mrNumber) return null;
+  return tx.user.findUnique({ where: { nomorRekamMedis: mrNumber } });
+}
+
+async function auditSkippedPoints(
+  tx: Prisma.TransactionClient,
+  order: { id: string; branchId: string; createdById: string },
+  reason: string,
+) {
+  await tx.opsAuditLog.create({
+    data: {
+      actorUserId: order.createdById,
+      branchId: order.branchId,
+      entityType: 'TREATMENT_ORDER',
+      entityId: order.id,
+      action: 'POINTS_SKIPPED',
+      reason,
+    },
+  });
+}
 
 export async function handleOrderCompletionPointsAndNotification(
   orderId: string,
 ) {
   return prisma.$transaction(async (tx) => {
-    // 1. Get the order with necessary relations
+    await lock(tx, `treatment-order-points:${orderId}`);
+
     const order = await tx.opsTreatmentOrder.findUnique({
       where: { id: orderId },
       include: { patient: true },
@@ -16,44 +105,63 @@ export async function handleOrderCompletionPointsAndNotification(
 
     if (!order || order.status !== 'COMPLETED') return null;
 
-    // 2. Check idempotency: Have points already been awarded for this order?
     const existingRecord = await tx.spendingRecord.findUnique({
       where: { source_externalId: { source: 'treatment_ops', externalId: order.id } },
     });
 
-    if (existingRecord) return null; // Already processed
+    if (existingRecord) return null;
+
+    const patientPhone = normalizedIndonesianPhone(order.patient.phone);
+    const mrNumber = normalizedMrNumber(order.patient.mrNumber);
+    await lock(
+      tx,
+      ...(patientPhone ? [`treatment-order-member-phone:${patientPhone}`] : []),
+      ...(mrNumber ? [`treatment-order-member-mr:${mrNumber}`] : []),
+    );
 
     const amount = Number(order.finalPrice);
     const pointsEarned = calculateSpendingPoints(amount);
+    const spendingDate = order.completedAt ?? new Date();
 
-    // 3. Identify user (Patient)
-    let user = null;
-    if (order.patient.phone) {
-      user = await tx.user.findUnique({ where: { phone: order.patient.phone } });
+    const memberMatch = patientPhone ? await findMemberByPhone(tx, patientPhone) : { kind: 'not_found' } as const;
+    if (memberMatch.kind === 'ambiguous') {
+      await auditSkippedPoints(tx, order, 'Nomor WhatsApp pasien cocok dengan lebih dari satu member.');
+      return null;
     }
 
-    // 4. Create or Update user
-    let isNewMember = false;
+    let user = memberMatch.kind === 'matched' ? memberMatch.user : null;
+    const mrUser = await findMemberByMrNumber(tx, mrNumber);
+    if (user && mrUser && user.id !== mrUser.id) {
+      await auditSkippedPoints(tx, order, 'Nomor WhatsApp dan nomor rekam medis pasien mengarah ke member yang berbeda.');
+      return null;
+    }
+    user ??= mrUser;
+
+    if (!user && !patientPhone) {
+      await auditSkippedPoints(tx, order, 'Nomor WhatsApp pasien tidak tersedia atau tidak valid, dan nomor rekam medis belum terhubung ke member.');
+      return null;
+    }
+
     if (!user) {
-      user = await tx.user.create({
-        data: {
+      user = await tx.user.upsert({
+        where: { phone: patientPhone! },
+        update: {},
+        create: {
           firstName: order.patientNameSnapshot,
-          phone: order.patient.phone,
+          phone: patientPhone!,
           hasAccount: false,
-          qrToken: require('node:crypto').randomUUID(),
+          qrToken: randomUUID(),
         },
       });
-      isNewMember = true;
     }
 
-    // 5. Update user totals and create spending record
     const updatedUser = await tx.user.update({
       where: { id: user.id },
       data: {
         points: { increment: pointsEarned },
         totalSpending: { increment: amount },
         loyaltyLevel: computeMemberTierFromSpending(Number(user.totalSpending) + amount),
-        lastTransactionAt: new Date(),
+        lastTransactionAt: spendingDate,
       },
     });
 
@@ -63,13 +171,12 @@ export async function handleOrderCompletionPointsAndNotification(
         amount: new Prisma.Decimal(amount),
         treatment: order.treatmentNameSnapshot,
         pointsEarned,
-        spendingDate: new Date(),
+        spendingDate,
         source: 'treatment_ops',
         externalId: order.id,
       },
     });
 
-    // 6. Create transaction record for audit
     if (pointsEarned > 0) {
       await tx.transaction.create({
         data: {
@@ -83,7 +190,6 @@ export async function handleOrderCompletionPointsAndNotification(
       });
     }
 
-    // 7. Audit log
     await tx.opsAuditLog.create({
       data: {
         actorUserId: order.createdById,
@@ -91,26 +197,17 @@ export async function handleOrderCompletionPointsAndNotification(
         entityType: 'TREATMENT_ORDER',
         entityId: order.id,
         action: 'POINTS_AWARDED',
-        afterData: { pointsEarned, totalSpending: updatedUser.totalSpending },
+        afterData: { pointsEarned, totalSpending: Number(updatedUser.totalSpending) },
       },
-    });
-
-    // Count total transactions for this member
-    const transactionCount = await tx.spendingRecord.count({
-      where: { userId: user.id },
     });
 
     return {
-      user: {
-        ...user,
-        ...updatedUser,
-      },
+      user: updatedUser,
+      notificationPhone: notificationPhoneFor(updatedUser, patientPhone),
       pointsEarned,
       newTotalSpending: Number(updatedUser.totalSpending),
       newTier: updatedUser.loyaltyLevel,
-      isNewMember,
       order,
-      transactionCount,
     };
   });
 }

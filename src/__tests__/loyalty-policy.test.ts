@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   getLoyaltyTierFromPoints,
+  computeMemberTierFromSpending,
   calculateSpendingPoints,
   calculateLoyaltyPoints,
   POINT_TIER_THRESHOLDS,
+  SPENDING_TIER_THRESHOLDS,
   type LoyaltyTier,
 } from '@/lib/policies/loyalty';
 import { calculateCommission } from '@/lib/policies/commission';
@@ -34,6 +36,28 @@ describe('POINT_TIER_THRESHOLDS constants', () => {
   it('Silver = 1000', () => expect(POINT_TIER_THRESHOLDS.Silver).toBe(1000));
   it('Gold = 5000', () => expect(POINT_TIER_THRESHOLDS.Gold).toBe(5000));
   it('Platinum = 10000', () => expect(POINT_TIER_THRESHOLDS.Platinum).toBe(10000));
+});
+
+describe('Spending Tier Policy', () => {
+  const testCases: [number, LoyaltyTier][] = [
+    [0, 'Bronze'],
+    [999_999, 'Bronze'],
+    [1_000_000, 'Silver'],
+    [4_999_999, 'Silver'],
+    [5_000_000, 'Gold'],
+    [9_999_999, 'Gold'],
+    [10_000_000, 'Platinum'],
+  ];
+
+  testCases.forEach(([spending, expected]) => {
+    it(`${spending.toLocaleString('id-ID')} spending = ${expected}`, () => {
+      expect(computeMemberTierFromSpending(spending)).toBe(expected);
+    });
+  });
+
+  it('uses Rp1m as the Silver threshold', () => {
+    expect(SPENDING_TIER_THRESHOLDS.Silver).toBe(1_000_000);
+  });
 });
 
 describe('Spending Points Calculation', () => {

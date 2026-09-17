@@ -2,14 +2,18 @@ import { NextResponse } from 'next/server';
 import { requireMember } from '@/lib/member-auth/session';
 import { memberError, memberResponse } from '@/lib/member-auth/http';
 import { prisma } from '@/lib/prisma';
+import {
+  computeMemberTierFromSpending,
+  getNextSpendingTier,
+  getSpendingTierThreshold,
+  type LoyaltyTier,
+} from '@/lib/policies/loyalty';
 
-const TIER_THRESHOLDS = {
-  SILVER: 0,
-  GOLD: 5_000_000,
-  PLATINUM: 10_000_000,
-};
-
-const TIER_BENEFITS = {
+const TIER_BENEFITS: Record<LoyaltyTier, string[]> = {
+  Bronze: [
+    'Kumpulkan poin dari setiap treatment',
+    'Riwayat treatment tersimpan di My Prime',
+  ],
   Silver: [
     'Priority booking',
     'Diskon ulang tahun 10%',
@@ -35,46 +39,38 @@ const TIER_BENEFITS = {
 };
 
 function computeTier(totalSpending: number): {
-  tier: 'Silver' | 'Gold' | 'Platinum';
+  tier: LoyaltyTier;
   benefits: string[];
-  nextTier: 'Gold' | 'Platinum' | null;
+  nextTier: LoyaltyTier | null;
   nextTierThreshold: number | null;
   progressPercent: number;
   amountToNextTier: number | null;
 } {
-  if (totalSpending >= TIER_THRESHOLDS.PLATINUM) {
+  const tier = computeMemberTierFromSpending(totalSpending);
+  const nextTier = getNextSpendingTier(tier);
+  if (!nextTier) {
     return {
-      tier: 'Platinum',
-      benefits: TIER_BENEFITS.Platinum,
+      tier,
+      benefits: TIER_BENEFITS[tier],
       nextTier: null,
       nextTierThreshold: null,
       progressPercent: 100,
       amountToNextTier: null,
     };
   }
-  if (totalSpending >= TIER_THRESHOLDS.GOLD) {
-    const progress = Math.min(100, Math.round(
-      ((totalSpending - TIER_THRESHOLDS.GOLD) / (TIER_THRESHOLDS.PLATINUM - TIER_THRESHOLDS.GOLD)) * 100
-    ));
-    return {
-      tier: 'Gold',
-      benefits: TIER_BENEFITS.Gold,
-      nextTier: 'Platinum',
-      nextTierThreshold: TIER_THRESHOLDS.PLATINUM,
-      progressPercent: progress,
-      amountToNextTier: TIER_THRESHOLDS.PLATINUM - totalSpending,
-    };
-  }
-  const progress = Math.min(100, Math.round(
-    (totalSpending / TIER_THRESHOLDS.GOLD) * 100
-  ));
+
+  const currentThreshold = getSpendingTierThreshold(tier);
+  const nextTierThreshold = getSpendingTierThreshold(nextTier);
+  const progress = Math.min(100, Math.max(0, Math.round(
+    ((totalSpending - currentThreshold) / (nextTierThreshold - currentThreshold)) * 100,
+  )));
   return {
-    tier: 'Silver',
-    benefits: TIER_BENEFITS.Silver,
-    nextTier: 'Gold',
-    nextTierThreshold: TIER_THRESHOLDS.GOLD,
+    tier,
+    benefits: TIER_BENEFITS[tier],
+    nextTier,
+    nextTierThreshold,
     progressPercent: progress,
-    amountToNextTier: TIER_THRESHOLDS.GOLD - totalSpending,
+    amountToNextTier: Math.max(0, nextTierThreshold - totalSpending),
   };
 }
 

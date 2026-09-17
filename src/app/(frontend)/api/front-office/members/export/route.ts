@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { Prisma } from '@prisma/client';
-
-const TIER_THRESHOLDS = { Silver: 0, Gold: 5_000_000, Platinum: 10_000_000 };
+import { SPENDING_TIER_THRESHOLDS } from '@/lib/policies/loyalty';
 
 /**
  * Normalisasi nomor untuk export Cekat.
@@ -46,14 +45,17 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    if (tierFilter && ['Silver', 'Gold', 'Platinum'].includes(tierFilter)) {
+    if (tierFilter && ['Bronze', 'Silver', 'Gold', 'Platinum'].includes(tierFilter)) {
+      if (tierFilter === 'Bronze') {
+        where.totalSpending = { lt: SPENDING_TIER_THRESHOLDS.Silver };
+      }
       if (tierFilter === 'Silver') {
-        where.totalSpending = { gte: TIER_THRESHOLDS.Silver, lt: TIER_THRESHOLDS.Gold };
+        where.totalSpending = { gte: SPENDING_TIER_THRESHOLDS.Silver, lt: SPENDING_TIER_THRESHOLDS.Gold };
       }
       if (tierFilter === 'Gold') {
-        where.totalSpending = { gte: TIER_THRESHOLDS.Gold, lt: TIER_THRESHOLDS.Platinum };
+        where.totalSpending = { gte: SPENDING_TIER_THRESHOLDS.Gold, lt: SPENDING_TIER_THRESHOLDS.Platinum };
       }
-      if (tierFilter === 'Platinum') where.totalSpending = { gte: TIER_THRESHOLDS.Platinum };
+      if (tierFilter === 'Platinum') where.totalSpending = { gte: SPENDING_TIER_THRESHOLDS.Platinum };
     }
 
     const users = await prisma.user.findMany({

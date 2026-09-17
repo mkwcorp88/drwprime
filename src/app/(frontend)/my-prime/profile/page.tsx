@@ -41,9 +41,10 @@ const EMPTY_FORM: ProfileForm = {
 const inputClass =
   'w-full fo-glass-input min-h-[52px] rounded-[16px] px-4 py-3 text-sm placeholder:text-white/30 [&>option]:text-black';
 
-type Tier = 'Silver' | 'Gold' | 'Platinum';
+type Tier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
 
 const TIER_RING: Record<Tier, string> = {
+  Bronze: 'border-orange-400 shadow-[0_0_14px_rgba(251,146,60,0.55)]',
   Silver: 'border-primary shadow-[0_0_14px_rgba(212,175,55,0.6)]',
   Gold: 'border-violet-400 shadow-[0_0_14px_rgba(167,139,250,0.6)]',
   Platinum: 'border-violet-400 shadow-[0_0_20px_rgba(167,139,250,0.8)]',
@@ -58,7 +59,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState('');
-  const [tier, setTier] = useState<Tier>('Silver');
+  const [tier, setTier] = useState<Tier>('Bronze');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [alreadyComplete, setAlreadyComplete] = useState(false);
@@ -113,7 +114,7 @@ export default function ProfilePage() {
           if (memData.membership?.tier) setTier(memData.membership.tier as Tier);
         }
       } catch {
-        // abaikan; default Silver
+        // abaikan; default Bronze
       }
     } catch (err) {
       console.error('Load profile error:', err);

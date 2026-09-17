@@ -10,7 +10,7 @@ export function normalizePhone(phone: string): string {
   if (!phone) return phone;
 
   // Remove all non-digit characters
-  let cleaned = phone.replace(/[\s\-\(\)\.]/g, '');
+  let cleaned = phone.replace(/\D/g, '');
 
   // Handle +62 prefix
   if (cleaned.startsWith('+62')) {

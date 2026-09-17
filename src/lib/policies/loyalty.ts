@@ -4,6 +4,8 @@
 
 export type LoyaltyTier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
 
+export const SPENDING_TIER_ORDER: readonly LoyaltyTier[] = ['Bronze', 'Silver', 'Gold', 'Platinum'];
+
 export const SPENDING_TIER_THRESHOLDS: Readonly<Record<Exclude<LoyaltyTier, 'Bronze'>, number>> = {
   Silver: 1_000_000,
   Gold: 5_000_000,
@@ -31,6 +33,15 @@ export function computeMemberTierFromSpending(totalSpending: number): LoyaltyTie
   if (totalSpending >= SPENDING_TIER_THRESHOLDS.Gold) return 'Gold';
   if (totalSpending >= SPENDING_TIER_THRESHOLDS.Silver) return 'Silver';
   return 'Bronze';
+}
+
+export function getNextSpendingTier(currentTier: LoyaltyTier): LoyaltyTier | null {
+  const index = SPENDING_TIER_ORDER.indexOf(currentTier);
+  return SPENDING_TIER_ORDER[index + 1] ?? null;
+}
+
+export function getSpendingTierThreshold(tier: LoyaltyTier): number {
+  return tier === 'Bronze' ? 0 : SPENDING_TIER_THRESHOLDS[tier];
 }
 
 export function calculateSpendingPoints(amountRupiah: number): number {
