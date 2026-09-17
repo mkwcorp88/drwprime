@@ -12,6 +12,7 @@ let cluster: EmbeddedPostgres;
 let directory: string;
 let db: PrismaClient;
 let completion: typeof import('./order-completion');
+let orderService: typeof import('./order-service');
 let sequence = 0;
 const runIntegrationTests = process.env.TREATMENT_COMPLETION_RUN_INTEGRATION_TESTS === 'true' || !process.env.CI;
 const integrationDescribe = runIntegrationTests ? describe : describe.skip;
@@ -50,6 +51,7 @@ beforeAll(async () => {
   db = new PrismaClient({ datasources: { db: { url } } });
   vi.doMock('@/lib/prisma', () => ({ prisma: db }));
   completion = await import('./order-completion');
+  orderService = await import('./order-service');
 }, 120_000);
 
 beforeEach(async () => {
@@ -105,6 +107,73 @@ async function completedOrder(input: { phone: string | null; mrNumber?: string |
       completedAt: new Date('2026-09-17T05:00:00.000Z'),
     },
   });
+}
+
+async function orderAwaitingFoConfirmation() {
+  const branch = await db.opsBranch.create({ data: { code: `FO-${++sequence}`, name: 'Jakarta' } });
+  const frontOffice = await db.opsStaff.create({
+    data: {
+      branchId: branch.id,
+      username: `front-office-${sequence}`,
+      passwordHash: 'test-only',
+      employeeId: `FO-${sequence}`,
+      name: 'Front Office',
+      role: 'FRONT_OFFICE',
+    },
+  });
+  const therapist = await db.opsStaff.create({
+    data: {
+      branchId: branch.id,
+      username: `therapist-${sequence}`,
+      passwordHash: 'test-only',
+      employeeId: `THER-${sequence}`,
+      name: 'Terapis',
+      role: 'THERAPIST',
+    },
+  });
+  const patient = await db.opsPatient.create({
+    data: {
+      branchId: branch.id,
+      patientNumber: `PAT-FO-${sequence}`,
+      name: 'Pasien Konfirmasi',
+      phone: '081298765432',
+    },
+  });
+  const treatment = await db.opsTreatment.create({
+    data: { code: `FO-TRT-${sequence}`, name: 'Facial FO', defaultPrice: 100_000 },
+  });
+  const order = await db.opsTreatmentOrder.create({
+    data: {
+      orderNumber: `TRX-FO-${sequence}`,
+      branchId: branch.id,
+      patientId: patient.id,
+      treatmentId: treatment.id,
+      visitDate: new Date('2026-09-17T00:00:00.000Z'),
+      originalPrice: 100_000,
+      discountAmount: 0,
+      finalPrice: 100_000,
+      status: 'ON_PROCESS',
+      patientNameSnapshot: patient.name,
+      treatmentNameSnapshot: treatment.name,
+      qrTokenHash: randomUUID(),
+      createdById: frontOffice.id,
+    },
+  });
+  const action = await db.opsOrderAction.create({
+    data: {
+      treatmentOrderId: order.id,
+      actionNameSnapshot: 'Facial',
+      sequenceNumber: 1,
+      isRequired: true,
+      requiredRoleSnapshot: 'THERAPIST',
+      status: 'ON_PROCESS',
+      performedByTherapistId: therapist.id,
+      startedAt: new Date('2026-09-17T05:00:00.000Z'),
+      incentiveTypeSnapshot: 'FIXED',
+      incentiveValueSnapshot: 0,
+    },
+  });
+  return { order, action, therapist, frontOffice };
 }
 
 integrationDescribe('treatment completion points', () => {
@@ -168,6 +237,27 @@ integrationDescribe('treatment completion points', () => {
       notificationPhone: '6287777777777',
       pointsEarned: 10,
       user: { id: member.id, hasAccount: true, points: 10 },
+    });
+  });
+
+  it('waits for Front Office confirmation before an order can award points', async () => {
+    const { order, action, therapist, frontOffice } = await orderAwaitingFoConfirmation();
+
+    const completionResult = await orderService.completeAction(therapist, action.id);
+    expect(completionResult.isOrderReadyForConfirmation).toBe(true);
+    expect(await db.opsTreatmentOrder.findUnique({ where: { id: order.id }, select: { status: true, completedAt: true } })).toEqual({
+      status: 'WAITING_FO_CONFIRMATION',
+      completedAt: null,
+    });
+    expect(await completion.handleOrderCompletionPointsAndNotification(order.id)).toBeNull();
+
+    await orderService.confirmOrderCompletion(frontOffice, order.id);
+    expect(await db.opsTreatmentOrder.findUnique({ where: { id: order.id }, select: { status: true, completedAt: true } })).toMatchObject({
+      status: 'COMPLETED',
+    });
+    expect(await completion.handleOrderCompletionPointsAndNotification(order.id)).toMatchObject({
+      pointsEarned: 10,
+      user: { phone: '6281298765432', hasAccount: false, points: 10 },
     });
   });
 });

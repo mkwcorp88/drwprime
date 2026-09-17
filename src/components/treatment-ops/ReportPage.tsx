@@ -46,7 +46,7 @@ const compactMoney = (value: number) => {
 };
 const statusLabel: Record<string, string> = {
   DRAFT: 'Draft', CREATED: 'Dibuat', ASSIGNED: 'Ditugaskan', ON_PROCESS: 'Berjalan',
-  WAITING_NEXT_ACTION: 'Menunggu', COMPLETED: 'Selesai', VERIFIED: 'Terverifikasi', CANCELLED: 'Dibatalkan',
+  WAITING_NEXT_ACTION: 'Menunggu', WAITING_FO_CONFIRMATION: 'Menunggu Konfirmasi FO', COMPLETED: 'Selesai', VERIFIED: 'Terverifikasi', CANCELLED: 'Dibatalkan',
 };
 
 const currentMonthKey = () => {

@@ -70,7 +70,7 @@ export async function buildSummaryReport(actor: OpsStaff, range: Range) {
     summary: {
       totalOrders: orders.length,
       completedOrders: orders.filter((order) => ['COMPLETED', 'VERIFIED'].includes(order.status)).length,
-      onProcessOrders: orders.filter((order) => ['ON_PROCESS', 'WAITING_NEXT_ACTION'].includes(order.status)).length,
+      onProcessOrders: orders.filter((order) => ['ON_PROCESS', 'WAITING_NEXT_ACTION', 'WAITING_FO_CONFIRMATION'].includes(order.status)).length,
       cancelledOrders: orders.filter((order) => order.status === 'CANCELLED').length,
       totalRevenue,
       totalIncentive,

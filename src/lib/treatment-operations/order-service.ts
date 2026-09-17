@@ -106,6 +106,9 @@ export async function assignAction(actor: OpsStaff, actionId: string, staffId: s
     const action = await tx.opsOrderAction.findUnique({ where: { id: actionId }, include: { order: true } });
     const staff = await tx.opsStaff.findUnique({ where: { id: staffId } });
     if (!action) throw new OpsError(404, 'Tindakan tidak ditemukan.');
+    if (['WAITING_FO_CONFIRMATION', 'COMPLETED', 'VERIFIED', 'CANCELLED'].includes(action.order.status)) {
+      throw new OpsError(409, 'Order sudah menunggu konfirmasi atau ditutup.');
+    }
     if (!staff || !staff.active || staff.branchId !== action.order.branchId) {
       throw new OpsError(422, 'Eksekutor aktif pada cabang ini tidak ditemukan.');
     }
@@ -156,6 +159,9 @@ export async function startAction(actor: OpsStaff, actionId: string) {
       where: { id: actionId }, include: { order: { include: { actions: { orderBy: { sequenceNumber: 'asc' } } } } },
     });
     if (!action) throw new OpsError(404, 'Tindakan tidak ditemukan.');
+    if (['WAITING_FO_CONFIRMATION', 'COMPLETED', 'VERIFIED', 'CANCELLED'].includes(action.order.status)) {
+      throw new OpsError(409, 'Order sudah menunggu konfirmasi atau ditutup.');
+    }
     if (actor.branchId !== action.order.branchId) throw new OpsError(403, 'Order berasal dari cabang lain.');
     if (!['PENDING', 'ASSIGNED'].includes(action.status)) throw new OpsError(409, 'Tindakan sudah dimulai atau tidak tersedia.');
     if (action.assignedTherapistId && action.assignedTherapistId !== actor.id) {
@@ -222,13 +228,62 @@ export async function completeAction(actor: OpsStaff, actionId: string, note?: s
     const active = await tx.opsOrderAction.count({
       where: { treatmentOrderId: action.order.id, status: 'ON_PROCESS' },
     });
-    const isOrderCompleted = remainingRequired === 0;
+    const isOrderReadyForConfirmation = remainingRequired === 0 && active === 0;
     await tx.opsTreatmentOrder.update({
       where: { id: action.order.id },
-      data: isOrderCompleted
-        ? { status: 'COMPLETED', completedAt: now }
+      data: isOrderReadyForConfirmation
+        ? { status: 'WAITING_FO_CONFIRMATION', completedAt: null }
         : { status: active > 0 ? 'ON_PROCESS' : 'WAITING_NEXT_ACTION' },
     });
-    return { updated, isOrderCompleted };
+    return { updated, isOrderReadyForConfirmation };
+  });
+}
+
+export async function confirmOrderCompletion(actor: OpsStaff, orderId: string) {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT id FROM ops_treatment_orders WHERE id = ${orderId} FOR UPDATE`;
+    const order = await tx.opsTreatmentOrder.findUnique({
+      where: { id: orderId },
+      include: { actions: { select: { isRequired: true, status: true } } },
+    });
+    if (!order) throw new OpsError(404, 'Order tidak ditemukan.');
+    if (actor.role !== 'SUPER_ADMIN' && actor.branchId !== order.branchId) {
+      throw new OpsError(403, 'Order berasal dari cabang lain.');
+    }
+    if (order.status !== 'WAITING_FO_CONFIRMATION') {
+      throw new OpsError(409, 'Order belum siap dikonfirmasi Front Office.');
+    }
+    if (order.actions.some((action) => action.isRequired && action.status !== 'COMPLETED')) {
+      throw new OpsError(409, 'Masih ada tindakan wajib yang belum selesai.');
+    }
+    if (order.actions.some((action) => action.status === 'ON_PROCESS')) {
+      throw new OpsError(409, 'Masih ada tindakan yang sedang berjalan.');
+    }
+
+    const completedAt = new Date();
+    const updated = await tx.opsTreatmentOrder.update({
+      where: { id: order.id },
+      data: { status: 'COMPLETED', completedAt },
+    });
+    await tx.opsActionEvent.create({
+      data: {
+        treatmentOrderId: order.id,
+        eventType: 'FO_CONFIRM_COMPLETION',
+        actorUserId: actor.id,
+        metadata: { confirmedByRole: actor.role },
+      },
+    });
+    await tx.opsAuditLog.create({
+      data: {
+        actorUserId: actor.id,
+        branchId: order.branchId,
+        entityType: 'TREATMENT_ORDER',
+        entityId: order.id,
+        action: 'CONFIRM_COMPLETION',
+        beforeData: { status: order.status },
+        afterData: { status: updated.status, completedAt: completedAt.toISOString() },
+      },
+    });
+    return updated;
   });
 }

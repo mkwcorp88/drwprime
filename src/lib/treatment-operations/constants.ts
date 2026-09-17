@@ -14,6 +14,7 @@ export const OPS_ROLES = [
 ] as const satisfies readonly OpsRole[];
 
 export const ORDER_MANAGEMENT_ROLES: OpsRole[] = ['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR'];
+export const ORDER_COMPLETION_CONFIRMATION_ROLES: OpsRole[] = ['SUPER_ADMIN', 'FRONT_OFFICE'];
 export const MANUAL_PATIENT_ENTRY_ROLES: OpsRole[] = ['SUPER_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'SUPERVISOR'];
 export const MANUAL_PATIENT_REASON_CODES = [
   'AIDO_UNAVAILABLE',
@@ -52,6 +53,7 @@ export const orderStatusLabels = {
   ASSIGNED: 'Ditugaskan',
   ON_PROCESS: 'Sedang Berjalan',
   WAITING_NEXT_ACTION: 'Menunggu Tindakan',
+  WAITING_FO_CONFIRMATION: 'Menunggu Konfirmasi FO',
   COMPLETED: 'Selesai',
   VERIFIED: 'Terverifikasi',
   CANCELLED: 'Dibatalkan',

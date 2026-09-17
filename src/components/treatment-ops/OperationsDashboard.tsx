@@ -7,19 +7,19 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AidoPatientPicker from '@/components/treatment-ops/AidoPatientPicker';
 import BadgeScannerModal from '@/components/treatment-ops/BadgeScannerModal';
-import { ORDER_MANAGEMENT_ROLES, roleLabels } from '@/lib/treatment-operations/constants';
+import { ORDER_COMPLETION_CONFIRMATION_ROLES, ORDER_MANAGEMENT_ROLES, roleLabels } from '@/lib/treatment-operations/constants';
 import { addDateKeys, dateKeyFromDate, formatDateKey } from '@/lib/treatment-operations/date';
 import { formatPhone } from '@/lib/phone';
 import type { OpsActionView, OpsBootstrap, OpsOrderView, OpsStaffDayOffAvailability, OpsStaffDayOffSummary } from '@/types/treatment-operations';
 
 const statusStyle: Record<string, string> = {
   CREATED: 'bg-sky-400/15 text-sky-300', ASSIGNED: 'bg-indigo-400/15 text-indigo-300',
-  ON_PROCESS: 'bg-amber-400/15 text-amber-300', WAITING_NEXT_ACTION: 'bg-orange-400/15 text-orange-300',
+  ON_PROCESS: 'bg-amber-400/15 text-amber-300', WAITING_NEXT_ACTION: 'bg-orange-400/15 text-orange-300', WAITING_FO_CONFIRMATION: 'bg-violet-400/15 text-violet-200',
   COMPLETED: 'bg-emerald-400/15 text-emerald-300', VERIFIED: 'bg-teal-400/15 text-teal-300', CANCELLED: 'bg-rose-400/15 text-rose-300',
 };
 
 const statusLabel: Record<string, string> = {
-  CREATED: 'Dibuat', ASSIGNED: 'Ditugaskan', ON_PROCESS: 'Berjalan', WAITING_NEXT_ACTION: 'Menunggu',
+  CREATED: 'Dibuat', ASSIGNED: 'Ditugaskan', ON_PROCESS: 'Berjalan', WAITING_NEXT_ACTION: 'Menunggu', WAITING_FO_CONFIRMATION: 'Menunggu Konfirmasi FO',
   COMPLETED: 'Selesai', VERIFIED: 'Terverifikasi', CANCELLED: 'Dibatalkan',
 };
 
@@ -107,6 +107,7 @@ export default function OperationsDashboard() {
   const [scanTarget, setScanTarget] = useState<{ actionId: string; actionName: string; operation: 'start' | 'complete' } | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
   const [busyAssign, setBusyAssign] = useState<string | null>(null);
+  const [busyConfirmation, setBusyConfirmation] = useState<string | null>(null);
   const [queueDate, setQueueDate] = useState(() => dateKeyFromDate(new Date()));
   const [form, setForm] = useState({ branchId: '', patientId: '', doctorId: '', visitDate: dateKeyFromDate(new Date()), visitTime: '', treatments: [{ treatmentId: '', originalPrice: '', discountAmount: '0' }], internalNote: '' });
   const todayKey = dateKeyFromDate(new Date());
@@ -231,6 +232,23 @@ export default function OperationsDashboard() {
     finally { setBusyAssign(null); }
   };
 
+  const confirmCompletion = async (order: OpsOrderView) => {
+    const confirmed = window.confirm(`Konfirmasi treatment ${order.orderNumber} sudah selesai? Poin dan notifikasi WhatsApp akan diproses.`);
+    if (!confirmed) return;
+    setError(''); setBusyConfirmation(order.id);
+    try {
+      const response = await fetch(`/api/treatment-ops/orders/${order.id}/confirm-completion`, { method: 'POST' });
+      const data = await response.json();
+      if (response.status === 401) { router.replace('/treatment-ops/login'); return; }
+      if (!response.ok) { setError(data.error || 'Gagal mengonfirmasi treatment selesai.'); return; }
+      await load();
+    } catch {
+      setError('Gagal mengonfirmasi treatment selesai.');
+    } finally {
+      setBusyConfirmation(null);
+    }
+  };
+
   const isStaffDayOff = (staffId: string, visitDate: string) => staffDayOffs.some(
     (dayOff) => dayOff.staffId === staffId && dayOff.date === dateKeyFromDate(visitDate),
   );
@@ -245,6 +263,7 @@ export default function OperationsDashboard() {
   const canDeleteCancelled = bootstrap?.staff.role === 'SUPER_ADMIN';
   const canAssign = Boolean(bootstrap && ['SUPER_ADMIN', 'SUPERVISOR'].includes(bootstrap.staff.role));
   const canScan = bootstrap?.staff.role === 'SUPER_ADMIN';
+  const canConfirmCompletion = Boolean(bootstrap && ORDER_COMPLETION_CONFIRMATION_ROLES.includes(bootstrap.staff.role));
 
   useEffect(() => {
     if (!showForm || !canCreate || !form.branchId || !form.visitDate) {
@@ -335,7 +354,7 @@ export default function OperationsDashboard() {
   };
 
   const completed = dashboardOrders.filter((order) => ['COMPLETED', 'VERIFIED'].includes(order.status)).length;
-  const running = dashboardOrders.filter((order) => ['ON_PROCESS', 'WAITING_NEXT_ACTION'].includes(order.status)).length;
+  const running = dashboardOrders.filter((order) => ['ON_PROCESS', 'WAITING_NEXT_ACTION', 'WAITING_FO_CONFIRMATION'].includes(order.status)).length;
 
   if (loading) return <div className="py-24 text-center text-sm text-white/50">Menyiapkan operasional treatment...</div>;
   return (
@@ -464,11 +483,17 @@ export default function OperationsDashboard() {
           const progress = order.actions.length ? Math.round(done / order.actions.length * 100) : 0;
           return (
             <article key={order.id} className="mobile-surface-soft overflow-hidden rounded-3xl">
+              {canConfirmCompletion && order.status === 'WAITING_FO_CONFIRMATION' && (
+                <div className="border-b border-violet-300/20 bg-violet-400/10 p-3">
+                  <button disabled={busyConfirmation === order.id} onClick={() => void confirmCompletion(order)} className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-violet-300 px-4 text-xs font-bold text-black transition hover:bg-violet-200 disabled:opacity-50"><ClipboardCheck className="size-4" /> {busyConfirmation === order.id ? 'Mengonfirmasi...' : 'Konfirmasi selesai & kirim WhatsApp'}</button>
+                </div>
+              )}
               <div className="flex flex-col gap-4 border-b border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{order.orderNumber}</h3><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${statusStyle[order.status] || 'bg-white/10 text-white/60'}`}>{statusLabel[order.status] || order.status}</span></div>
                   <p className="mt-2 text-lg font-semibold">{order.patientNameSnapshot} <span className="font-normal text-white/30">·</span> {order.treatmentNameSnapshot}</p>
-                    <p className="mt-1 text-xs text-white/45">{schedule(order)} · {order.doctor?.name || 'Tanpa dokter'} · {money(order.finalPrice)}</p>
+                   <p className="mt-1 text-xs text-white/45">{schedule(order)} · {order.doctor?.name || 'Tanpa dokter'} · {money(order.finalPrice)}</p>
+                   {order.status === 'WAITING_FO_CONFIRMATION' && <p className="mt-2 text-xs font-semibold text-violet-200">Tindakan klinis selesai. Poin dan WhatsApp diproses setelah konfirmasi Front Office.</p>}
                 </div>
                <div className="flex flex-wrap gap-2">{order.status !== 'CANCELLED' && <button onClick={() => void openQr(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-primary/30 px-5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"><QrCode className="size-4" /> Tampilkan QR</button>}{canCreate && ['CREATED', 'ASSIGNED'].includes(order.status) && order.actions.every((action) => ['PENDING', 'ASSIGNED'].includes(action.status)) && <button disabled={busyAssign === order.id} onClick={() => void cancelOrder(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-red-400/30 px-4 text-xs font-bold text-red-300 transition hover:bg-red-500 hover:text-white disabled:opacity-50"><X className="size-4" /> Batalkan</button>}{canDeleteCancelled && order.status === 'CANCELLED' && <button disabled={busyAssign === order.id} onClick={() => void deleteCancelledOrder(order)} className="flex h-11 items-center justify-center gap-2 rounded-full border border-red-500/50 bg-red-500/10 px-4 text-xs font-bold text-red-200 transition hover:bg-red-500 hover:text-white disabled:opacity-50"><Trash2 className="size-4" /> Hapus permanen</button>}</div>
               </div>

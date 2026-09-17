@@ -79,6 +79,7 @@ export function ScannedOrder({ token }: { token: string }) {
       </section>
 
       {error && <div className="mt-4 rounded-2xl border border-red-400/25 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>}
+      {data.order.status === 'WAITING_FO_CONFIRMATION' && <div className="mt-4 rounded-2xl border border-violet-300/25 bg-violet-400/10 p-4 text-sm text-violet-100">Semua tindakan wajib sudah selesai. Menunggu konfirmasi Front Office sebelum poin dan notifikasi WhatsApp diproses.</div>}
 
       <section className="mt-6">
         <div className="mb-3 flex items-center justify-between"><h2 className="font-playfair text-lg font-bold">Tahapan tindakan</h2><span className="text-xs text-white/45">{completed}/{data.order.actions.length} selesai</span></div>
