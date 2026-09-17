@@ -17,6 +17,7 @@ const runIntegrationTests = process.env.TREATMENT_COMPLETION_RUN_INTEGRATION_TES
 const integrationDescribe = runIntegrationTests ? describe : describe.skip;
 
 beforeAll(async () => {
+  if (!runIntegrationTests) return;
   directory = await mkdtemp(join(tmpdir(), 'drw-treatment-completion-test-'));
   const port = await new Promise<number>((resolvePort, reject) => {
     const server = createServer();

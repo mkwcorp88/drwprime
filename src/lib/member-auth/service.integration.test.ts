@@ -22,6 +22,7 @@ const runIntegrationTests = process.env.MEMBER_AUTH_RUN_INTEGRATION_TESTS === 't
 const integrationDescribe = runIntegrationTests ? describe : describe.skip;
 
 beforeAll(async () => {
+  if (!runIntegrationTests) return;
   directory = await mkdtemp(join(tmpdir(), 'drw-member-auth-test-'));
   const port = await new Promise<number>((resolvePort, reject) => {
     const server = createServer();
