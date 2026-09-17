@@ -176,11 +176,28 @@ integrationDescribe('legacy account continuity and recovery', () => {
     expect(await db.user.count()).toBe(1);
   });
 
-  it('requires FO assistance for ambiguous or unverifiable legacy records', async () => {
+  it('uses date of birth to resolve ambiguous legacy records', async () => {
+    const one = await db.user.create({ data: { firstName: 'One', phone: '081234567890', dateOfBirth: new Date('1990-01-02') } });
+    const two = await db.user.create({ data: { firstName: 'Two', phone: '+6281234567890', dateOfBirth: new Date('1991-01-02') } });
+    const otp = await request();
+    const proof = await service.verifyMemberOtp(otp.challengeId, otp.code, otp.binding);
+    expect(proof).toMatchObject({ kind: 'enroll', stage: 'activate' });
+    if (proof.kind !== 'enroll') throw new Error('Expected activation');
+    const token = await service.enrollMember(proof.grantToken, otp.binding, { dateOfBirth: '1991-01-02' });
+    const activated = await sessions.resolveMemberToken(token);
+    expect(activated).toMatchObject({ id: two.id });
+    expect(activated).not.toMatchObject({ id: one.id });
+    expect(await db.memberSession.count()).toBe(1);
+  });
+
+  it('keeps Front Office fallback when ambiguous legacy records share date of birth', async () => {
     await db.user.create({ data: { firstName: 'One', phone: '081234567890', dateOfBirth: new Date('1990-01-02') } });
     await db.user.create({ data: { firstName: 'Two', phone: '+6281234567890', dateOfBirth: new Date('1990-01-02') } });
     const otp = await request();
-    expect(await service.verifyMemberOtp(otp.challengeId, otp.code, otp.binding)).toEqual({ kind: 'support' });
+    const proof = await service.verifyMemberOtp(otp.challengeId, otp.code, otp.binding);
+    expect(proof).toMatchObject({ kind: 'enroll', stage: 'activate' });
+    if (proof.kind !== 'enroll') throw new Error('Expected activation');
+    await expect(service.enrollMember(proof.grantToken, otp.binding, { dateOfBirth: '1990-01-02' })).rejects.toMatchObject({ code: 'ENROLLMENT_INVALID' });
     expect(await db.memberSession.count()).toBe(0);
   });
 

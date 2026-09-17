@@ -37,7 +37,7 @@ async function contactCandidates(tx: Tx, phone: string) {
         WHEN regexp_replace(phone, '[^0-9]', '', 'g') LIKE '8%' THEN '62' || regexp_replace(phone, '[^0-9]', '', 'g')
         ELSE NULL
       END
-    ) = ${phone} LIMIT 2`;
+    ) = ${phone}`;
 }
 
 export async function requestMemberOtp(input: unknown, binding: string, ip: string) {
@@ -145,16 +145,18 @@ export async function verifyMemberOtp(challengeId: unknown, code: unknown, bindi
     }
 
     const candidates = await contactCandidates(tx, challenge.phone);
-    if (candidates.length > 1) return { kind: 'support' };
-    const target = candidates[0] ? await tx.user.findUnique({ where: { id: candidates[0].id } }) : null;
+    const targets = candidates.length ? await tx.user.findMany({
+      where: { id: { in: candidates.map((candidate) => candidate.id) } },
+    }) : [];
+    const activationTargets = targets.filter((candidate) => !candidate.loginPhone && !candidate.memberLoginBlockedAt && candidate.dateOfBirth);
     // Existing patient records require the pre-existing date of birth. Never expose
     // a balance or merge an account based on phone alone.
-    if (target && (target.loginPhone || target.memberLoginBlockedAt || !target.dateOfBirth)) return { kind: 'support' };
+    if (targets.length && !activationTargets.length) return { kind: 'support' };
     const grantToken = newToken();
     await tx.memberLoginOtp.update({ where: { id: challengeId }, data: {
-      grantHash: tokenHash(grantToken), grantExpiresAt: new Date(now.getTime() + ENROLLMENT_TTL_SECONDS * 1000), targetUserId: target?.id,
+      grantHash: tokenHash(grantToken), grantExpiresAt: new Date(now.getTime() + ENROLLMENT_TTL_SECONDS * 1000), targetUserId: activationTargets[0]?.id,
     } });
-    return { kind: 'enroll', grantToken, phone: challenge.phone, stage: target ? 'activate' : 'register' };
+    return { kind: 'enroll', grantToken, phone: challenge.phone, stage: activationTargets.length ? 'activate' : 'register' };
   }, { timeout: 15_000 });
   if (result.kind === 'invalid') throw invalid();
   return result;
@@ -183,11 +185,17 @@ export async function enrollMember(grant: string, binding: string, input: Record
 
     let user: User;
     if (challenge.targetUserId) {
-      if (candidates.length !== 1 || candidates[0].id !== challenge.targetUserId) return null;
-      await lock(tx, `user:${challenge.targetUserId}`);
-      const target = await tx.user.findUnique({ where: { id: challenge.targetUserId } });
       const birthDate = parseBirthDate(input.dateOfBirth);
-      if (!target || target.loginPhone || target.memberLoginBlockedAt || !target.dateOfBirth || !birthDate
+      if (!birthDate) return null;
+      const targets = await tx.user.findMany({
+        where: { id: { in: candidates.map((candidate) => candidate.id) } },
+      });
+      const matches = targets.filter((target) => !target.loginPhone && !target.memberLoginBlockedAt && target.dateOfBirth
+        && birthDate.toISOString().slice(0, 10) === target.dateOfBirth.toISOString().slice(0, 10));
+      if (matches.length !== 1) return null;
+      await lock(tx, `user:${matches[0].id}`);
+      const target = await tx.user.findUnique({ where: { id: matches[0].id } });
+      if (!target || target.loginPhone || target.memberLoginBlockedAt || !target.dateOfBirth
         || birthDate.toISOString().slice(0, 10) !== target.dateOfBirth.toISOString().slice(0, 10)) return null;
       user = target;
     } else {
