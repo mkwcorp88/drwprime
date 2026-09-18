@@ -63,7 +63,7 @@ describe('WhatsApp treatment completion templates', () => {
       amount: 125_000,
       pointsEarned: 12,
       totalPoints: 98,
-      tier: 'Bronze',
+      tier: 'Silver',
     });
 
     expect(fetchMock).toHaveBeenCalledOnce();
@@ -85,7 +85,7 @@ describe('WhatsApp treatment completion templates', () => {
             { type: 'text', text: 'Rp 125.000' },
             { type: 'text', text: '12' },
             { type: 'text', text: '98' },
-            { type: 'text', text: 'Bronze' },
+            { type: 'text', text: 'Silver' },
           ],
         }],
       },
@@ -146,7 +146,7 @@ describe('WhatsApp treatment completion templates', () => {
       amount: 100_000,
       pointsEarned: 10,
       totalPoints: 10,
-      tier: 'Bronze',
+      tier: 'Silver',
     });
 
     expect(fetch).not.toHaveBeenCalled();
@@ -161,7 +161,7 @@ describe('WhatsApp treatment completion templates', () => {
       amount: 100_000,
       pointsEarned: 10,
       totalPoints: 10,
-      tier: 'Bronze',
+      tier: 'Silver',
     })).rejects.toThrow('WhatsApp treatment template API error 400');
   });
 });

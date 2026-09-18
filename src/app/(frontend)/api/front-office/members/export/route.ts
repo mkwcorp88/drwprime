@@ -45,12 +45,9 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    if (tierFilter && ['Bronze', 'Silver', 'Gold', 'Platinum'].includes(tierFilter)) {
-      if (tierFilter === 'Bronze') {
-        where.totalSpending = { lt: SPENDING_TIER_THRESHOLDS.Silver };
-      }
+    if (tierFilter && ['Silver', 'Gold', 'Platinum'].includes(tierFilter)) {
       if (tierFilter === 'Silver') {
-        where.totalSpending = { gte: SPENDING_TIER_THRESHOLDS.Silver, lt: SPENDING_TIER_THRESHOLDS.Gold };
+        where.totalSpending = { lt: SPENDING_TIER_THRESHOLDS.Gold };
       }
       if (tierFilter === 'Gold') {
         where.totalSpending = { gte: SPENDING_TIER_THRESHOLDS.Gold, lt: SPENDING_TIER_THRESHOLDS.Platinum };

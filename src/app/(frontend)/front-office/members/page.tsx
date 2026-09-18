@@ -20,7 +20,6 @@ interface Member {
 }
 
 const TIER_LABELS: Record<string, { label: string; color: string }> = {
-  Bronze: { label: 'Bronze', color: 'bg-orange-100 text-orange-700' },
   Silver: { label: 'Silver', color: 'bg-gray-200 text-gray-700' },
   Gold: { label: 'Gold', color: 'bg-yellow-100 text-yellow-700' },
   Platinum: { label: 'Platinum', color: 'bg-purple-100 text-purple-700' },
@@ -140,7 +139,6 @@ export default function MembersPage() {
           className="rounded-lg border px-3 py-2 focus:border-primary focus:outline-none"
         >
           <option value="">Semua Tier</option>
-          <option value="Bronze">Bronze</option>
           <option value="Silver">Silver</option>
           <option value="Gold">Gold</option>
           <option value="Platinum">Platinum</option>
@@ -221,14 +219,10 @@ export default function MembersPage() {
       {/* Tier Legend */}
       <div className="mt-4 rounded-lg border bg-white p-4">
         <h3 className="mb-2 text-sm font-semibold text-gray-700">Keterangan Tier Membership</h3>
-        <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 md:grid-cols-4">
-          <div className="flex items-center gap-2">
-            <span className="inline-block rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">Bronze</span>
-            <span>Rp 0 - 999rb</span>
-          </div>
+        <div className="grid grid-cols-1 gap-2 text-xs text-gray-600 md:grid-cols-3">
           <div className="flex items-center gap-2">
             <span className="inline-block rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">Silver</span>
-            <span>Rp 1jt - 4,9jt</span>
+            <span>Rp 0 - 4,9jt</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">Gold</span>

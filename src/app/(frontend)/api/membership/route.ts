@@ -10,10 +10,6 @@ import {
 } from '@/lib/policies/loyalty';
 
 const TIER_BENEFITS: Record<LoyaltyTier, string[]> = {
-  Bronze: [
-    'Kumpulkan poin dari setiap treatment',
-    'Riwayat treatment tersimpan di My Prime',
-  ],
   Silver: [
     'Priority booking',
     'Diskon ulang tahun 10%',

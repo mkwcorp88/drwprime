@@ -12,9 +12,9 @@ import { calculateCommission } from '@/lib/policies/commission';
 
 describe('Loyalty Tier Policy', () => {
   const testCases: [number, LoyaltyTier][] = [
-    [0, 'Bronze'],
-    [500, 'Bronze'],
-    [999, 'Bronze'],
+    [0, 'Silver'],
+    [500, 'Silver'],
+    [999, 'Silver'],
     [1000, 'Silver'],
     [2000, 'Silver'],
     [4999, 'Silver'],
@@ -33,15 +33,15 @@ describe('Loyalty Tier Policy', () => {
 });
 
 describe('POINT_TIER_THRESHOLDS constants', () => {
-  it('Silver = 1000', () => expect(POINT_TIER_THRESHOLDS.Silver).toBe(1000));
+  it('Silver = 0', () => expect(POINT_TIER_THRESHOLDS.Silver).toBe(0));
   it('Gold = 5000', () => expect(POINT_TIER_THRESHOLDS.Gold).toBe(5000));
   it('Platinum = 10000', () => expect(POINT_TIER_THRESHOLDS.Platinum).toBe(10000));
 });
 
 describe('Spending Tier Policy', () => {
   const testCases: [number, LoyaltyTier][] = [
-    [0, 'Bronze'],
-    [999_999, 'Bronze'],
+    [0, 'Silver'],
+    [999_999, 'Silver'],
     [1_000_000, 'Silver'],
     [4_999_999, 'Silver'],
     [5_000_000, 'Gold'],
@@ -55,8 +55,8 @@ describe('Spending Tier Policy', () => {
     });
   });
 
-  it('uses Rp1m as the Silver threshold', () => {
-    expect(SPENDING_TIER_THRESHOLDS.Silver).toBe(1_000_000);
+  it('uses Rp0 as the Silver threshold', () => {
+    expect(SPENDING_TIER_THRESHOLDS.Silver).toBe(0);
   });
 });
 

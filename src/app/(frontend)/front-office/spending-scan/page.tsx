@@ -10,11 +10,10 @@ interface MemberInfo {
   email: string;
   phone: string;
   totalSpending: number;
-  tier: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+  tier: 'Silver' | 'Gold' | 'Platinum';
 }
 
 const TIER_LABEL: Record<string, string> = {
-  Bronze: '🥉 Bronze',
   Silver: '🥈 Silver',
   Gold: '🥇 Gold',
   Platinum: '💎 Platinum',

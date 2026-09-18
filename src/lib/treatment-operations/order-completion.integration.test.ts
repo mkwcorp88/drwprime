@@ -196,7 +196,7 @@ integrationDescribe('treatment completion points', () => {
     expect(result).toMatchObject({
       notificationPhone: '6281234567890',
       pointsEarned: 12,
-      newTier: 'Bronze',
+      newTier: 'Silver',
       user: { id: member.id, hasAccount: true, points: 32 },
     });
     expect(await db.spendingRecord.count({ where: { source: 'treatment_ops', externalId: order.id } })).toBe(1);

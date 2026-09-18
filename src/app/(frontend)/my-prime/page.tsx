@@ -20,9 +20,9 @@ interface MemberReservation {
 }
 
 interface MembershipData {
-  tier: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+  tier: 'Silver' | 'Gold' | 'Platinum';
   benefits: string[];
-  nextTier: 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | null;
+  nextTier: 'Silver' | 'Gold' | 'Platinum' | null;
   nextTierThreshold: number | null;
   progressPercent: number;
   amountToNextTier: number | null;
@@ -43,16 +43,6 @@ interface PointHistoryItem {
 }
 
 const TIER_CONFIG = {
-  Bronze: {
-    label: 'Bronze',
-    gradient: 'from-orange-900/25 via-[#17120f] to-black',
-    border: 'border-orange-500/40',
-    badge: 'bg-orange-400/10 text-orange-300 border-orange-400/30',
-    progress: 'bg-gradient-to-r from-orange-700 to-orange-300',
-    marker: 'bg-orange-300',
-    emblem: 'border-orange-300/55 bg-gradient-to-br from-orange-200/25 via-orange-500/15 to-black text-orange-200 shadow-[0_0_14px_rgba(251,146,60,0.24)]',
-    divider: 'bg-orange-300/30',
-  },
   Silver: {
     label: 'Silver',
     gradient: 'from-primary/20 via-[#17140b] to-black',

@@ -268,7 +268,7 @@ export default function CompletedProfilesPage() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-white/40 text-xs mr-1">Tier:</span>
-                {['', 'Bronze', 'Silver', 'Gold', 'Platinum'].map(tier => (
+                {['', 'Silver', 'Gold', 'Platinum'].map(tier => (
                   <button
                     key={tier}
                     onClick={() => { setTierFilter(tier); setCurrentPage(1); }}
@@ -599,7 +599,6 @@ function getLevelColor(level: string): string {
     case 'Platinum': return 'bg-purple-500/15 text-purple-300 border-purple-400/35';
     case 'Gold': return 'bg-yellow-500/15 text-yellow-300 border-yellow-400/35';
     case 'Silver': return 'bg-gray-400/15 text-gray-300 border-gray-400/35';
-    case 'Bronze': return 'bg-orange-500/15 text-orange-300 border-orange-400/35';
     default: return 'bg-amber-700/15 text-amber-400/80 border-amber-600/35';
   }
 }
