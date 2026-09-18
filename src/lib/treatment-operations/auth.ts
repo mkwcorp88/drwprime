@@ -8,7 +8,7 @@ import { normalizeOpsEmail, validateOpsEmail, validateOpsPassword } from './pass
 import { createQrToken, createStaffBadgeValue, extractStaffBadgeToken, hashQrToken, OpsError } from './utils';
 
 const SESSION_COOKIE = 'drw_ops_session';
-const SESSION_AGE_SECONDS = 60 * 60 * 12;
+const SESSION_AGE_SECONDS = 60 * 60 * 24 * 30;
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOGIN_LOCK_MINUTES = 15;
 
