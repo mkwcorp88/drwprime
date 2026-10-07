@@ -7,7 +7,7 @@ import { requireOpsStaff } from '@/lib/treatment-operations/auth';
 import { isOpsWhatsAppOtpEnabled } from '@/lib/treatment-operations/auth-mode';
 import { OPS_ROLES } from '@/lib/treatment-operations/constants';
 import { handleOpsError, readJson } from '@/lib/treatment-operations/http';
-import { normalizeOpsEmail, validateOpsEmail, validateOpsPassword } from '@/lib/treatment-operations/password';
+import { validateOpsPassword } from '@/lib/treatment-operations/password';
 import { normalizeOpsPhone, validateOpsPhone } from '@/lib/treatment-operations/profile';
 import { OpsError, serialize } from '@/lib/treatment-operations/utils';
 
@@ -42,19 +42,13 @@ export async function POST(request: Request) {
       typeof body.phone !== 'string' ||
       typeof body.employeeId !== 'string' || typeof body.name !== 'string' ||
       typeof body.role !== 'string' ||
-      (!otpEnabled && (typeof body.email !== 'string' || typeof body.password !== 'string'))
+      (!otpEnabled && typeof body.password !== 'string')
     ) {
       throw new OpsError(400, otpEnabled
         ? 'WhatsApp, ID karyawan, nama, dan role wajib diisi.'
-        : 'Email, WhatsApp, ID karyawan, nama, dan role wajib diisi.');
+        : 'WhatsApp, ID karyawan, nama, role, dan password wajib diisi.');
     }
 
-    const emailInput = typeof body.email === 'string' ? body.email : '';
-    const email = emailInput.trim() ? normalizeOpsEmail(emailInput) : null;
-    if (!otpEnabled || email) {
-      const emailError = validateOpsEmail(email || '');
-      if (emailError) throw new OpsError(422, emailError);
-    }
     const phone = normalizeOpsPhone(body.phone);
     const phoneError = validateOpsPhone(body.phone);
     if (phoneError) throw new OpsError(422, phoneError);
@@ -83,15 +77,13 @@ export async function POST(request: Request) {
       if (!branch) throw new OpsError(404, 'Cabang aktif tidak ditemukan.');
     }
 
-    const username = email || `otp:${phone}`;
+    const username = phone;
     const identifiers: Prisma.OpsStaffWhereInput[] = [{ phone }, { employeeId }, { username }];
-    if (email) identifiers.push({ email });
     const existing = await prisma.opsStaff.findFirst({
       where: { OR: identifiers },
-      select: { email: true, phone: true, employeeId: true },
+      select: { phone: true, username: true, employeeId: true },
     });
-    if (email && existing?.email === email) throw new OpsError(409, 'Email sudah digunakan akun staf lain.');
-    if (existing?.phone === phone) throw new OpsError(409, 'Nomor WhatsApp sudah digunakan akun staf lain.');
+    if (existing?.phone === phone || existing?.username === phone) throw new OpsError(409, 'Nomor WhatsApp sudah digunakan akun staf lain.');
     if (existing) throw new OpsError(409, 'ID karyawan sudah digunakan akun staf lain.');
 
     const fallbackPassword = `${randomBytes(32).toString('base64url')}Aa1!`;
@@ -105,7 +97,6 @@ export async function POST(request: Request) {
           mustChangePassword: !otpEnabled,
           employeeId,
           name,
-          email,
           phone,
           role,
         },
@@ -120,18 +111,18 @@ export async function POST(request: Request) {
           entityType: 'STAFF_ACCOUNT',
           entityId: created.id,
           action: 'CREATE',
-          afterData: { email, phone, employeeId, name, role, branchId, mustChangePassword: !otpEnabled },
+          afterData: { phone, employeeId, name, role, branchId, mustChangePassword: !otpEnabled },
         },
       });
       return created;
     });
 
     return NextResponse.json({
-      staff: { id: staff.id, branchId: staff.branchId, employeeId: staff.employeeId, name: staff.name, email: staff.email, phone: staff.phone, role: staff.role },
+      staff: { id: staff.id, branchId: staff.branchId, employeeId: staff.employeeId, name: staff.name, phone: staff.phone, role: staff.role },
     }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return handleOpsError(new OpsError(409, 'Email, WhatsApp, atau ID karyawan sudah digunakan.'), 'create staff');
+      return handleOpsError(new OpsError(409, 'WhatsApp atau ID karyawan sudah digunakan.'), 'create staff');
     }
     return handleOpsError(error, 'create staff');
   }

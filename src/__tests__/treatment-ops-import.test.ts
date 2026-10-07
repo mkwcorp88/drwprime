@@ -10,7 +10,6 @@ describe('treatment ops MD import parser', () => {
     expect(errors).toEqual([]);
     expect(employees).toHaveLength(3);
     expect(employees[0]).toMatchObject({
-      email: 'budi.santoso@example.com',
       phone: '6281200000001',
       employeeId: 'TRP-002',
       role: 'THERAPIST',
@@ -37,11 +36,11 @@ describe('treatment ops MD import parser', () => {
   it('reports invalid rows with errors', () => {
     const text = [
       '## Karyawan',
-      '| Email | WhatsApp | Nama | ID | Role | Cabang | Password |',
-      '|---|---|---|---|---|---|---|',
-      '| bukan-email | 081200000011 | X | T-1 | Terapis | DRW-UTAMA | |',
-      '| a@b.com | 081200000012 | Y | T-2 | Terapis | DRW-UTAMA | |',
-      '| c@d.com | bukan-nomor | Z | T-3 | RoleAneh | DRW-UTAMA | |',
+      '| WhatsApp | Nama | ID | Role | Cabang | Password |',
+      '|---|---|---|---|---|---|',
+      '| bukan-nomor | X | T-1 | Terapis | DRW-UTAMA | |',
+      '| 081200000012 | Y | T-2 | Terapis | DRW-UTAMA | |',
+      '| 081200000013 | Z | T-3 | RoleAneh | DRW-UTAMA | |',
       '## Treatment',
       '### Test (T-100)',
       'Kategori: X | Harga: 100',
@@ -49,8 +48,28 @@ describe('treatment ops MD import parser', () => {
       '|---|---|---|---|---|---|',
     ].join('\n');
     const { employees, treatments, errors } = parseDocument(text);
-    expect(employees).toHaveLength(1); // only a@b.com with valid role
+    expect(employees).toHaveLength(1);
     expect(treatments).toHaveLength(1);
     expect(errors.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('accepts the legacy email-first table without creating email logins', () => {
+    const text = [
+      '## Karyawan',
+      '| Email | WhatsApp | Nama | ID | Role | Cabang | Password |',
+      '|---|---|---|---|---|---|---|',
+      '| lama@drwprime.com | 081200000021 | Staf Lama | TRP-021 | Terapis | DRW-UTAMA | |',
+    ].join('\n');
+    const { employees, errors } = parseDocument(text);
+
+    expect(errors).toEqual([]);
+    expect(employees).toEqual([{
+      phone: '6281200000021',
+      name: 'Staf Lama',
+      employeeId: 'TRP-021',
+      role: 'THERAPIST',
+      branchCode: 'DRW-UTAMA',
+      password: null,
+    }]);
   });
 });

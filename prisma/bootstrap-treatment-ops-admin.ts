@@ -6,7 +6,8 @@ import { normalizeOpsPhone, validateOpsPhone } from '../src/lib/treatment-operat
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = normalizeOpsEmail(process.env.OPS_ADMIN_EMAIL || '');
+  const emailInput = process.env.OPS_ADMIN_EMAIL || '';
+  const email = emailInput.trim() ? normalizeOpsEmail(emailInput) : null;
   const phoneInput = process.env.OPS_ADMIN_PHONE || '';
   const phone = normalizeOpsPhone(phoneInput);
   const password = process.env.OPS_ADMIN_PASSWORD || '';
@@ -14,7 +15,7 @@ async function main() {
   const name = (process.env.OPS_ADMIN_NAME || 'Super Admin DRW Prime').trim();
   const forceReset = process.env.OPS_ADMIN_FORCE_RESET === 'true';
 
-  const emailError = validateOpsEmail(email);
+  const emailError = email ? validateOpsEmail(email) : null;
   const phoneError = validateOpsPhone(phoneInput);
   const passwordError = validateOpsPassword(password);
   if (emailError) throw new Error(`OPS_ADMIN_EMAIL: ${emailError}`);
@@ -26,9 +27,12 @@ async function main() {
     update: { name: 'DRW Prime Cabang Utama', active: true },
     create: { code: 'DRW-UTAMA', name: 'DRW Prime Cabang Utama', address: 'Indonesia' },
   });
-  const existing = await prisma.opsStaff.findFirst({ where: { OR: [{ employeeId }, { email }] } });
-  const phoneOwner = await prisma.opsStaff.findUnique({ where: { phone }, select: { id: true } });
-  if (phoneOwner && phoneOwner.id !== existing?.id) throw new Error('OPS_ADMIN_PHONE sudah digunakan akun staf lain.');
+  const existingAccounts = await prisma.opsStaff.findMany({
+    where: { OR: [{ employeeId }, { phone }, { username: phone }, ...(email ? [{ email }] : [])] },
+    select: { id: true },
+  });
+  if (existingAccounts.length > 1) throw new Error('OPS_ADMIN_PHONE atau ID karyawan bertabrakan dengan lebih dari satu akun staf. Periksa data sebelum bootstrap.');
+  const existing = existingAccounts[0] ?? null;
   if (existing && !forceReset) {
     throw new Error('Akun Super Admin sudah ada. Gunakan OPS_ADMIN_FORCE_RESET=true hanya untuk pemulihan terkontrol.');
   }
@@ -40,8 +44,7 @@ async function main() {
           where: { id: existing.id },
           data: {
             branchId: branch.id,
-            username: email,
-            email,
+            username: phone,
             phone,
             employeeId,
             name,
@@ -57,8 +60,7 @@ async function main() {
       : await tx.opsStaff.create({
           data: {
             branchId: branch.id,
-            username: email,
-            email,
+            username: phone,
             phone,
             employeeId,
             name,
@@ -76,13 +78,13 @@ async function main() {
         entityType: 'STAFF_ACCOUNT',
         entityId: staff.id,
         action: existing ? 'BOOTSTRAP_RESET' : 'BOOTSTRAP_CREATE',
-        afterData: { email, phone, employeeId, mustChangePassword: true },
+        afterData: { phone, employeeId, mustChangePassword: true },
       },
     });
     return staff;
   });
 
-  console.log(`Super Admin siap: ${admin.email} (${admin.employeeId}). Password tidak ditampilkan.`);
+  console.log(`Super Admin siap: +${admin.phone} (${admin.employeeId}). Password tidak ditampilkan.`);
 }
 
 main()

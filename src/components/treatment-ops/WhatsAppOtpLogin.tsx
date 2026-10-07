@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, KeyRound, MessageCircle, Phone, RefreshCw, ShieldCheck } from 'lucide-react';
 
@@ -168,6 +169,7 @@ export default function WhatsAppOtpLogin() {
           </form>
         )}
 
+        {!challengeId && <p className="mt-5 text-center text-[10px] leading-4 text-white/30">Akun lama tanpa nomor WhatsApp? <Link href="/treatment-ops/login?legacy=1" className="text-primary hover:text-primary-light">Masuk dengan email lama</Link></p>}
         <p className="mt-6 text-center text-[10px] leading-4 text-white/30">Nama dan hak akses ditentukan otomatis dari data staf terdaftar.</p>
       </div>
     </div>

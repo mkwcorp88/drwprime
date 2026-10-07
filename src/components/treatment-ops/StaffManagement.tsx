@@ -36,7 +36,7 @@ const roles = [
 ] as const;
 
 const roleLabel = Object.fromEntries(roles);
-const emptyForm = { employeeId: '', name: '', email: '', phone: '', role: 'THERAPIST', branchId: '', password: '', confirmation: '' };
+const emptyForm = { employeeId: '', name: '', phone: '', role: 'THERAPIST', branchId: '', password: '', confirmation: '' };
 
 export default function StaffManagement({ otpEnabled }: { otpEnabled: boolean }) {
   const router = useRouter();
@@ -95,7 +95,7 @@ export default function StaffManagement({ otpEnabled }: { otpEnabled: boolean })
     if (!response.ok) { setError(data.error || 'Akun staf tidak dapat dibuat.'); return; }
     setNotice(otpEnabled
       ? `Akun ${data.staff.name} berhasil dibuat dan dapat masuk memakai WhatsApp.`
-      : `Akun ${data.staff.name} berhasil dibuat. Berikan email dan password awal secara pribadi.`);
+      : `Akun ${data.staff.name} berhasil dibuat. Berikan nomor WhatsApp dan password awal secara pribadi.`);
     setForm({ ...emptyForm, branchId: branches[0]?.id || '' });
     await load();
   };
@@ -142,7 +142,7 @@ export default function StaffManagement({ otpEnabled }: { otpEnabled: boolean })
         <UserCog className="size-8 text-primary" />
         <p className="mt-8 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Super Admin</p>
         <h1 className="font-playfair mt-2 text-4xl font-bold">Akun Staf</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">{otpEnabled ? 'Buat akun pribadi dengan nomor WhatsApp. Nama dan role akan dikenali otomatis saat staf login dengan OTP.' : 'Buat akun pribadi dengan password awal. Staf wajib membuat password baru saat login pertama.'}</p>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">{otpEnabled ? 'Buat akun pribadi dengan nomor WhatsApp. Nama dan role akan dikenali otomatis saat staf login dengan OTP.' : 'Buat akun pribadi dengan nomor WhatsApp dan password awal. Staf wajib membuat password baru saat login pertama.'}</p>
       </section>
 
       {error && <p className="mt-5 flex items-center justify-between rounded-xl border border-red-400/25 bg-red-500/10 p-4 text-sm text-red-200"><span>{error}</span><button onClick={() => setError('')}><X className="size-4" /></button></p>}
@@ -153,7 +153,6 @@ export default function StaffManagement({ otpEnabled }: { otpEnabled: boolean })
         <form onSubmit={createStaff} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="ID karyawan"><input required value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} placeholder="TRP-003" /></Field>
           <Field label="Nama lengkap"><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-          {!otpEnabled && <Field label="Email login"><input required type="email" autoComplete="off" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nama@drwprime.com" /></Field>}
           <Field label="WhatsApp login"><input required inputMode="tel" autoComplete="off" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0812xxxxxxx" /></Field>
           <Field label="Role"><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>{roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
           <Field label="Cabang"><select required={!['SUPER_ADMIN', 'FINANCE'].includes(form.role)} value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}><option value="">{['SUPER_ADMIN', 'FINANCE'].includes(form.role) ? 'Semua cabang' : 'Pilih cabang'}</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></Field>
@@ -161,18 +160,18 @@ export default function StaffManagement({ otpEnabled }: { otpEnabled: boolean })
           {!otpEnabled && <Field label="Konfirmasi password"><PasswordInput value={form.confirmation} onChange={(value) => setForm({ ...form, confirmation: value })} autoComplete="new-password" /></Field>}
           <div className="flex items-end"><button disabled={busy} className="h-12 w-full rounded-full bg-primary text-sm font-bold text-black transition hover:bg-primary-light disabled:opacity-50">{busy ? 'Menyimpan...' : 'Buat Akun Staf'}</button></div>
         </form>
-        <p className="mt-4 text-[11px] text-white/35">{otpEnabled ? 'Nomor disimpan dalam format internasional 62 dan harus unik untuk setiap staf.' : 'Password minimal 10 karakter dan harus memiliki huruf besar, huruf kecil, angka, serta simbol.'}</p>
+          <p className="mt-4 text-[11px] text-white/35">{otpEnabled ? 'Nomor disimpan dalam format internasional 62 dan harus unik untuk setiap staf.' : 'Password minimal 10 karakter dan harus memiliki huruf besar, huruf kecil, angka, serta simbol.'}</p>
       </section>
 
       <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {loading ? <p className="py-12 text-sm text-white/45">Memuat staf...</p> : staff.map((member) => (
           <article key={member.id} className="fo-glass-card-soft rounded-3xl p-5">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0"><h3 className="truncate font-bold">{member.name}</h3>{!otpEnabled && <p className="mt-1 truncate text-[11px] text-white/45">{member.email || 'Email belum diatur'}</p>}<p className="mt-1 truncate text-[11px] text-white/45">{member.phone ? formatPhone(member.phone) : 'WhatsApp belum diatur'}</p></div>
+              <div className="min-w-0"><h3 className="truncate font-bold">{member.name}</h3>{!member.phone && member.email && <p className="mt-1 truncate text-[11px] text-amber-200/70">Akun lama: {member.email}</p>}<p className="mt-1 truncate text-[11px] text-white/45">{member.phone ? formatPhone(member.phone) : 'WhatsApp belum diatur'}</p></div>
               <span className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-[10px] font-bold text-primary">{roleLabel[member.role] || member.role}</span>
             </div>
             <p className="mt-4 text-xs text-white/45">{member.employeeId} · {member.branch?.name || 'Semua cabang'}</p>
-            <p className={`mt-2 text-[11px] font-semibold ${otpEnabled && !member.phone ? 'text-amber-300' : 'text-emerald-300'}`}>{otpEnabled ? (member.phone ? 'Login WhatsApp aktif' : 'Nomor WhatsApp wajib diatur') : (member.mustChangePassword ? 'Menunggu ganti password awal' : 'Password pribadi aktif')}</p>
+            <p className={`mt-2 text-[11px] font-semibold ${!member.phone ? 'text-amber-300' : 'text-emerald-300'}`}>{!member.phone ? 'Nomor WhatsApp wajib diatur' : otpEnabled ? 'Login WhatsApp aktif' : member.mustChangePassword ? 'Menunggu ganti password awal' : 'Password pribadi aktif'}</p>
             <button onClick={() => { setPhoneTarget(member); setStaffPhone(member.phone || ''); setError(''); }} className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-full border border-primary/35 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"><Phone className="size-3.5" /> Atur WhatsApp</button>
             {!otpEnabled && <button onClick={() => { setResetTarget(member); setError(''); }} className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-full border border-primary/35 text-xs font-bold text-primary transition hover:bg-primary hover:text-black"><KeyRound className="size-3.5" /> Reset Password</button>}
           </article>
@@ -197,7 +196,7 @@ export default function StaffManagement({ otpEnabled }: { otpEnabled: boolean })
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <form onSubmit={saveStaffPhone} className="fo-glass-modal w-full max-w-md rounded-[2rem] p-7">
             <div className="flex items-start justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">WhatsApp login</p><h2 className="font-playfair mt-1 text-2xl font-bold">{phoneTarget.name}</h2></div><button type="button" onClick={() => setPhoneTarget(null)}><X className="size-5" /></button></div>
-            <p className="mt-3 text-xs leading-5 text-white/45">OTP login berikutnya akan dikirim ke nomor ini.</p>
+            <p className="mt-3 text-xs leading-5 text-white/45">{otpEnabled ? 'OTP login berikutnya akan dikirim ke nomor ini.' : 'Password login staf ini akan memakai nomor tersebut. Email lama tidak lagi dapat dipakai setelah nomor disimpan.'}</p>
             <div className="mt-6"><Field label="Nomor WhatsApp"><input required inputMode="tel" autoComplete="off" value={staffPhone} onChange={(event) => setStaffPhone(event.target.value)} placeholder="0812xxxxxxx" /></Field></div>
             <button disabled={busy} className="mt-6 h-12 w-full rounded-full bg-primary text-sm font-bold text-black disabled:opacity-50">{busy ? 'Menyimpan...' : 'Simpan WhatsApp'}</button>
           </form>

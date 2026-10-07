@@ -4,7 +4,8 @@ import { hash, verify } from 'argon2';
 import type { OpsRole, OpsStaff } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requiresOpsPasswordChange } from './auth-mode';
-import { normalizeOpsEmail, validateOpsEmail, validateOpsPassword } from './password';
+import { validateOpsPassword } from './password';
+import { resolveOpsLoginIdentifier } from './profile';
 import { createQrToken, createStaffBadgeValue, extractStaffBadgeToken, hashQrToken, OpsError } from './utils';
 
 const SESSION_COOKIE = 'drw_ops_session';
@@ -48,14 +49,16 @@ export async function completeOpsLogin(staffId: string): Promise<OpsStaff> {
 }
 
 function invalidCredentials(): never {
-  throw new OpsError(401, 'Email atau password salah.', 'INVALID_CREDENTIALS');
+  throw new OpsError(401, 'Nomor WhatsApp/email lama atau password salah.', 'INVALID_CREDENTIALS');
 }
 
-export async function loginOpsStaff(email: string, password: string): Promise<OpsStaff> {
-  const normalizedEmail = normalizeOpsEmail(email);
-  if (validateOpsEmail(normalizedEmail)) invalidCredentials();
+export async function loginOpsStaff(identifier: string, password: string): Promise<OpsStaff> {
+  const lookup = resolveOpsLoginIdentifier(identifier);
+  if (!lookup) invalidCredentials();
 
-  const staff = await prisma.opsStaff.findUnique({ where: { email: normalizedEmail } });
+  const staff = lookup.type === 'phone'
+    ? await prisma.opsStaff.findUnique({ where: { phone: lookup.value } })
+    : await prisma.opsStaff.findFirst({ where: { email: lookup.value, phone: null } });
   if (!staff || !staff.active) invalidCredentials();
 
   if (staff.lockedUntil && staff.lockedUntil > new Date()) {

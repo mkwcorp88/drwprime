@@ -20,11 +20,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const target = await prisma.opsStaff.findUnique({ where: { id }, select: { id: true, branchId: true, active: true } });
     if (!target?.active) throw new OpsError(404, 'Staf aktif tidak ditemukan.');
 
-    const owner = await prisma.opsStaff.findFirst({ where: { phone, NOT: { id } }, select: { id: true } });
+    const owner = await prisma.opsStaff.findFirst({ where: { NOT: { id }, OR: [{ phone }, { username: phone }] }, select: { id: true } });
     if (owner) throw new OpsError(409, 'Nomor WhatsApp sudah digunakan akun staf lain.');
 
     await prisma.$transaction(async (tx) => {
-      await tx.opsStaff.update({ where: { id }, data: { phone } });
+      await tx.opsStaff.update({ where: { id }, data: { phone, username: phone } });
       await tx.opsLoginOtp.deleteMany({ where: { staffId: id } });
       await tx.opsAuditLog.create({
         data: {

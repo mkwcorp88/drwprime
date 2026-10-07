@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeOpsEmail, validateOpsEmail, validateOpsPassword } from '@/lib/treatment-operations/password';
-import { normalizeOpsPhone, validateOpsPhone } from '@/lib/treatment-operations/profile';
+import { normalizeOpsPhone, resolveOpsLoginIdentifier, validateOpsPhone } from '@/lib/treatment-operations/profile';
 import { addDateKeys, dateKeyFromDate, dateKeyToDate } from '@/lib/treatment-operations/date';
 import { parseOpsDateOnly } from '@/lib/treatment-operations/day-off';
 import { createQrToken, getMonthRange, getPeriodRange, hashQrToken, jakartaDateKey, jakartaPeriod, maskPatientName, parseOpsMonth } from '@/lib/treatment-operations/utils';
@@ -76,5 +76,11 @@ describe('treatment operations utilities', () => {
     expect(normalizeOpsPhone(' 0812-3456-789 ')).toBe('628123456789');
     expect(validateOpsPhone('08123456789')).toBeNull();
     expect(validateOpsPhone('12345')).toBe('Format nomor WhatsApp tidak valid.');
+  });
+
+  it('uses email only as a legacy login identifier', () => {
+    expect(resolveOpsLoginIdentifier('0812 3456 789')).toEqual({ type: 'phone', value: '628123456789' });
+    expect(resolveOpsLoginIdentifier(' Legacy@DRWPrime.com ')).toEqual({ type: 'legacy-email', value: 'legacy@drwprime.com' });
+    expect(resolveOpsLoginIdentifier('bukan-login')).toBeNull();
   });
 });

@@ -11,7 +11,6 @@ export type ProfileStaff = {
   name: string;
   role: OpsRole;
   employeeId: string;
-  email: string | null;
   phone: string | null;
   avatarUrl: string | null;
   branchName: string | null;
@@ -111,7 +110,7 @@ export default function ProfileSettings({ staff }: { staff: ProfileStaff }) {
           <h2 className="font-playfair text-xl font-bold">{staff.name}</h2>
           <p className="mt-1 text-xs font-bold text-primary">{roleLabels[staff.role]}</p>
           <p className="mt-1 text-xs text-white/45">{staff.employeeId}{staff.branchName ? ` · ${staff.branchName}` : ''}</p>
-          <p className="mt-1 text-xs text-white/45">{staff.email || 'Email belum tercatat'}</p>
+          <p className="mt-1 text-xs text-white/45">{staff.phone ? `+${staff.phone}` : 'Nomor WhatsApp belum tercatat'}</p>
         </div>
       </div>
 

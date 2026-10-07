@@ -49,9 +49,9 @@ npm run db:seed:treatment-ops
 
 Seed membuat satu cabang, akun staf operasional, dua terapis, satu dokter, satu pasien demo, dan template Facial Brightening. Modul memakai autentikasi internal yang terpisah dari Clerk website utama.
 
-Akun demo localhost memakai password awal `PrimeDemo2026!` saat mode OTP dimatikan. Email tersedia dengan pola `superadmin@drwprime.local`, `manajemen@drwprime.local`, `frontoffice@drwprime.local`, `supervisor@drwprime.local`, `terapisa@drwprime.local`, `terapisb@drwprime.local`, dan `dokter@drwprime.local`. Atur `OPS_DEMO_PASSWORD` saat menjalankan seed bila membutuhkan password awal lain.
+Akun demo localhost memakai password awal `PrimeDemo2026!` saat mode OTP dimatikan. Login memakai nomor WhatsApp `628000000001` sampai `628000000007`. Atur `OPS_DEMO_PASSWORD` saat menjalankan seed bila membutuhkan password awal lain.
 
-Super Admin membuat akun staf produksi dari `/treatment-ops/staff` dan wajib menetapkan nomor WhatsApp unik. Nomor dinormalisasi menjadi format `62...`; nama, cabang, dan role selalu diambil dari data `OpsStaff`, bukan dari input pengguna saat login. Super Admin juga dapat memperbarui nomor akun lama dari halaman yang sama.
+Super Admin membuat akun staf produksi dari `/treatment-ops/staff` dan wajib menetapkan nomor WhatsApp unik. Nomor dinormalisasi menjadi format `62...` dan juga disimpan sebagai username; nama, cabang, dan role selalu diambil dari data `OpsStaff`, bukan dari input pengguna saat login. Super Admin juga dapat memperbarui nomor akun lama dari halaman yang sama. Akun email lama tetap dapat masuk sementara hanya ketika belum memiliki nomor WhatsApp, lalu diarahkan untuk menyimpan nomor tersebut; setelah itu email tidak lagi diterima sebagai login.
 
 ## Login WhatsApp OTP
 
@@ -78,7 +78,7 @@ OPS_CEKAT_WA_TEMPLATE_ID="id-template-drwprime_login_otp"
 OPS_OTP_SECRET="random-secret-minimal-32-karakter"
 ```
 
-`OPS_OTP_SECRET` direkomendasikan. Jika belum ada, aplikasi sementara memakai fallback pepper untuk HMAC. Untuk rollback terkontrol ke login email/password, set `OPS_WHATSAPP_OTP_ENABLED=false`; kode password lama tetap tersedia tetapi endpoint-nya dinonaktifkan saat OTP aktif.
+`OPS_OTP_SECRET` direkomendasikan. Jika belum ada, aplikasi sementara memakai fallback pepper untuk HMAC. Untuk rollback terkontrol ke login WhatsApp/password, set `OPS_WHATSAPP_OTP_ENABLED=false`; endpoint password umum dinonaktifkan saat OTP aktif. Satu-satunya pengecualian adalah halaman migrasi akun email lama tanpa nomor WhatsApp.
 
 ## Alur MVP
 
@@ -115,9 +115,9 @@ Impor awal karyawan dan list treatment bisa dilakukan dari satu file Markdown. C
 npm run ops:import-md -- /path/ke/file.md
 ```
 
-- **Karyawan**: tabel dengan kolom `Email | WhatsApp | Nama | ID | Role | Cabang | Password`. WhatsApp wajib dan unik. Role memakai label Indonesia (`Terapis`, `Dokter`, `Front Office`, `Supervisor`, `Manajemen`, `Super Admin`). Password tetap boleh dikosongkan untuk kompatibilitas mode rollback. Akun Dokter otomatis ditautkan ke daftar dokter order.
+- **Karyawan**: tabel dengan kolom `WhatsApp | Nama | ID | Role | Cabang | Password`. WhatsApp wajib dan unik, serta dipakai sebagai username. Role memakai label Indonesia (`Terapis`, `Dokter`, `Front Office`, `Supervisor`, `Manajemen`, `Super Admin`). Password tetap boleh dikosongkan untuk kompatibilitas mode rollback. Template email lama (`Email | WhatsApp | ...`) masih diterima saat transisi, tetapi email tidak dibuat sebagai login baru. Akun Dokter otomatis ditautkan ke daftar dokter order.
 - **Treatment**: tiap treatment diawali `### Nama (KODE)`, baris `Kategori: ... | Harga: ...`, lalu tabel tahapan `No | Tindakan | Wajib | Role | Menit | Insentif`.
-- Bersifat idempotent: email/kode yang sudah ada dilewati tanpa ditimpa. Karyawan dan treatment yang tidak valid dilaporkan di akhir tanpa menghentikan impor.
+- Bersifat idempotent: WhatsApp, username, ID karyawan, atau kode yang sudah ada dilewati tanpa ditimpa. Karyawan dan treatment yang tidak valid dilaporkan di akhir tanpa menghentikan impor.
 
 ## Deployment
 
@@ -126,11 +126,12 @@ Subdomain produksi adalah `https://admin.drwprime.com` dan diproksikan Nginx ke 
 Jalankan migration, lalu bootstrap hanya akun Super Admin pertama dengan environment server-side:
 
 ```bash
-OPS_ADMIN_EMAIL="admin@drwprime.com" \
 OPS_ADMIN_PHONE="0812xxxxxxxx" \
 OPS_ADMIN_PASSWORD="password-awal-kuat" \
 npm run ops:bootstrap-admin
 ```
+
+Tambahkan `OPS_ADMIN_EMAIL` hanya untuk menemukan akun email lama yang akan dimigrasikan, bersama `OPS_ADMIN_FORCE_RESET=true`.
 
 Jangan menjalankan seed demo di produksi. QR yang dibuat dari dashboard memakai origin browser saat ini, sehingga otomatis mengikuti domain produksi.
 

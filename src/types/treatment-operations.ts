@@ -5,7 +5,6 @@ export type OpsStaffView = {
   branchId: string | null;
   employeeId: string;
   name: string;
-  email?: string | null;
   phone?: string | null;
   avatarUrl?: string | null;
   role: OpsRole;

@@ -935,7 +935,7 @@ model OpsBranch {
 model OpsStaff {
   id                  String    @id @default(cuid())
   branchId            String?   @map("branch_id")
-  username            String    @unique // Legacy rollback field; new accounts store their canonical email here.
+  username            String    @unique // Canonical WhatsApp number for migrated accounts; legacy email-only accounts keep their original value until migration.
   passwordHash        String    @map("password_hash")
   mustChangePassword  Boolean   @default(true) @map("must_change_password")
   passwordChangedAt   DateTime? @map("password_changed_at") @db.Timestamptz(3)

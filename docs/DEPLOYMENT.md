@@ -66,16 +66,20 @@ first Super Admin once from the running release, then create all other staff in
 the application:
 
 ```bash
-OPS_ADMIN_EMAIL="admin@drwprime.com" \
 OPS_ADMIN_PHONE="0812xxxxxxxx" \
 OPS_ADMIN_PASSWORD="temporary-strong-password" \
 npm run ops:bootstrap-admin
 ```
 
-The bootstrap password remains a rollback credential. Password mode forces an
-immediate password change; OTP mode ignores that gate. A controlled recovery
-can set `OPS_ADMIN_FORCE_RESET=true`, which revokes every existing session for
-that account.
+New accounts use the normalized WhatsApp number as their login identifier and
+do not require an email address. To locate and migrate a legacy Super Admin
+that only has an email, add `OPS_ADMIN_EMAIL` and
+`OPS_ADMIN_FORCE_RESET=true`; the email is kept as record data but stops being
+a valid login after the phone number is saved. The bootstrap password remains a
+rollback credential. Password mode forces an immediate password change; OTP
+mode ignores that gate. A controlled recovery can set
+`OPS_ADMIN_FORCE_RESET=true`, which revokes every existing session for that
+account.
 
 Treatment Operations uses WhatsApp OTP when enabled, with credentials dedicated
 to the DRW Prime WhatsApp property (never the shared POS/member account). Add

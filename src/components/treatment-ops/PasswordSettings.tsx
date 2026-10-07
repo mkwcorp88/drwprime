@@ -7,11 +7,11 @@ import PasswordInput from '@/components/treatment-ops/PasswordInput';
 
 export default function PasswordSettings({
   staffName,
-  email,
+  phone,
   forced,
 }: {
   staffName: string;
-  email: string | null;
+  phone: string | null;
   forced: boolean;
 }) {
   const router = useRouter();
@@ -61,7 +61,7 @@ export default function PasswordSettings({
         </p>
         <div className="mt-5 rounded-2xl bg-white/[0.04] p-4 text-xs text-white/55 ring-1 ring-white/10">
           <strong className="block text-white">{staffName}</strong>
-          <span>{email || 'Email belum tercatat'}</span>
+          <span>{phone ? `+${phone}` : 'Nomor WhatsApp belum tercatat'}</span>
         </div>
 
         <form onSubmit={submit} className="mt-7 space-y-4">

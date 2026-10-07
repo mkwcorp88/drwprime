@@ -2,7 +2,6 @@ import { hash } from 'argon2';
 import { randomInt } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Prisma, PrismaClient, type OpsRole } from '@prisma/client';
-import { normalizeOpsEmail, validateOpsEmail } from '../src/lib/treatment-operations/password';
 import { normalizeOpsPhone, validateOpsPhone } from '../src/lib/treatment-operations/profile';
 
 const prisma = new PrismaClient();
@@ -28,7 +27,6 @@ const ROLE_ALIASES: Record<string, OpsRole> = {
 };
 
 type EmployeeRow = {
-  email: string;
   phone: string;
   name: string;
   employeeId: string;
@@ -105,6 +103,7 @@ export function parseDocument(text: string): { employees: EmployeeRow[]; treatme
 
   let section: 'none' | 'employees' | 'treatments' = 'none';
   let current: TreatmentRow | null = null;
+  let employeeFormat: 'phone' | 'legacy-email' = 'phone';
 
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
@@ -114,6 +113,7 @@ export function parseDocument(text: string): { employees: EmployeeRow[]; treatme
       const title = line.slice(3).trim().toLowerCase();
       section = title.startsWith('karyawan') ? 'employees' : title.startsWith('treatment') ? 'treatments' : 'none';
       current = null;
+      if (section === 'employees') employeeFormat = 'phone';
       continue;
     }
 
@@ -121,26 +121,30 @@ export function parseDocument(text: string): { employees: EmployeeRow[]; treatme
       if (!line.startsWith('|')) continue;
       const cells = parseTableRow(line);
       if (cells.length === 0 || isSeparator(cells)) continue;
-      if (cells[0].toLowerCase() === 'email') continue; // header row
-
-      const [emailRaw, phoneRaw, nameRaw, employeeIdRaw, roleRaw, branchRaw, passwordRaw] = cells;
-      const email = normalizeOpsEmail(emailRaw || '');
-      const phone = normalizeOpsPhone(phoneRaw || '');
-      const role = normalizeRole(roleRaw || '');
-      if (!email || validateOpsEmail(email)) {
-        errors.push(`Karyawan: email tidak valid -> ${emailRaw || '(kosong)'}`);
+      const header = cells[0].toLowerCase().replace(/\s+/g, ' ');
+      if (header === 'email') {
+        employeeFormat = 'legacy-email';
         continue;
       }
+      if (['whatsapp', 'nomor whatsapp', 'nomor wa'].includes(header)) {
+        employeeFormat = 'phone';
+        continue;
+      }
+
+      const [phoneRaw, nameRaw, employeeIdRaw, roleRaw, branchRaw, passwordRaw] = employeeFormat === 'legacy-email'
+        ? cells.slice(1)
+        : cells;
+      const phone = normalizeOpsPhone(phoneRaw || '');
+      const role = normalizeRole(roleRaw || '');
       if (validateOpsPhone(phoneRaw || '')) {
-        errors.push(`Karyawan ${email}: WhatsApp tidak valid -> ${phoneRaw || '(kosong)'}`);
+        errors.push(`Karyawan: WhatsApp tidak valid -> ${phoneRaw || '(kosong)'}`);
         continue;
       }
       if (!role) {
-        errors.push(`Karyawan ${email}: role tidak dikenal -> ${roleRaw || '(kosong)'}`);
+        errors.push(`Karyawan +${phone}: role tidak dikenal -> ${roleRaw || '(kosong)'}`);
         continue;
       }
       employees.push({
-        email,
         phone,
         name: (nameRaw || '').trim(),
         employeeId: (employeeIdRaw || '').trim().toUpperCase(),
@@ -205,19 +209,19 @@ export function parseDocument(text: string): { employees: EmployeeRow[]; treatme
   return { employees, treatments, errors };
 }
 
-async function importEmployees(rows: EmployeeRow[]): Promise<{ created: string[]; skipped: string[]; generated: Array<{ email: string; password: string }> }> {
+async function importEmployees(rows: EmployeeRow[]): Promise<{ created: string[]; skipped: string[]; generated: Array<{ phone: string; password: string }> }> {
   const created: string[] = [];
   const skipped: string[] = [];
-  const generated: Array<{ email: string; password: string }> = [];
+  const generated: Array<{ phone: string; password: string }> = [];
 
   for (const row of rows) {
-    const existing = await prisma.opsStaff.findFirst({ where: { OR: [{ email: row.email }, { phone: row.phone }] } });
+    const existing = await prisma.opsStaff.findFirst({ where: { OR: [{ phone: row.phone }, { username: row.phone }, { employeeId: row.employeeId }] } });
     if (existing) {
-      skipped.push(row.email);
+      skipped.push(row.phone);
       continue;
     }
     if (!row.name || !row.employeeId) {
-      skipped.push(`${row.email} (nama/ID tidak lengkap)`);
+      skipped.push(`${row.phone} (nama/ID tidak lengkap)`);
       continue;
     }
 
@@ -228,7 +232,7 @@ async function importEmployees(rows: EmployeeRow[]): Promise<{ created: string[]
     let password = row.password;
     if (!password) {
       password = generatePassword();
-      generated.push({ email: row.email, password });
+      generated.push({ phone: row.phone, password });
     }
     // Provided passwords are treated as temporary: the account is forced to
     // change them on first login, where the strong policy is enforced.
@@ -238,8 +242,7 @@ async function importEmployees(rows: EmployeeRow[]): Promise<{ created: string[]
       const staff = await tx.opsStaff.create({
         data: {
           branchId: branch.id,
-          username: row.email,
-          email: row.email,
+          username: row.phone,
           phone: row.phone,
           employeeId: row.employeeId,
           name: row.name,
@@ -258,11 +261,11 @@ async function importEmployees(rows: EmployeeRow[]): Promise<{ created: string[]
           entityType: 'STAFF_ACCOUNT',
           entityId: staff.id,
           action: 'IMPORT_CREATE',
-          afterData: { email: row.email, phone: row.phone, employeeId: row.employeeId, role: row.role, mustChangePassword: true },
+          afterData: { phone: row.phone, employeeId: row.employeeId, role: row.role, mustChangePassword: true },
         },
       });
     });
-    created.push(row.email);
+    created.push(row.phone);
   }
 
   return { created, skipped, generated };
@@ -338,12 +341,12 @@ async function main() {
 
   console.log('\n=== KARYAWAN ===');
   console.log(`Dibuat: ${staffResult.created.length}`);
-  for (const email of staffResult.created) console.log(`  + ${email}`);
+  for (const phone of staffResult.created) console.log(`  + ${phone}`);
   console.log(`Dilewati (sudah ada / tidak valid): ${staffResult.skipped.length}`);
-  for (const email of staffResult.skipped) console.log(`  ~ ${email}`);
+  for (const phone of staffResult.skipped) console.log(`  ~ ${phone}`);
   if (staffResult.generated.length > 0) {
     console.log('\nPassword awal (wajib diganti saat login pertama):');
-    for (const item of staffResult.generated) console.log(`  ${item.email} -> ${item.password}`);
+    for (const item of staffResult.generated) console.log(`  +${item.phone} -> ${item.password}`);
   }
 
   console.log('\n=== TREATMENT ===');

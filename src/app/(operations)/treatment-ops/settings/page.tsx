@@ -17,7 +17,6 @@ export default async function TreatmentOpsSettingsPage() {
     name: staff.name,
     role: staff.role,
     employeeId: staff.employeeId,
-    email: staff.email,
     phone: staff.phone,
     avatarUrl: staff.avatarUrl,
     branchName,
@@ -26,7 +25,7 @@ export default async function TreatmentOpsSettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <ProfileSettings staff={profile} />
-      {!isOpsWhatsAppOtpEnabled() && <PasswordSettings staffName={staff.name} email={staff.email} forced={requiresOpsPasswordChange(staff)} />}
+      {!isOpsWhatsAppOtpEnabled() && <PasswordSettings staffName={staff.name} phone={staff.phone} forced={requiresOpsPasswordChange(staff)} />}
     </div>
   );
 }

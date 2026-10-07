@@ -58,7 +58,6 @@ export async function GET() {
       branchId: staff.branchId,
       employeeId: staff.employeeId,
       name: staff.name,
-      email: staff.email,
       phone: staff.phone,
       avatarUrl: staff.avatarUrl,
       role: staff.role,
