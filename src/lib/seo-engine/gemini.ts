@@ -19,6 +19,9 @@ import type { ArticleBlock } from './lexical';
 const KEY = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
 const TEXT_MODEL = process.env.GEO_GEN_GEMINI_MODEL || 'gemini-flash-latest';
+// Gemini 2.x saja: mulai model sesudah 3.8, temperature/topP/topK ditolak
+// 400 INVALID_ARGUMENT (Google AI Studio, 7 Okt 2026); alias -latest pindah sendiri.
+const LEGACY_SAMPLING = /gemini-[12]\./.test(TEXT_MODEL);
 const IMAGE_MODELS = [
   process.env.GEO_IMAGE_GEMINI_MODEL || 'gemini-2.5-flash-image',
   'gemini-3.1-flash-image',
@@ -113,7 +116,7 @@ async function callGemini<T>(prompt: string, schema: object, maxOutputTokens: nu
   const body = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
-      temperature: 0.7,
+      ...(LEGACY_SAMPLING ? { temperature: 0.7 } : {}),
       maxOutputTokens,
       responseMimeType: 'application/json',
       responseSchema: schema,
