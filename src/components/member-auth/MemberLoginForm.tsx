@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { memberRedirect } from '@/lib/member-auth/policy';
 import { useMemberAuth } from './MemberAuthProvider';
+import GoogleLoginButton from './GoogleLoginButton';
 
 type Stage = 'phone' | 'code' | 'register' | 'activate' | 'support';
 const inputClass = 'min-h-12 w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/35 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
@@ -28,10 +29,13 @@ export default function MemberLoginForm() {
   const [expiresAt, setExpiresAt] = useState(0);
   const [now, setNow] = useState(Date.now());
   const destination = memberRedirect(params.get('redirect_url') || params.get('redirect'));
+  const showGoogle = process.env.NODE_ENV !== 'production'
+    || process.env.NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC === 'true'
+    || params.get('google_test') === '1';
 
   useEffect(() => {
     if (!isLoaded) return;
-    if (user) { window.location.replace(destination); return; }
+    if (user) { window.location.replace(user.phoneVerified ? destination : '/my-prime/profile'); return; }
     if (enrollment) {
       setStage(enrollment.stage);
       setPhone(enrollment.phone);
@@ -98,10 +102,10 @@ export default function MemberLoginForm() {
         <section className="rounded-3xl border border-primary/25 bg-gradient-to-br from-gray-900 to-black p-6 shadow-2xl sm:p-8">
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">My Prime</p>
           <h1 className="mb-2 font-playfair text-2xl font-bold">
-            {stage === 'phone' ? 'Masuk dengan WhatsApp' : stage === 'code' ? 'Masukkan kode verifikasi' : stage === 'register' ? 'Selamat datang di DRW Prime' : stage === 'activate' ? 'Aktifkan akun lama Anda' : 'Bantuan aktivasi akun'}
+            {stage === 'phone' ? 'Masuk ke My Prime' : stage === 'code' ? 'Masukkan kode verifikasi' : stage === 'register' ? 'Selamat datang di DRW Prime' : stage === 'activate' ? 'Aktifkan akun lama Anda' : 'Bantuan aktivasi akun'}
           </h1>
           <p className="mb-6 text-sm leading-relaxed text-white/65">
-            {stage === 'phone' && 'Akses poin, riwayat treatment, dan benefit member dengan nomor WhatsApp Anda.'}
+            {stage === 'phone' && (showGoogle ? 'Masuk dengan WhatsApp atau Google. Nomor WhatsApp dapat diverifikasi kemudian di profil.' : 'Akses poin, riwayat treatment, dan benefit member dengan nomor WhatsApp Anda.')}
             {stage === 'code' && `Kode dikirim ke +${phone} melalui WhatsApp dari DRW Primé Notif (+62 815-4288-8666).`}
             {stage === 'register' && 'Nomor WhatsApp berhasil diverifikasi. Lengkapi informasi berikut untuk membuat akun.'}
             {stage === 'activate' && 'Cocokkan identitas dengan data yang sudah tercatat di klinik agar akun dan riwayat Anda dapat diaktifkan.'}
@@ -138,6 +142,11 @@ export default function MemberLoginForm() {
               {stage === 'code' && <button type="button" disabled={busy || retrySeconds > 0} onClick={requestCode} className="min-h-11 w-full py-2 text-sm text-primary disabled:text-white/40">{retrySeconds ? `Kirim ulang dalam ${retrySeconds} detik` : 'Kirim ulang kode'}</button>}
             </form>
           )}
+          {stage === 'phone' && isLoaded && showGoogle && <>
+            <div className="my-5 flex items-center gap-3 text-xs text-white/40"><span className="h-px flex-1 bg-white/15" />atau<span className="h-px flex-1 bg-white/15" /></div>
+            <GoogleLoginButton destination={destination} referralCode={params.get('ref')} />
+            <p className="mt-2 text-center text-xs text-white/50">Baru di DRW Prime? Masuk dengan Google, lalu lengkapi nomor WhatsApp di profil.</p>
+          </>}
           {stage !== 'phone' && <button type="button" disabled={busy} onClick={() => { setStage('phone'); setCode(''); setError(''); }} className="mt-4 min-h-11 w-full py-2 text-sm text-white/60 hover:text-primary">Gunakan nomor lain / mulai ulang</button>}
           {(stage === 'phone' || stage === 'activate') && <a href="https://wa.me/6281138800071" className="mt-4 block text-center text-xs text-white/50 hover:text-primary">Sudah punya akun, tetapi nomor berubah? Hubungi Front Office.</a>}
         </section>

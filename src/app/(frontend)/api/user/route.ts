@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { ensureUniqueAffiliateCode } from '@/lib/affiliate';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
-import { getMember } from '@/lib/member-auth/session';
+import { getMember, requireVerifiedMember } from '@/lib/member-auth/session';
 import { MemberAuthError } from '@/lib/member-auth/policy';
 import { assertMemberOrigin, memberError, memberResponse } from '@/lib/member-auth/http';
 import { isHardcodedAdmin } from '@/lib/admin';
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   try {
     assertMemberOrigin(req);
     const member = await getMember();
-    if (member) return memberResponse({ user: { ...member, isAdmin: false } });
+    if (member) { await requireVerifiedMember(); return memberResponse({ user: { ...member, isAdmin: false } }); }
     // Clerk is reserved for staff. WhatsApp enrollment creates member records.
     const authUser = await requireAdmin();
     const { clerkUserId } = authUser;
@@ -189,6 +189,7 @@ export async function POST(req: Request) {
 export async function GET() {
   try {
     const member = await getMember();
+    if (member) await requireVerifiedMember();
     const staff = member ? null : await requireAdmin();
 
     const user = await prisma.user.findUnique({
@@ -237,6 +238,7 @@ export async function GET() {
       },
     });
   } catch (error) {
+    if (error instanceof MemberAuthError) return memberError(error);
     if (error instanceof Error && error.name === 'AuthError') {
       return handleAuthError(error);
     }

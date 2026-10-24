@@ -24,8 +24,9 @@ export async function createMemberSessionTx(tx: Prisma.TransactionClient, userId
 
 export async function resolveMemberToken(token: string | undefined) {
   if (!validToken(token)) return null;
-  const session = await prisma.memberSession.findUnique({ where: { tokenHash: tokenHash(token) }, include: { user: true } });
-  if (!session || session.expiresAt <= new Date() || !session.user.hasAccount || !session.user.loginPhoneVerifiedAt || !session.user.loginPhone || session.user.memberLoginBlockedAt) return null;
+  const session = await prisma.memberSession.findUnique({ where: { tokenHash: tokenHash(token) }, include: { user: { include: { memberGoogleAccount: true } } } });
+  if (!session || session.expiresAt <= new Date() || !session.user.hasAccount || session.user.memberLoginBlockedAt
+    || (!session.user.memberGoogleAccount && (!session.user.loginPhone || !session.user.loginPhoneVerifiedAt))) return null;
   return session.user;
 }
 
@@ -33,7 +34,15 @@ export const getMember = cache(async () => resolveMemberToken((await cookies()).
 
 export async function requireMember() {
   const member = await getMember();
-  if (!member) throw new MemberAuthError(401, 'Silakan masuk dengan nomor WhatsApp Anda.', 'MEMBER_AUTH_REQUIRED');
+  if (!member) throw new MemberAuthError(401, 'Silakan masuk ke akun member Anda.', 'MEMBER_AUTH_REQUIRED');
+  return member;
+}
+
+export async function requireVerifiedMember() {
+  const member = await requireMember();
+  if (!member.loginPhone || !member.loginPhoneVerifiedAt) {
+    throw new MemberAuthError(403, 'Verifikasi nomor WhatsApp di profil untuk menggunakan fitur ini.', 'PHONE_VERIFICATION_REQUIRED');
+  }
   return member;
 }
 

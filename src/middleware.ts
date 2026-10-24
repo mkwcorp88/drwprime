@@ -50,6 +50,7 @@ const isPublicRoute = createRouteMatcher([
   '/robots.txt',
   '/sign-in(.*)',
   '/sign-up(.*)',
+  '/privacy-policy',
   '/staff/sign-in(.*)',
   // These routes validate the opaque member session in Node route/layout code.
   '/my-prime(.*)',

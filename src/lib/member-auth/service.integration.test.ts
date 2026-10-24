@@ -15,6 +15,7 @@ let directory: string;
 let db: PrismaClient;
 let service: typeof import('./service');
 let sessions: typeof import('./session');
+let google: typeof import('./google');
 const deliveries = new Map<string, string>();
 const send = vi.fn(async (phone: string, code: string) => { deliveries.set(phone, code); });
 const browser = () => randomBytes(32).toString('base64url');
@@ -46,6 +47,7 @@ beforeAll(async () => {
   vi.doMock('@clerk/nextjs/server', () => ({ auth: async () => ({ userId: null }), currentUser: async () => null }));
   service = await import('./service');
   sessions = await import('./session');
+  google = await import('./google');
 }, 120_000);
 
 beforeEach(async () => {
@@ -70,6 +72,13 @@ async function request(phone = '6281234567890', binding = browser(), ip = '127.0
 
 async function registered(phone = '6281234567890', data = {}) {
   return db.user.create({ data: { firstName: 'Member', phone, loginPhone: phone, loginPhoneVerifiedAt: new Date(), hasAccount: true, ...data } });
+}
+
+const googleIdentity = (sub = 'google-sub') => ({ sub, email: 'google@example.com', firstName: 'Google', lastName: 'Member' });
+
+async function profileOtp(memberId: string, phone = '6281234567890', binding = browser()) {
+  const challenge = await service.requestMemberOtp(phone, binding, '127.0.0.1', memberId);
+  return { ...challenge, binding, code: deliveries.get(phone)! };
 }
 
 integrationDescribe('member OTP transaction boundaries', () => {
@@ -255,6 +264,125 @@ integrationDescribe('legacy account continuity and recovery', () => {
       const cutover = await readFile(resolve('prisma/migrations/20260916120000_force_member_otp_relogin/migration.sql'), 'utf8');
       await client.query(cutover);
       expect((await client.query('SELECT COUNT(*)::int AS count FROM member_sessions')).rows[0].count).toBe(0);
+
+      const googleMigration = await readFile(resolve('prisma/migrations/20261021000000_add_member_google_accounts/migration.sql'), 'utf8');
+      await client.query(googleMigration);
+      expect((await client.query('SELECT COUNT(*)::int AS count FROM member_google_accounts')).rows[0].count).toBe(0);
+      expect((await client.query("SELECT column_default FROM information_schema.columns WHERE table_name = 'member_login_otps' AND column_name = 'purpose'")).rows[0].column_default).toContain('login');
+      expect((await client.query('SELECT id, points FROM users')).rows).toEqual([{ id: 'existing', points: 42 }]);
     } finally { await client.end(); }
+  });
+});
+
+integrationDescribe('Google member login and profile phone verification', () => {
+  it('creates a Google-only member session without a phone and never claims records by email', async () => {
+    const patient = await db.user.create({ data: { firstName: 'Patient', email: 'google@example.com', phone: '081234567890', points: 88 } });
+    const first = await google.signInGoogleMember(googleIdentity());
+    const newMember = await sessions.resolveMemberToken(first.token);
+    expect(first.phoneVerified).toBe(false);
+    expect(newMember).toMatchObject({ email: 'google@example.com', phone: null, loginPhone: null, hasAccount: true, isAdmin: false, points: 0 });
+    expect(newMember?.id).not.toBe(patient.id);
+    const again = await google.signInGoogleMember(googleIdentity());
+    expect((await sessions.resolveMemberToken(again.token))?.id).toBe(newMember?.id);
+    expect(await db.user.count()).toBe(2);
+  });
+
+  it('verifies a new number in the same browser, then enables WhatsApp login and full membership', async () => {
+    const login = await google.signInGoogleMember(googleIdentity());
+    const member = await sessions.resolveMemberToken(login.token);
+    const otp = await profileOtp(member!.id);
+    await expect(service.verifyMemberOtp(otp.challengeId, otp.code, otp.binding)).rejects.toMatchObject({ code: 'OTP_INVALID' });
+    await expect(service.verifyProfilePhoneOtp(member!.id, otp.challengeId, otp.code, browser(), null)).rejects.toMatchObject({ code: 'OTP_INVALID' });
+    const verified = await service.verifyProfilePhoneOtp(member!.id, otp.challengeId, otp.code, otp.binding, null);
+    expect(verified.kind).toBe('verified');
+    if (verified.kind !== 'verified') throw new Error('Expected verified phone');
+    expect(await sessions.resolveMemberToken(login.token)).toBeNull();
+    expect(await sessions.resolveMemberToken(verified.sessionToken)).toMatchObject({ id: member!.id, loginPhone: otp.phone, phone: otp.phone });
+    expect((await db.user.findUniqueOrThrow({ where: { id: member!.id } })).qrToken).toBeTruthy();
+    expect((await db.user.findUniqueOrThrow({ where: { id: member!.id } })).affiliateCode).toBeTruthy();
+    await expect(service.verifyProfilePhoneOtp(member!.id, otp.challengeId, otp.code, otp.binding, null)).rejects.toMatchObject({ code: 'OTP_INVALID' });
+    const wa = await request('6281234567890', browser(), 'other-ip').catch((error) => error);
+    expect(wa).toMatchObject({ code: 'OTP_COOLDOWN' });
+  });
+
+  it('keeps a Google referral pending until the WhatsApp number is verified', async () => {
+    await db.user.create({ data: { firstName: 'Leader', affiliateCode: 'TEAM1', isTeamLeader: true } });
+    const login = await google.signInGoogleMember(googleIdentity(), 'TEAM1');
+    const stub = await sessions.resolveMemberToken(login.token);
+    expect(stub?.affiliateCode).toBeNull();
+    expect((await db.memberGoogleAccount.findUniqueOrThrow({ where: { googleSub: 'google-sub' } })).pendingReferralCode).toBe('TEAM1');
+    const otp = await profileOtp(stub!.id);
+    const verified = await service.verifyProfilePhoneOtp(stub!.id, otp.challengeId, otp.code, otp.binding, null);
+    expect(verified.kind).toBe('verified');
+    if (verified.kind !== 'verified') throw new Error('Expected verified phone');
+    expect(await sessions.resolveMemberToken(verified.sessionToken)).toMatchObject({ affiliateCode: 'TEAM1', isTeamLeader: false });
+    expect((await db.memberGoogleAccount.findUniqueOrThrow({ where: { googleSub: 'google-sub' } })).pendingReferralCode).toBeNull();
+  });
+
+  it('moves Google login to an existing WhatsApp account after OTP without losing points', async () => {
+    const existing = await registered('6281234567890', { points: 45, affiliateCode: 'EXIST1', qrToken: 'existing-qr' });
+    const googleSession = await google.signInGoogleMember(googleIdentity());
+    const stub = await sessions.resolveMemberToken(googleSession.token);
+    const otp = await profileOtp(stub!.id);
+    const result = await service.verifyProfilePhoneOtp(stub!.id, otp.challengeId, otp.code, otp.binding, null);
+    expect(result.kind).toBe('verified');
+    if (result.kind !== 'verified') throw new Error('Expected linked account');
+    expect(await sessions.resolveMemberToken(googleSession.token)).toBeNull();
+    expect(await sessions.resolveMemberToken(result.sessionToken)).toMatchObject({ id: existing.id, points: 45, qrToken: 'existing-qr' });
+    expect((await google.signInGoogleMember(googleIdentity())).phoneVerified).toBe(true);
+    expect(await db.user.count()).toBe(1);
+    expect(await db.memberGoogleAccount.findUniqueOrThrow({ where: { googleSub: 'google-sub' } })).toMatchObject({ userId: existing.id });
+  });
+
+  it('requires matching date of birth for a legacy patient and retains their record', async () => {
+    const patient = await db.user.create({ data: { firstName: 'Patient', phone: '081234567890', dateOfBirth: new Date('1990-01-02'), points: 80 } });
+    const login = await google.signInGoogleMember(googleIdentity());
+    const stub = await sessions.resolveMemberToken(login.token);
+    const otp = await profileOtp(stub!.id);
+    const result = await service.verifyProfilePhoneOtp(stub!.id, otp.challengeId, otp.code, otp.binding, '1990-01-02');
+    expect(result.kind).toBe('verified');
+    if (result.kind !== 'verified') throw new Error('Expected legacy activation');
+    expect(await sessions.resolveMemberToken(result.sessionToken)).toMatchObject({ id: patient.id, points: 80, loginPhone: otp.phone });
+    expect(await db.user.count()).toBe(1);
+  });
+
+  it('routes ambiguous legacy records and active temporary accounts to Front Office', async () => {
+    await db.user.create({ data: { firstName: 'Patient', phone: '081234567890', dateOfBirth: new Date('1990-01-02') } });
+    const login = await google.signInGoogleMember(googleIdentity());
+    const stub = await sessions.resolveMemberToken(login.token);
+    const otp = await profileOtp(stub!.id);
+    expect(await service.verifyProfilePhoneOtp(stub!.id, otp.challengeId, otp.code, otp.binding, '1991-01-02')).toEqual({ kind: 'support' });
+    expect(await db.user.count()).toBe(2);
+  });
+
+  it('does not discard activity from a Google-only account when linking an existing number', async () => {
+    await registered();
+    const login = await google.signInGoogleMember(googleIdentity());
+    const stub = await sessions.resolveMemberToken(login.token);
+    await db.user.update({ where: { id: stub!.id }, data: { points: 5 } });
+    const otp = await profileOtp(stub!.id);
+    expect(await service.verifyProfilePhoneOtp(stub!.id, otp.challengeId, otp.code, otp.binding, null)).toEqual({ kind: 'support' });
+    expect((await db.user.findUniqueOrThrow({ where: { id: stub!.id } })).points).toBe(5);
+    expect(await db.user.count()).toBe(2);
+  });
+
+  it('keeps login OTP and profile OTP separate and limits wrong profile codes', async () => {
+    const login = await google.signInGoogleMember(googleIdentity());
+    const stub = await sessions.resolveMemberToken(login.token);
+    const loginOtp = await request();
+    await expect(service.verifyProfilePhoneOtp(stub!.id, loginOtp.challengeId, loginOtp.code, loginOtp.binding, null)).rejects.toMatchObject({ code: 'OTP_INVALID' });
+    await db.memberLoginOtp.update({ where: { id: loginOtp.challengeId }, data: { createdAt: new Date(Date.now() - 61_000) } });
+    const otp = await profileOtp(stub!.id);
+    const wrong = otp.code === '000000' ? '111111' : '000000';
+    await Promise.allSettled(Array.from({ length: 8 }, () => service.verifyProfilePhoneOtp(stub!.id, otp.challengeId, wrong, otp.binding, null)));
+    expect((await db.memberLoginOtp.findUniqueOrThrow({ where: { id: otp.challengeId } })).attempts).toBe(5);
+    await expect(service.verifyProfilePhoneOtp(stub!.id, otp.challengeId, otp.code, otp.binding, null)).rejects.toMatchObject({ code: 'OTP_INVALID' });
+  });
+
+  it('keeps Google and WhatsApp member sessions out of the Clerk admin guard', async () => {
+    const { requireAdmin } = await import('@/lib/auth');
+    const login = await google.signInGoogleMember(googleIdentity());
+    expect(await sessions.resolveMemberToken(login.token)).toBeTruthy();
+    await expect(requireAdmin()).rejects.toMatchObject({ status: 401 });
   });
 });

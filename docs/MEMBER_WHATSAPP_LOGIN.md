@@ -62,6 +62,19 @@ Front Office dapat membuka detail member → **Aktivasi / pemulihan login WhatsA
 
 Login staf tersedia di `/staff/sign-in` menggunakan Clerk. API staf tetap memerlukan `requireAdmin()`. Cookie member, termasuk milik member dengan flag database `isAdmin`, tidak memenuhi autentikasi staf. Login OPS tetap menggunakan modul OPS tersendiri.
 
+## Login Google untuk member
+
+Google adalah pilihan **tambahan** di `/sign-in`, bukan pengganti WhatsApp. Login member memakai Google Identity Services langsung dan sesi member DRW Prime sendiri, tanpa Clerk atau MCP. Clerk tetap khusus untuk login staf. Selama OAuth Google Cloud masih berstatus **Testing**, tombol Google pada produksi hanya ditampilkan melalui `/sign-in?google_test=1` agar pengunjung umum tetap memakai login WhatsApp. Setelah aplikasi Google dipublikasikan, build dengan `NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC=true` untuk menampilkan kedua pilihan ke semua pengunjung.
+
+1. Di Google Cloud Console, buat **OAuth 2.0 Client ID** tipe **Web application**. Tambahkan `https://drwprime.com` pada **Authorized JavaScript origins** (dan origin lokal saat pengembangan). Atur consent screen dan publikasikan aplikasi sesuai kebutuhan. Alur Google Identity Services memakai ID token pada browser, tanpa client secret atau redirect URI aplikasi.
+2. `NEXT_PUBLIC_GOOGLE_CLIENT_ID` memakai Web Client ID DRW Prime pada `.env.local` untuk pengembangan dan argumen Docker untuk deployment; nilai default publik di Dockerfile dapat ditimpa dengan `--build-arg`. Client ID bersifat publik; jangan menyimpan Google Client Secret di aplikasi karena tidak digunakan. Backend memverifikasi signature, audience, issuer, dan masa berlaku ID token dari Google menggunakan `google-auth-library`.
+3. Member memilih **Lanjutkan dengan Google** dan langsung masuk. Akun Google baru dibuat tanpa nomor telepon. Email Google saja tidak mengklaim data pasien atau hak staf; identitas memakai `sub` Google yang unik. Sebelum nomor terverifikasi, member hanya dapat mengakses profil; API QR, poin, afiliasi, reservasi akun, dan penarikan menolak akses.
+4. Di profil, member memasukkan nomor WhatsApp, meminta OTP, lalu memverifikasinya di browser yang sama. Pengiriman memakai sender, cooldown, dan batas percobaan yang sama dengan login WhatsApp, tetapi kode profil tidak dapat digunakan sebagai kode login. Nomor baru menjadi identitas login WhatsApp setelah verifikasi berhasil.
+5. Jika nomor sudah dipakai akun WhatsApp lama, Google ditautkan ke akun lama setelah OTP agar ID, poin, dan riwayat tetap terhubung. Data klinik lama tanpa loginPhone tetap memerlukan tanggal lahir yang cocok; data ambigu atau akun Google sementara yang telah memiliki aktivitas diarahkan ke Front Office. Email tidak pernah memindahkan riwayat.
+6. Login Google berikutnya tetap tersedia tanpa OTP. Login WhatsApp tetap tersedia pada nomor yang telah diverifikasi. Pemulihan nomor yang disetujui Front Office memblokir akses member sampai pemilik memverifikasi nomor baru.
+
+Deploy migrasi `20261021000000_add_member_google_accounts` sebelum menyalakan alur ini. Uji dengan dua akun Google yang terdaftar sebagai test users: Google baru tanpa nomor, OTP profil untuk nomor baru, OTP nomor akun WhatsApp lama, keluar/masuk kembali via Google dan WhatsApp, serta pastikan poin/riwayat tetap sama. Halaman kebijakan privasi di `/privacy-policy` harus dapat dibuka tanpa login sebelum aplikasi dipublikasikan.
+
 ## Pembatasan dan pengujian
 
 - Kirim ulang setelah 60 detik, maksimal 5 permintaan per nomor dan 20 per bucket IP dalam 15 menit.

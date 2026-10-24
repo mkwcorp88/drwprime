@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
-import type { Prisma, User } from '@prisma/client';
+import { Prisma, type User } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { OTP_MAX_ATTEMPTS, OTP_RESEND_SECONDS, OTP_TTL_SECONDS, ENROLLMENT_TTL_SECONDS, MemberAuthError, normalizeLoginPhone, parseBirthDate } from './policy';
 import { createMemberSessionTx, newToken, tokenHash, validToken } from './session';
@@ -40,7 +40,7 @@ async function contactCandidates(tx: Tx, phone: string) {
     ) = ${phone}`;
 }
 
-export async function requestMemberOtp(input: unknown, binding: string, ip: string) {
+export async function requestMemberOtp(input: unknown, binding: string, ip: string, profileMemberId?: string) {
   requireMemberOtpConfig();
   const phone = normalizeLoginPhone(input);
   if (!validToken(binding)) throw invalid();
@@ -62,7 +62,8 @@ export async function requestMemberOtp(input: unknown, binding: string, ip: stri
     if (wait > 0) throw new MemberAuthError(429, `Tunggu ${wait} detik sebelum meminta kode lagi.`, 'OTP_COOLDOWN', wait);
     await tx.memberLoginOtp.updateMany({ where: { phoneHash }, data: { consumedAt: now, grantHash: null } });
     await tx.memberLoginOtp.create({ data: {
-      id: challengeId, phone, phoneHash, requestIpHash, bindingHash: tokenHash(binding),
+      id: challengeId, purpose: profileMemberId ? 'profile' : 'login', targetUserId: profileMemberId,
+      phone, phoneHash, requestIpHash, bindingHash: tokenHash(binding),
       codeHash: hashMemberOtp(challengeId, code), createdAt: now,
       expiresAt: new Date(now.getTime() + OTP_TTL_SECONDS * 1000),
     } });
@@ -112,7 +113,7 @@ export async function verifyMemberOtp(challengeId: unknown, code: unknown, bindi
   if (!validToken(challengeId) || !validToken(binding) || typeof code !== 'string' || !/^\d{6}$/.test(code)) throw invalid();
   const result = await prisma.$transaction(async (tx): Promise<ProofResult> => {
     const initial = await tx.memberLoginOtp.findUnique({ where: { id: challengeId } });
-    if (!initial || initial.bindingHash !== tokenHash(binding)) return { kind: 'invalid' };
+    if (!initial || initial.purpose !== 'login' || initial.bindingHash !== tokenHash(binding)) return { kind: 'invalid' };
     await lock(tx, `phone:${initial.phone}`);
     await tx.$queryRaw`SELECT id FROM member_login_otps WHERE id = ${challengeId} FOR UPDATE`;
     const challenge = await tx.memberLoginOtp.findUniqueOrThrow({ where: { id: challengeId } });
@@ -162,10 +163,102 @@ export async function verifyMemberOtp(challengeId: unknown, code: unknown, bindi
   return result;
 }
 
+type ProfilePhoneResult = { kind: 'verified'; sessionToken: string } | { kind: 'support' } | { kind: 'invalid' };
+
+async function moveGoogleToExistingMember(tx: Tx, googleMember: User, target: User, phone: string, activate: boolean): Promise<ProfilePhoneResult> {
+  const [source, targetGoogle] = await Promise.all([
+    tx.user.findUnique({ where: { id: googleMember.id }, include: { memberGoogleAccount: true, _count: { select: {
+      reservations: true, referrals: true, transactions: true, voucherRedemptions: true,
+      eventRegistrations: true, bankAccounts: true, withdrawals: true, spendingRecords: true,
+      riwayatTindakan: true, aidoPatientLinks: true, aidoIncomeRecords: true,
+    } } } }),
+    tx.memberGoogleAccount.findUnique({ where: { userId: target.id } }),
+  ]);
+  // Never discard patient, financial, or other activity from an account that
+  // somehow acquired it before phone verification. Front Office must resolve it.
+  if (!source?.memberGoogleAccount || targetGoogle || source.phone || source.qrToken || source.avatarUrl || source.avatarKey || source.profileCompletedAt
+    || source.points || source.loyaltyPoints || source.totalReferrals || Number(source.totalEarnings)
+    || Number(source.totalSpending) || Object.values(source._count).some(Boolean)) return { kind: 'support' };
+
+  await tx.memberGoogleAccount.update({ where: { userId: source.id }, data: { userId: target.id, pendingReferralCode: null } });
+  await tx.memberSession.deleteMany({ where: { userId: source.id } });
+  await tx.user.delete({ where: { id: source.id } });
+  return { kind: 'verified', sessionToken: activate
+    ? await activateMember(tx, target, phone)
+    : await createMemberSessionTx(tx, target.id) };
+}
+
+// A profile OTP proves ownership of a phone for the currently signed-in Google
+// member. Unlike login OTP, it may never silently switch to another account.
+export async function verifyProfilePhoneOtp(memberId: string, challengeId: unknown, code: unknown, binding: string, dateOfBirth: unknown): Promise<Exclude<ProfilePhoneResult, { kind: 'invalid' }>> {
+  if (!validToken(challengeId) || !validToken(binding) || typeof code !== 'string' || !/^\d{6}$/.test(code)) throw invalid();
+  let result: ProfilePhoneResult;
+  try {
+    result = await prisma.$transaction(async (tx): Promise<ProfilePhoneResult> => {
+      const initial = await tx.memberLoginOtp.findUnique({ where: { id: challengeId } });
+      if (!initial || initial.purpose !== 'profile' || initial.targetUserId !== memberId || initial.bindingHash !== tokenHash(binding)) return { kind: 'invalid' };
+      const initialOwner = await tx.user.findUnique({ where: { loginPhone: initial.phone }, select: { id: true } });
+      const initialCandidates = await contactCandidates(tx, initial.phone);
+      await lock(tx, `phone:${initial.phone}`, `user:${memberId}`,
+        ...(initialOwner ? [`user:${initialOwner.id}`] : []), ...initialCandidates.map(({ id }) => `user:${id}`));
+      await tx.$queryRaw`SELECT id FROM member_login_otps WHERE id = ${challengeId} FOR UPDATE`;
+      const challenge = await tx.memberLoginOtp.findUniqueOrThrow({ where: { id: challengeId } });
+      const now = new Date();
+      if (!challenge.deliveredAt || challenge.consumedAt || challenge.expiresAt <= now || challenge.attempts >= OTP_MAX_ATTEMPTS) return { kind: 'invalid' };
+      await tx.memberLoginOtp.update({ where: { id: challengeId }, data: { attempts: { increment: 1 } } });
+      const expected = Buffer.from(challenge.codeHash, 'hex');
+      const actual = Buffer.from(hashMemberOtp(challengeId, code), 'hex');
+      if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return { kind: 'invalid' };
+      await tx.memberLoginOtp.update({ where: { id: challengeId }, data: { consumedAt: now, verifiedAt: now } });
+
+      const member = await tx.user.findUnique({ where: { id: memberId } });
+      if (!member?.hasAccount || member.loginPhone || member.memberLoginBlockedAt) return { kind: 'support' };
+      const owner = await tx.user.findUnique({ where: { loginPhone: challenge.phone } });
+      const candidates = await contactCandidates(tx, challenge.phone);
+      if (owner) {
+        if (owner.id === memberId || !owner.hasAccount || !owner.loginPhoneVerifiedAt || owner.memberLoginBlockedAt
+          || candidates.some(({ id }) => id !== owner.id)) return { kind: 'support' };
+        return moveGoogleToExistingMember(tx, member, owner, challenge.phone, false);
+      }
+
+      if (candidates.length) {
+        const birthDate = parseBirthDate(dateOfBirth);
+        if (!birthDate) return { kind: 'support' };
+        const targets = await tx.user.findMany({ where: { id: { in: candidates.map(({ id }) => id) } } });
+        const matches = targets.filter((target) => !target.loginPhone && !target.memberLoginBlockedAt && target.dateOfBirth
+          && target.dateOfBirth.toISOString().slice(0, 10) === birthDate.toISOString().slice(0, 10));
+        if (matches.length !== 1) return { kind: 'support' };
+        return moveGoogleToExistingMember(tx, member, matches[0], challenge.phone, true);
+      }
+
+      const googleAccount = await tx.memberGoogleAccount.findUnique({ where: { userId: member.id } });
+      if (!googleAccount) return { kind: 'support' };
+      const referral = googleAccount.pendingReferralCode;
+      const team = referral ? await tx.user.findFirst({ where: { affiliateCode: referral, isTeamLeader: true }, select: { affiliateCode: true } }) : null;
+      const affiliateCode = team?.affiliateCode || await allocateAffiliateCode(tx, member.firstName);
+      await tx.user.update({ where: { id: member.id }, data: {
+        phone: challenge.phone, loginPhone: challenge.phone, loginPhoneVerifiedAt: now,
+        affiliateCode, isTeamLeader: !team,
+        qrToken: member.qrToken || randomUUID(),
+      } });
+      await tx.memberGoogleAccount.update({ where: { userId: member.id }, data: { pendingReferralCode: null } });
+      await tx.memberSession.deleteMany({ where: { userId: member.id } });
+      return { kind: 'verified', sessionToken: await createMemberSessionTx(tx, member.id) };
+    }, { timeout: 15_000 });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new MemberAuthError(409, 'Nomor WhatsApp sudah terkait akun lain. Hubungi Front Office.', 'PHONE_CONFLICT');
+    }
+    throw error;
+  }
+  if (result.kind === 'invalid') throw invalid();
+  return result;
+}
+
 export async function pendingEnrollment(grant: string | undefined, binding: string | undefined) {
   if (!validToken(grant) || !validToken(binding)) return null;
   const challenge = await prisma.memberLoginOtp.findUnique({ where: { grantHash: tokenHash(grant) } });
-  if (!challenge?.verifiedAt || challenge.bindingHash !== tokenHash(binding) || !challenge.grantExpiresAt || challenge.grantExpiresAt <= new Date() || challenge.enrollmentAttempts >= 5) return null;
+  if (!challenge?.verifiedAt || challenge.purpose !== 'login' || challenge.bindingHash !== tokenHash(binding) || !challenge.grantExpiresAt || challenge.grantExpiresAt <= new Date() || challenge.enrollmentAttempts >= 5) return null;
   return { stage: challenge.targetUserId ? 'activate' as const : 'register' as const, phone: challenge.phone };
 }
 
@@ -173,7 +266,7 @@ export async function enrollMember(grant: string, binding: string, input: Record
   if (!validToken(grant) || !validToken(binding)) throw enrollmentInvalid();
   const result = await prisma.$transaction(async (tx) => {
     const initial = await tx.memberLoginOtp.findUnique({ where: { grantHash: tokenHash(grant) } });
-    if (!initial || initial.bindingHash !== tokenHash(binding)) return null;
+    if (!initial || initial.purpose !== 'login' || initial.bindingHash !== tokenHash(binding)) return null;
     await lock(tx, `phone:${initial.phone}`);
     await tx.$queryRaw`SELECT id FROM member_login_otps WHERE id = ${initial.id} FOR UPDATE`;
     const challenge = await tx.memberLoginOtp.findUniqueOrThrow({ where: { id: initial.id } });

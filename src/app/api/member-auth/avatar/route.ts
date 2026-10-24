@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { prisma } from '@/lib/prisma';
-import { requireMember } from '@/lib/member-auth/session';
+import { requireVerifiedMember } from '@/lib/member-auth/session';
 import { MemberAuthError } from '@/lib/member-auth/policy';
 import { assertMemberOrigin, memberError, memberResponse } from '@/lib/member-auth/http';
 import { uploadPublicObject, deletePublicObject, isUploadConfigured } from '@/lib/s3-upload';
@@ -9,7 +9,7 @@ import { uploadPublicObject, deletePublicObject, isUploadConfigured } from '@/li
 export async function POST(request: Request) {
   try {
     assertMemberOrigin(request);
-    const user = await requireMember();
+    const user = await requireVerifiedMember();
     if (!isUploadConfigured()) throw new MemberAuthError(503, 'Penyimpanan foto belum tersedia.', 'UPLOAD_UNAVAILABLE');
     if (Number(request.headers.get('content-length') || 0) > 6 * 1024 * 1024) throw new MemberAuthError(413, 'Ukuran foto maksimal 5 MB.', 'IMAGE_TOO_LARGE');
     const data = await request.formData();

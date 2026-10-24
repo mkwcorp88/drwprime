@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
         <h1 className="text-3xl font-bold text-[#D4AF37]">Kebijakan Privasi</h1>
 
         <p className="text-gray-300">
-          Terakhir diperbarui: 30 Juni 2026
+          Terakhir diperbarui: 22 Oktober 2026
         </p>
 
         <section className="space-y-3">
@@ -23,8 +23,16 @@ export default function PrivacyPolicyPage() {
             <li>Alamat email</li>
             <li>Nomor telepon</li>
             <li>Data reservasi treatment</li>
-            <li>Informasi akun (username, password terenkripsi)</li>
+            <li>Identitas akun Google (nama, email, dan ID akun) bila Anda memilih login Google</li>
+            <li>Nomor WhatsApp dan status verifikasi OTP bila Anda menambahkan nomor di profil</li>
           </ul>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold text-[#D4AF37]">Login Google dan WhatsApp</h2>
+          <p className="text-gray-300">
+            Login Google menggunakan Google Identity Services untuk memverifikasi identitas akun Anda. Login WhatsApp dan verifikasi nomor di profil menggunakan kode sekali pakai yang dikirim melalui WhatsApp Business. Informasi tersebut digunakan untuk menjaga akses akun dan menghubungkan riwayat member setelah nomor berhasil diverifikasi.
+          </p>
         </section>
 
         <section className="space-y-3">
@@ -95,7 +103,7 @@ export default function PrivacyPolicyPage() {
             Jika Anda memiliki pertanyaan tentang Kebijakan Privasi ini, hubungi kami di:
           </p>
           <p className="text-gray-300">
-            Email: <a href="mailto:info@drwprime.com" className="text-[#D4AF37] hover:underline">info@drwprime.com</a>
+            Email: <a href="mailto:drwprimegejayan@gmail.com" className="text-[#D4AF37] hover:underline">drwprimegejayan@gmail.com</a>
           </p>
           <p className="text-gray-300">
             Website: <a href="https://drwprime.com" className="text-[#D4AF37] hover:underline">drwprime.com</a>

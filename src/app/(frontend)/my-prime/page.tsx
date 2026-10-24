@@ -195,6 +195,10 @@ export default function MyPrimePage() {
       setLoading(false);
       return;
     }
+    if (!user.phoneVerified) {
+      window.location.replace('/my-prime/profile');
+      return;
+    }
     fetchMembership();
   }, [isLoaded, user, fetchMembership]);
 

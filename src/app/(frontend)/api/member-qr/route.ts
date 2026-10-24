@@ -1,4 +1,4 @@
-import { requireMember } from '@/lib/member-auth/session';
+import { requireVerifiedMember } from '@/lib/member-auth/session';
 import { memberError, memberResponse } from '@/lib/member-auth/http';
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const member = await requireMember();
+    const member = await requireVerifiedMember();
 
     const user = await prisma.user.findUnique({
       where: { id: member.id },

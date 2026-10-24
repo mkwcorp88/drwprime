@@ -13,7 +13,8 @@ export async function GET() {
     const member: MemberClientUser | null = user ? {
       id: user.id, firstName: user.firstName, lastName: user.lastName,
       fullName: [user.firstName, user.lastName].filter(Boolean).join(' '),
-      email: user.email, phone: user.loginPhone!, imageUrl: user.avatarUrl, isTeamLeader: user.isTeamLeader,
+      email: user.email, phone: user.loginPhone, phoneVerified: Boolean(user.loginPhone && user.loginPhoneVerifiedAt),
+      imageUrl: user.avatarUrl, isTeamLeader: user.isTeamLeader,
     } : null;
     const enrollment = member ? null : await pendingEnrollment(jar.get(ENROLLMENT_COOKIE)?.value, jar.get(OTP_BINDING_COOKIE)?.value);
     return memberResponse({ user: member, enrollment, otpAvailable: memberOtpConfigured() });

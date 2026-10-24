@@ -1,4 +1,4 @@
-import { getMember, requireMember } from '@/lib/member-auth/session';
+import { getMember, requireVerifiedMember } from '@/lib/member-auth/session';
 import { assertMemberOrigin, memberError, memberResponse } from '@/lib/member-auth/http';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -10,6 +10,7 @@ export async function POST(req: Request) {
   try {
     const member = await getMember();
     if (member) assertMemberOrigin(req);
+    if (member && (!member.loginPhone || !member.loginPhoneVerifiedAt)) await requireVerifiedMember();
     const userId = member?.id;
     
     const body = await req.json();
@@ -132,7 +133,7 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    const { id: userId } = await requireMember();
+    const { id: userId } = await requireVerifiedMember();
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

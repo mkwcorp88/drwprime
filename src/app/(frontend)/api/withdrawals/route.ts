@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireMember } from '@/lib/member-auth/session';
+import { requireVerifiedMember } from '@/lib/member-auth/session';
 import { assertMemberOrigin, memberError, memberResponse } from '@/lib/member-auth/http';
 import { createWithdrawal, WithdrawalError } from '@/lib/services/withdrawal';
 
 export async function POST(req: NextRequest) {
   try {
-    const member = await requireMember();
+    const member = await requireVerifiedMember();
     assertMemberOrigin(req);
 
     const body = await req.json();
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
-    const member = await requireMember();
+    const member = await requireVerifiedMember();
 
     const user = await prisma.user.findUnique({
       where: { id: member.id },

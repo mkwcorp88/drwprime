@@ -7,11 +7,11 @@ import { assertMemberOrigin, memberError, memberJson, memberResponse } from '@/l
 function profile(user: User) {
   return {
     firstName: user.firstName, lastName: user.lastName, email: user.email,
-    phone: user.loginPhone, nik: user.nik, gender: user.gender,
+    phone: user.loginPhone, phoneVerified: Boolean(user.loginPhone && user.loginPhoneVerifiedAt), nik: user.nik, gender: user.gender,
     dateOfBirth: user.dateOfBirth?.toISOString().slice(0, 10) || null,
     address: user.address, city: user.city, province: user.province,
     profileCompletedAt: user.profileCompletedAt,
-    isComplete: Boolean(user.loginPhone && user.gender && user.dateOfBirth && user.address && user.city && user.province),
+    isComplete: Boolean(user.loginPhone && user.loginPhoneVerifiedAt && user.gender && user.dateOfBirth && user.address && user.city && user.province),
   };
 }
 
@@ -24,6 +24,9 @@ export async function PUT(request: Request) {
   try {
     const member = await requireMember();
     assertMemberOrigin(request);
+    if (!member.loginPhone || !member.loginPhoneVerifiedAt) {
+      throw new MemberAuthError(409, 'Verifikasi nomor WhatsApp di profil sebelum menyimpan data.', 'PHONE_VERIFICATION_REQUIRED');
+    }
     const body = await memberJson(request);
     const text = (key: string) => typeof body[key] === 'string' ? body[key].trim() : '';
     const phone = normalizeLoginPhone(body.phone);

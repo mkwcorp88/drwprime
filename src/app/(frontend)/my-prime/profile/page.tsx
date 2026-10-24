@@ -50,7 +50,7 @@ const TIER_RING: Record<Tier, string> = {
 };
 
 export default function ProfilePage() {
-  const { user, isLoaded, updateAvatar } = useMemberAuth();
+  const { user, isLoaded, updateAvatar, refresh } = useMemberAuth();
   const router = useRouter();
   const [form, setForm] = useState<ProfileForm>(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -62,6 +62,64 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [alreadyComplete, setAlreadyComplete] = useState(false);
+  const [phoneChallengeId, setPhoneChallengeId] = useState('');
+  const [phoneCode, setPhoneCode] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneRetryAt, setPhoneRetryAt] = useState(0);
+  const [phoneExpiresAt, setPhoneExpiresAt] = useState(0);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const retrySeconds = Math.max(0, Math.ceil((phoneRetryAt - now) / 1000));
+  const expirySeconds = Math.max(0, Math.ceil((phoneExpiresAt - now) / 1000));
+
+  const requestPhoneCode = async () => {
+    setPhoneBusy(true); setPhoneError('');
+    try {
+      const response = await fetch('/api/member-auth/phone/request', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: form.phone }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.retryAfterSeconds) setPhoneRetryAt(Date.now() + Number(data.retryAfterSeconds) * 1000);
+        throw new Error(data.error || 'Kode belum dapat dikirim.');
+      }
+      setForm((current) => ({ ...current, phone: data.phone }));
+      setPhoneChallengeId(data.challengeId);
+      setPhoneCode('');
+      setPhoneRetryAt(Date.now() + data.resendAfterSeconds * 1000);
+      setPhoneExpiresAt(Date.now() + data.expiresInSeconds * 1000);
+      setNow(Date.now());
+    } catch (failure) {
+      setPhoneError(failure instanceof Error ? failure.message : 'Koneksi bermasalah. Silakan coba lagi.');
+    } finally { setPhoneBusy(false); }
+  };
+
+  const verifyPhoneCode = async () => {
+    setPhoneBusy(true); setPhoneError('');
+    try {
+      const response = await fetch('/api/member-auth/phone/verify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challengeId: phoneChallengeId, code: phoneCode, dateOfBirth: form.dateOfBirth }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Kode tidak valid.');
+      if (data.stage === 'support') {
+        setPhoneChallengeId('');
+        setPhoneError('Nomor ini terkait data member yang perlu dicocokkan oleh Front Office.');
+        return;
+      }
+      await refresh();
+      window.location.replace('/my-prime/profile');
+    } catch (failure) {
+      setPhoneError(failure instanceof Error ? failure.message : 'Verifikasi belum berhasil.');
+    } finally { setPhoneBusy(false); }
+  };
 
   const loadProfile = useCallback(async () => {
     try {
@@ -207,7 +265,7 @@ export default function ProfilePage() {
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file || !user) return;
+    if (!file || !user || !user.phoneVerified) return;
 
     if (!file.type.startsWith('image/')) {
       setAvatarError('File harus berupa gambar.');
@@ -328,13 +386,13 @@ export default function ProfilePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                {avatarBusy ? 'Mengunggah...' : 'Ubah Foto Profil'}
+                {avatarBusy ? 'Mengunggah...' : user.phoneVerified ? 'Ubah Foto Profil' : 'Verifikasi WhatsApp untuk ubah foto'}
                 <input
                   type="file"
                   accept="image/*"
                   className="hidden"
                   onChange={handleAvatarChange}
-                  disabled={avatarBusy}
+                  disabled={avatarBusy || !user.phoneVerified}
                 />
               </label>
               {avatarError && <p className="text-red-400 text-xs">{avatarError}</p>}
@@ -360,26 +418,38 @@ export default function ProfilePage() {
                 <h3 className="text-sm font-semibold text-white">Data Pribadi</h3>
 
                 <div>
-                  <label className="block text-white/70 text-xs mb-1.5">Nomor WhatsApp login terverifikasi</label>
+                  <label className="block text-white/70 text-xs mb-1.5">{user.phoneVerified ? 'Nomor WhatsApp terverifikasi' : 'Nomor WhatsApp *'}</label>
                   <input
                     type="tel"
                     name="phone"
                     inputMode="tel"
                     value={form.phone}
-                    readOnly
+                    readOnly={user.phoneVerified || Boolean(phoneChallengeId)}
                     placeholder="08123456789"
                     maxLength={15}
                     className={inputClass}
                   />
                   <p className="mt-1 text-white/40 text-[11px]">
-                    Untuk mengubah nomor login, hubungi Front Office agar identitas Anda diverifikasi.
+                    {user.phoneVerified ? 'Untuk mengubah nomor login, hubungi Front Office agar identitas Anda diverifikasi.' : 'Nomor baru hanya disimpan setelah kode OTP WhatsApp berhasil diverifikasi.'}
                   </p>
-                  {form.phone && (
+                  {user.phoneVerified && form.phone && (
                     <p className="mt-0.5 text-primary text-[11px] font-medium">
                       Format tersimpan: {form.phone}
                     </p>
                   )}
                   {renderError('phone')}
+                  {!user.phoneVerified && <div className="mt-3 space-y-3">
+                    {phoneChallengeId && <>
+                      <label htmlFor="profile-phone-code" className="block text-white/70 text-xs">Kode OTP 6 digit</label>
+                      <input id="profile-phone-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={phoneCode} onChange={(event) => setPhoneCode(event.target.value.replace(/\D/g, '').slice(0, 6))} className={inputClass} placeholder="Masukkan kode dari WhatsApp" />
+                      <p className="text-white/50 text-[11px]">{expirySeconds ? `Kode berlaku ${Math.floor(expirySeconds / 60)}:${String(expirySeconds % 60).padStart(2, '0')} lagi.` : 'Kode kedaluwarsa. Kirim ulang untuk melanjutkan.'} Jika nomor terhubung ke data klinik lama, isi tanggal lahir sesuai data tersebut sebelum verifikasi.</p>
+                      <button type="button" disabled={phoneBusy || !expirySeconds || phoneCode.length !== 6} onClick={verifyPhoneCode} className="mobile-touch-target rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">Verifikasi nomor</button>
+                      <button type="button" disabled={phoneBusy || retrySeconds > 0} onClick={requestPhoneCode} className="ml-3 text-xs text-primary disabled:text-white/40">{retrySeconds ? `Kirim ulang dalam ${retrySeconds} detik` : 'Kirim ulang kode'}</button>
+                      <button type="button" disabled={phoneBusy} onClick={() => { setPhoneChallengeId(''); setPhoneCode(''); setPhoneError(''); setPhoneRetryAt(0); }} className="block text-xs text-white/55">Gunakan nomor lain</button>
+                    </>}
+                    {!phoneChallengeId && <button type="button" disabled={phoneBusy || !form.phone || retrySeconds > 0} onClick={requestPhoneCode} className="mobile-touch-target rounded-xl border border-primary/50 px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50">{retrySeconds ? `Tunggu ${retrySeconds} detik` : 'Kirim kode ke WhatsApp'}</button>}
+                    {phoneError && <p role="alert" className="text-red-400 text-xs">{phoneError} <a href="https://wa.me/6281138800071" className="underline">Bantuan Front Office</a></p>}
+                  </div>}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -473,10 +543,10 @@ export default function ProfilePage() {
               <div className="mobile-sticky-action">
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || !user.phoneVerified}
                   className="mobile-touch-target w-full rounded-[16px] bg-primary py-3 text-sm font-semibold text-dark shadow-[0_12px_30px_rgba(0,0,0,0.3)] transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {saving ? 'Menyimpan...' : 'Simpan Profil'}
+                  {saving ? 'Menyimpan...' : user.phoneVerified ? 'Simpan Profil' : 'Verifikasi nomor WhatsApp untuk menyimpan profil'}
                 </button>
               </div>
             </form>

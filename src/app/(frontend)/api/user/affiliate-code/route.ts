@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireMember } from '@/lib/member-auth/session';
+import { requireVerifiedMember } from '@/lib/member-auth/session';
 import { assertMemberOrigin, memberError } from '@/lib/member-auth/http';
 import { prisma } from '@/lib/prisma';
 import { validateAffiliateCode, canUpdateAffiliateCode } from '@/lib/affiliate';
@@ -18,7 +18,7 @@ export async function OPTIONS() {
 
 export async function PUT(req: NextRequest) {
   try {
-    const { id: userId } = await requireMember();
+    const { id: userId } = await requireVerifiedMember();
     assertMemberOrigin(req);
 
     if (!userId) {
@@ -150,7 +150,7 @@ export async function PUT(req: NextRequest) {
 // Get affiliate code info
 export async function GET() {
   try {
-    const { id: userId } = await requireMember();
+    const { id: userId } = await requireVerifiedMember();
 
     if (!userId) {
       return NextResponse.json(

@@ -8,6 +8,8 @@ export const metadata: Metadata = {
 };
 
 export default async function AffiliateDashboardLayout({ children }: { children: React.ReactNode }) {
-  if (!(await getMember())) redirect('/sign-in?redirect_url=/affiliate-dashboard');
+  const member = await getMember();
+  if (!member) redirect('/sign-in?redirect_url=/affiliate-dashboard');
+  if (!member.loginPhone || !member.loginPhoneVerifiedAt) redirect('/my-prime/profile');
   return children;
 }

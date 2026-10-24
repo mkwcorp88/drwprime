@@ -4,7 +4,8 @@ export type MemberClientUser = {
   lastName: string | null;
   fullName: string;
   email: string | null;
-  phone: string;
+  phone: string | null;
+  phoneVerified: boolean;
   imageUrl: string | null;
   isTeamLeader: boolean;
 };

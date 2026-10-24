@@ -75,6 +75,7 @@ model User {
   aidoIncomeRecords  AidoIncomeRecord[]
   memberSessions     MemberSession[]
   memberPhoneRecoveries MemberPhoneRecovery[]
+  memberGoogleAccount MemberGoogleAccount?
 
   @@index([phone])
   @@index([hasAccount])
@@ -95,8 +96,21 @@ model MemberSession {
   @@map("member_sessions")
 }
 
+// A verified Google identity is independent from the optional WhatsApp login.
+// Email alone never claims an existing patient record.
+model MemberGoogleAccount {
+  googleSub           String   @id @map("google_sub")
+  userId              String   @unique @map("user_id")
+  pendingReferralCode String?  @map("pending_referral_code")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("member_google_accounts")
+}
+
 model MemberLoginOtp {
   id            String    @id
+  purpose       String    @default("login")
   phone         String
   phoneHash     String    @map("phone_hash")
   requestIpHash String    @map("request_ip_hash")
@@ -114,6 +128,7 @@ model MemberLoginOtp {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@index([phoneHash, createdAt])
+  @@index([phone, createdAt])
   @@index([requestIpHash, createdAt])
   @@index([createdAt])
   @@map("member_login_otps")

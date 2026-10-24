@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireMember } from '@/lib/member-auth/session';
+import { requireVerifiedMember } from '@/lib/member-auth/session';
 import { memberError, memberResponse } from '@/lib/member-auth/http';
 import { prisma } from '@/lib/prisma';
 import {
@@ -72,7 +72,7 @@ function computeTier(totalSpending: number): {
 
 export async function GET() {
   try {
-    const member = await requireMember();
+    const member = await requireVerifiedMember();
 
     const user = await prisma.user.findUnique({
       where: { id: member.id },

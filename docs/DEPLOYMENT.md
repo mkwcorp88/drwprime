@@ -106,6 +106,7 @@ The VPS build wrapper must pass the release SHA into Docker:
 ```bash
 docker build \
   --build-arg "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}" \
+  --build-arg "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}" \
   --build-arg "RELEASE_SHA=${TAG}" \
   ... \
   --tag "${IMAGE}:${TAG}" \
