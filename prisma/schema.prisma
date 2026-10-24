@@ -108,6 +108,58 @@ model MemberGoogleAccount {
   @@map("member_google_accounts")
 }
 
+// Front Office, marketing, and CMS staff identities. Legacy Clerk IDs remain
+// only as historical actor references; authentication uses these records.
+model StaffAccount {
+  id            String   @id @default(cuid())
+  legacyClerkId String?  @unique @map("legacy_clerk_id")
+  email         String?  @unique
+  phone         String?  @unique
+  googleSub     String?  @unique @map("google_sub")
+  name          String
+  active        Boolean  @default(true)
+  cmsAccess     Boolean  @default(false) @map("cms_access")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions      StaffSession[]
+  loginOtps     StaffLoginOtp[]
+
+  @@map("staff_accounts")
+}
+
+model StaffSession {
+  id        String   @id @default(cuid())
+  staffId   String   @map("staff_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  staff     StaffAccount @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, expiresAt])
+  @@map("staff_sessions")
+}
+
+model StaffLoginOtp {
+  id            String    @id
+  staffId       String    @map("staff_id")
+  purpose       String    @default("login")
+  phone         String
+  phoneHash     String    @map("phone_hash")
+  requestIpHash String    @map("request_ip_hash")
+  bindingHash   String    @map("binding_hash")
+  codeHash      String    @map("code_hash")
+  attempts      Int       @default(0)
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(3)
+  deliveredAt   DateTime? @map("delivered_at") @db.Timestamptz(3)
+  consumedAt    DateTime? @map("consumed_at") @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  staff         StaffAccount @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([phoneHash, createdAt])
+  @@index([requestIpHash, createdAt])
+  @@map("staff_login_otps")
+}
+
 model MemberLoginOtp {
   id            String    @id
   purpose       String    @default("login")
