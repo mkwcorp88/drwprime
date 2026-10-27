@@ -105,7 +105,7 @@ Build lokal membutuhkan konfigurasi database/Payload. Untuk pemeriksaan build ta
 ## Aktivasi produksi
 
 1. Token Meta 60 hari sudah disetujui, diterbitkan, dan diverifikasi memiliki akses ke nomor di atas.
-2. Isi environment runtime, termasuk proxy/IP dan rahasia OTP baru. Preflight deployment menolak konfigurasi member yang belum lengkap sebelum migrasi/swap container.
+2. Isi environment runtime di Coolify, termasuk proxy/IP dan rahasia OTP baru. Periksa konfigurasi sebelum rollout; wrapper deploy aktif tidak menjalankan preflight dari skrip standalone lama.
 3. Terapkan migrasi `20260911100000_add_member_whatsapp_auth` dan `20260916120000_force_member_otp_relogin` melalui alur deployment. Migrasi kedua menghapus sesi member lama agar semua anggota mengulang login OTP; Clerk ID, data klinik, dan relasi transaksi tetap dipertahankan.
 4. Verifikasi kode OTP nyata sudah berhasil. Berikutnya uji pendaftaran dengan data uji terkontrol, aktivasi data lama hanya dengan tanggal lahir, logout, serta pemulihan lewat FO.
 5. Verifikasi akses staf dan akses anggota dari browser terpisah. Pergantian login member ke WhatsApp dilakukan pada release ini setelah seluruh konfigurasi tersedia.
