@@ -133,7 +133,7 @@ export default function MemberLoginForm() {
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-white/55">
                   {stage === 'phone' && (showGoogle ? 'Pilih cara masuk yang paling nyaman untuk Anda.' : 'Masuk dengan nomor WhatsApp untuk melihat akun My Prime Anda.')}
-                  {stage === 'code' && `Kode dikirim ke +${phone} melalui WhatsApp dari DRW Primé Notif (+62 815-4288-8666).`}
+                  {stage === 'code' && `Permintaan kode untuk +${phone} sedang diproses. Periksa WhatsApp dari DRW Primé Notif (+62 815-4288-8666). Jika belum muncul, kirim ulang setelah waktu tunggu selesai.`}
                   {stage === 'register' && 'Nomor WhatsApp berhasil diverifikasi. Lengkapi informasi berikut untuk membuat akun.'}
                   {stage === 'activate' && 'Cocokkan identitas dengan data klinik agar poin dan riwayat Anda tetap terhubung.'}
                   {stage === 'support' && 'Nomor berhasil diverifikasi. Hubungi Front Office untuk mencocokkan data atau memulihkan nomor login akun lama.'}

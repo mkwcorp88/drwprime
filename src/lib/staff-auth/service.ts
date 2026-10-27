@@ -7,6 +7,7 @@ import { verifyGoogleCredential, type GoogleIdentity } from '@/lib/member-auth/g
 import { normalizeLoginPhone } from '@/lib/member-auth/policy';
 import { newToken, tokenHash, validToken } from '@/lib/member-auth/session';
 import { requireMemberOtpConfig, sendMemberOtp } from '@/lib/member-auth/whatsapp';
+import { recordOtpSubmission } from '@/lib/whatsapp-otp-delivery';
 
 export const STAFF_SESSION_COOKIE = 'drw_staff_session';
 export const STAFF_OTP_BINDING_COOKIE = 'drw_staff_otp_browser';
@@ -120,14 +121,22 @@ export async function requestStaffOtp(input: unknown, binding: string, ip: strin
       codeHash: hashCode(challengeId, code), expiresAt: new Date(now.getTime() + OTP_TTL_SECONDS * 1000),
     } });
   });
+  let submission: Awaited<ReturnType<typeof sendMemberOtp>>;
   try {
-    await sendMemberOtp(phone, code);
+    submission = await sendMemberOtp(phone, code);
+    // Legacy verification gate records provider acceptance, not device delivery.
     await prisma.staffLoginOtp.update({ where: { id: challengeId }, data: { deliveredAt: new Date() } });
   } catch {
     await prisma.staffLoginOtp.update({ where: { id: challengeId }, data: { consumedAt: new Date() } });
     throw new StaffAuthError(502, 'Kode belum dapat dikirim. Coba lagi nanti.', 'OTP_SEND_FAILED', 60);
   }
-  return { challengeId, expiresInSeconds: OTP_TTL_SECONDS, resendAfterSeconds: OTP_RESEND_SECONDS };
+  try {
+    if (submission?.messageId) await recordOtpSubmission('staff', challengeId, submission);
+  } catch {
+    console.error('[STAFF OTP] Delivery tracking unavailable');
+  }
+  return { challengeId, expiresInSeconds: OTP_TTL_SECONDS, resendAfterSeconds: OTP_RESEND_SECONDS,
+    deliveryStatus: submission?.messageStatus || 'unspecified' };
 }
 
 async function consumeStaffOtp(challengeId: unknown, code: unknown, binding: string, purpose: 'login' | 'enroll', enrollingStaffId?: string): Promise<string> {

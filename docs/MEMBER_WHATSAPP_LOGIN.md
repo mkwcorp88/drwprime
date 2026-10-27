@@ -35,11 +35,20 @@ MEMBER_WHATSAPP_TREATMENT_MEMBER_TEMPLATE=treatment_completed_member
 MEMBER_WHATSAPP_TREATMENT_WALKIN_TEMPLATE=treatment_completed_walkin
 MEMBER_OTP_SECRET=<rahasia-acak-terpisah-minimal-32-karakter>
 MEMBER_TRUST_PROXY=true
+# Diperlukan saat mengaktifkan pelacakan status pesan Meta:
+MEMBER_WHATSAPP_APP_SECRET=<app-secret-dari-Meta-Developers>
+MEMBER_WHATSAPP_WEBHOOK_VERIFY_TOKEN=<token-acak-untuk-verifikasi-callback>
 ```
 
 `MEMBER_TRUST_PROXY=true` hanya digunakan di belakang reverse proxy yang **menimpa** `X-Real-IP` dengan IP koneksi sebenarnya, misalnya `proxy_set_header X-Real-IP $remote_addr;`. Pastikan endpoint aplikasi tidak dapat diakses langsung dengan header buatan pengguna. Tanpa pengaturan ini, permintaan memakai satu bucket IP konservatif bersama.
 
 Login member memakai konfigurasi `MEMBER_*` secara eksklusif. Kredensial notifikasi umum dan OPS tidak menjadi fallback. Jika token/secret belum lengkap, formulir menunjukkan layanan sedang disiapkan dan pengiriman mengembalikan 503. Tidak ada OTP tetap atau bypass development.
+
+Respons HTTP 200 dari endpoint pengiriman Meta berarti permintaan diterima, **bukan** pesan sudah sampai ke perangkat. Aplikasi menyimpan hash ID pesan dan status awal (`accepted` atau `held`) secara terpisah dari challenge OTP. Kolom lama `delivered_at` pada tabel OTP tetap menjadi penanda bahwa Meta menerima permintaan untuk menjaga kompatibilitas verifikasi; jangan menafsirkannya sebagai bukti pengiriman ke perangkat.
+
+Untuk mengetahui alasan kegagalan sebenarnya, atur callback aplikasi Meta ke `https://drwprime.com/api/webhooks/whatsapp-otp`, gunakan `MEMBER_WHATSAPP_WEBHOOK_VERIFY_TOKEN` saat verifikasi, lalu langganankan aplikasi ke event `messages` pada WABA. Endpoint POST memeriksa `X-Hub-Signature-256` memakai `MEMBER_WHATSAPP_APP_SECRET` dan menyimpan hanya hash ID pesan, status `sent`/`delivered`/`read`/`failed`, serta kode error Meta. Tanpa langganan webhook, status akhir pesan tidak tersedia walaupun API pengiriman mengembalikan 200. Jangan menaruh App Secret atau verify token dalam Git, browser, atau log.
+
+Setelah migrasi tabel `whatsapp_otp_dispatches`, jalankan `npm run otp:delivery-status` di runtime yang memiliki akses database untuk melihat jumlah status 24 jam terakhir menurut alur dan kode error, tanpa nomor atau isi pesan. Status `accepted` berarti Meta baru menerima permintaan; status `delivered` datang dari webhook. Jika seluruh status berhenti pada `accepted`, periksa langganan webhook WABA sebelum menyimpulkan penerima tidak aktif.
 
 Notifikasi treatment memakai sender Meta yang sama, tetapi tidak memakai template OTP. Saat seluruh tindakan wajib pada order selesai, aplikasi memberi poin satu kali berdasarkan `finalPrice`, memilih template menurut `User.hasAccount`, dan mengirim nomor yang sudah dinormalisasi ke format `628…`. Nomor yang ambigu atau tidak dapat dikaitkan dengan member dicatat sebagai audit skip agar poin tidak masuk ke orang yang salah.
 

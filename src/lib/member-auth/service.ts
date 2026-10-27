@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { OTP_MAX_ATTEMPTS, OTP_RESEND_SECONDS, OTP_TTL_SECONDS, ENROLLMENT_TTL_SECONDS, MemberAuthError, normalizeLoginPhone, parseBirthDate } from './policy';
 import { createMemberSessionTx, newToken, tokenHash, validToken } from './session';
 import { requireMemberOtpConfig, sendMemberOtp } from './whatsapp';
+import { recordOtpSubmission } from '@/lib/whatsapp-otp-delivery';
 
 type Tx = Prisma.TransactionClient;
 const WINDOW_MS = 15 * 60 * 1000;
@@ -68,16 +69,26 @@ export async function requestMemberOtp(input: unknown, binding: string, ip: stri
       expiresAt: new Date(now.getTime() + OTP_TTL_SECONDS * 1000),
     } });
   });
+  let submission: Awaited<ReturnType<typeof sendMemberOtp>>;
   try {
-    await sendMemberOtp(phone, code);
+    submission = await sendMemberOtp(phone, code);
+    // Legacy column gates verification; it means Meta accepted the request,
+    // not that the message reached the device. Actual status is tracked apart.
     await prisma.memberLoginOtp.update({ where: { id: challengeId }, data: { deliveredAt: new Date() } });
   } catch (error) {
     // Retain failed deliveries for rate accounting. Never make them verifiable.
     await prisma.memberLoginOtp.update({ where: { id: challengeId }, data: { consumedAt: new Date() } });
     throw error;
   }
+  try {
+    if (submission?.messageId) await recordOtpSubmission('member', challengeId, submission);
+  } catch {
+    // A tracking outage must not invalidate a code already accepted by Meta.
+    console.error('[MEMBER OTP] Delivery tracking unavailable');
+  }
   await prisma.memberLoginOtp.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - 86_400_000) } } });
-  return { challengeId, phone, expiresInSeconds: OTP_TTL_SECONDS, resendAfterSeconds: OTP_RESEND_SECONDS };
+  return { challengeId, phone, expiresInSeconds: OTP_TTL_SECONDS, resendAfterSeconds: OTP_RESEND_SECONDS,
+    deliveryStatus: submission?.messageStatus || 'unspecified' };
 }
 
 async function activateMember(tx: Tx, user: User, phone: string) {

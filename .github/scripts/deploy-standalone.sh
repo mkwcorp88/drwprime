@@ -260,6 +260,10 @@ docker run --rm \
       console.error("Invalid member OTP secret or sender configuration");
       process.exit(1);
     }
+    if (Boolean(process.env.MEMBER_WHATSAPP_APP_SECRET) !== Boolean(process.env.MEMBER_WHATSAPP_WEBHOOK_VERIFY_TOKEN)) {
+      console.error("Configure both Meta webhook secrets or neither");
+      process.exit(1);
+    }
     if (process.env.MEMBER_TRUST_PROXY !== "true") {
       console.error("Set MEMBER_TRUST_PROXY=true only after the reverse proxy overwrites X-Real-IP");
       process.exit(1);

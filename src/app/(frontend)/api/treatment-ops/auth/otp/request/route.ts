@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const challenge = await requestOpsLoginOtp(body.phone, requestIp(request));
     return NextResponse.json({
       ...challenge,
-      message: 'Jika nomor terdaftar, kode OTP telah dikirim melalui WhatsApp.',
+      message: 'Jika nomor terdaftar, permintaan kode diterima layanan WhatsApp. Pengiriman ke perangkat belum terkonfirmasi.',
     }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     const response = handleOpsError(error, 'request login OTP');

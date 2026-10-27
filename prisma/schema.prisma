@@ -186,6 +186,23 @@ model MemberLoginOtp {
   @@map("member_login_otps")
 }
 
+// Meta accepts a send request before the recipient receives the message.
+// Store only hashes of provider and challenge IDs so status webhooks can be
+// matched without retaining OTP codes, phone numbers, or raw message IDs.
+model WhatsAppOtpDispatch {
+  messageIdHash   String   @id @map("message_id_hash")
+  challengeIdHash String   @map("challenge_id_hash")
+  flow            String
+  status          String
+  errorCode       Int?     @map("error_code")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([flow, challengeIdHash])
+  @@index([createdAt])
+  @@map("whatsapp_otp_dispatches")
+}
+
 // FO verifies identity before approving a new login number. The member must
 // still prove possession via OTP; an approval never creates a logged-in session.
 model MemberPhoneRecovery {

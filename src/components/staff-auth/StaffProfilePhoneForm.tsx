@@ -75,6 +75,7 @@ export default function StaffProfilePhoneForm() {
           {challengeId && <>
             <label htmlFor="staff-profile-code" className="block text-sm text-white/80">Kode OTP 6 digit</label>
             <input id="staff-profile-code" type="text" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} maxLength={6} className="min-h-12 w-full rounded-xl border border-white/15 bg-white/[0.055] px-4 py-3 text-center text-xl tracking-[0.3em] text-white outline-none focus:border-primary/70" />
+            <p className="text-xs text-white/50">Permintaan kode sedang diproses. Periksa chat DRW Primé Notif; jika belum muncul, kirim ulang setelah waktu tunggu selesai.</p>
             <p className="text-xs text-white/50">{expirySeconds ? `Berlaku ${Math.floor(expirySeconds / 60)}:${String(expirySeconds % 60).padStart(2, '0')} lagi.` : 'Kode kedaluwarsa. Kirim ulang.'}</p>
           </>}
           {error && <p role="alert" className="rounded-xl border border-red-400/25 bg-red-400/10 p-3 text-sm text-red-300">{error}</p>}

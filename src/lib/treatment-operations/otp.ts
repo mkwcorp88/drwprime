@@ -2,6 +2,7 @@ import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto
 import type { OpsStaff } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { sendOpsLoginOtpWhatsApp } from '@/lib/whatsapp';
+import { recordOtpSubmission, type MetaOtpSubmission } from '@/lib/whatsapp-otp-delivery';
 import { completeOpsLogin } from './auth';
 import { isOpsWhatsAppOtpEnabled } from './auth-mode';
 import { normalizeOpsPhone, validateOpsPhone } from './profile';
@@ -57,6 +58,7 @@ export type OpsOtpRequestResult = {
   challengeId: string;
   expiresInSeconds: number;
   resendAfterSeconds: number;
+  deliveryStatus?: MetaOtpSubmission['messageStatus'];
 };
 
 export async function requestOpsLoginOtp(phoneInput: string, requestIp?: string): Promise<OpsOtpRequestResult> {
@@ -121,13 +123,30 @@ export async function requestOpsLoginOtp(phoneInput: string, requestIp?: string)
     },
   });
 
+  let submission: MetaOtpSubmission | null = null;
   if (activeStaff) {
     try {
-      await sendOpsLoginOtpWhatsApp(phone, code);
+      const result = await sendOpsLoginOtpWhatsApp(phone, code);
+      if ((process.env.OPS_WHATSAPP_PROVIDER?.trim() || 'meta').toLowerCase() !== 'cekat') {
+        if (typeof result?.messages?.[0]?.id !== 'string') throw new Error('Meta did not accept OTP');
+        submission = {
+          messageId: result.messages[0].id,
+          messageStatus: result.message_status === 'accepted' || result.message_status === 'held_for_quality_assessment'
+            ? result.message_status : 'unspecified',
+        };
+      }
     } catch (error) {
       await prisma.opsLoginOtp.deleteMany({ where: { id: challengeId } });
       console.error('[TREATMENT OPS] Gagal mengirim OTP WhatsApp:', error);
       throw new OpsError(500, 'Kode OTP belum dapat dikirim. Coba lagi.', 'OTP_SEND_FAILED');
+    }
+  }
+
+  if (submission) {
+    try {
+      await recordOtpSubmission('ops', challengeId, submission);
+    } catch {
+      console.error('[OPS OTP] Delivery tracking unavailable');
     }
   }
 
@@ -145,6 +164,7 @@ export async function requestOpsLoginOtp(phoneInput: string, requestIp?: string)
     challengeId,
     expiresInSeconds: OPS_OTP_TTL_SECONDS,
     resendAfterSeconds: OPS_OTP_RESEND_SECONDS,
+    deliveryStatus: submission?.messageStatus || 'unspecified',
   };
 }
 

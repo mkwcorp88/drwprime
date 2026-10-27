@@ -19,6 +19,7 @@
     "aido:browser-sync": "tsx scripts/aido-browser-sync.ts",
     "aido:browser-job": "node scripts/aido-browser-job.mjs",
     "db:migrate": "prisma migrate deploy",
+    "otp:delivery-status": "tsx scripts/whatsapp-otp-status.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:treatment-ops": "tsx prisma/seed-treatment-ops.ts",
     "ops:bootstrap-admin": "tsx prisma/bootstrap-treatment-ops-admin.ts",

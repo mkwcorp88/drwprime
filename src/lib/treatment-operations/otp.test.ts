@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   staffFindUnique: vi.fn(),
   sendOtp: vi.fn(),
   completeLogin: vi.fn(),
+  recordSubmission: vi.fn(),
 }));
 
 vi.mock('@/lib/prisma', () => ({
@@ -27,6 +28,7 @@ vi.mock('@/lib/prisma', () => ({
 }));
 
 vi.mock('@/lib/whatsapp', () => ({ sendOpsLoginOtpWhatsApp: mocks.sendOtp }));
+vi.mock('@/lib/whatsapp-otp-delivery', () => ({ recordOtpSubmission: mocks.recordSubmission }));
 vi.mock('@/lib/treatment-operations/auth', () => ({ completeOpsLogin: mocks.completeLogin }));
 
 import { isOpsWhatsAppOtpEnabled, requiresOpsPasswordChange } from './auth-mode';
@@ -55,6 +57,7 @@ beforeEach(() => {
     createdAt: new Date(),
   }));
   mocks.sendOtp.mockResolvedValue({ messages: [{ id: 'wamid.test' }] });
+  mocks.recordSubmission.mockResolvedValue(undefined);
 });
 
 afterAll(() => {
@@ -90,6 +93,9 @@ describe('operational WhatsApp OTP', () => {
     expect(mocks.sendOtp).toHaveBeenCalledOnce();
     expect(mocks.sendOtp.mock.calls[0][0]).toBe('6281234567890');
     expect(mocks.sendOtp.mock.calls[0][1]).toMatch(/^\d{6}$/);
+    expect(mocks.recordSubmission).toHaveBeenCalledWith('ops', result.challengeId, {
+      messageId: 'wamid.test', messageStatus: 'unspecified',
+    });
     expect(mocks.loginOtpCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ staffId: 'staff-1' }),
     }));

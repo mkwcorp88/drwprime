@@ -110,7 +110,7 @@ export default function StaffLoginForm() {
               <div className="mb-7">
                 <div className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary"><span className="h-px w-6 bg-primary/70" /> Staff access</div>
                 <h1 className="text-[1.8rem] font-semibold leading-tight tracking-tight sm:text-[2rem]">{stage === 'phone' ? 'Masuk sebagai staf' : 'Verifikasi WhatsApp'}</h1>
-                <p className="mt-3 text-sm leading-relaxed text-white/55">{stage === 'phone' ? 'Gunakan akun Google atau nomor WhatsApp yang terdaftar sebagai staf.' : 'Masukkan kode 6 digit yang dikirim ke nomor WhatsApp staf Anda.'}</p>
+                <p className="mt-3 text-sm leading-relaxed text-white/55">{stage === 'phone' ? 'Gunakan akun Google atau nomor WhatsApp yang terdaftar sebagai staf.' : 'Permintaan kode sedang diproses. Periksa chat DRW Primé Notif di WhatsApp staf Anda. Jika belum muncul, kirim ulang setelah waktu tunggu selesai.'}</p>
               </div>
 
               {!isLoaded ? <p role="status" className="text-sm text-white/60">Menyiapkan login…</p> : <>

@@ -1,4 +1,5 @@
 import { MemberAuthError } from './policy';
+import type { MetaOtpSubmission } from '@/lib/whatsapp-otp-delivery';
 
 export function memberOtpConfigured(): boolean {
   return Boolean(
@@ -23,7 +24,7 @@ export function requireMemberOtpConfig() {
   };
 }
 
-export async function sendMemberOtp(phone: string, code: string): Promise<void> {
+export async function sendMemberOtp(phone: string, code: string): Promise<MetaOtpSubmission> {
   const config = requireMemberOtpConfig();
   try {
     const response = await fetch(`https://graph.facebook.com/${config.version}/${config.phoneNumberId}/messages`, {
@@ -48,6 +49,11 @@ export async function sendMemberOtp(phone: string, code: string): Promise<void> 
     });
     const result = await response.json();
     if (!response.ok || typeof result.messages?.[0]?.id !== 'string') throw new Error('Meta rejected OTP');
+    return {
+      messageId: result.messages[0].id,
+      messageStatus: result.message_status === 'accepted' || result.message_status === 'held_for_quality_assessment'
+        ? result.message_status : 'unspecified',
+    };
   } catch {
     // Provider payloads can contain phone numbers, tokens or message text.
     throw new MemberAuthError(502, 'Kode belum dapat dikirim. Tunggu sebentar lalu coba lagi.', 'OTP_SEND_FAILED', 60);

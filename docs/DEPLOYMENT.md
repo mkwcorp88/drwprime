@@ -105,6 +105,13 @@ access must have a unique normalized phone number. The deployment preflight
 requires the dedicated `OPS_WHATSAPP_*` credentials whenever OTP mode is
 enabled; it never falls back to the shared POS `WHATSAPP_*` values.
 
+OTP delivery tracking uses the optional `MEMBER_WHATSAPP_APP_SECRET` and
+`MEMBER_WHATSAPP_WEBHOOK_VERIFY_TOKEN` pair. Configure both before registering
+`https://drwprime.com/api/webhooks/whatsapp-otp` as the Meta callback and
+subscribing the app to WABA `messages` events. The preflight rejects a partial
+pair. The migration adds only a separate tracking table, so the previous app
+remains compatible during rollout. See `docs/MEMBER_WHATSAPP_LOGIN.md`.
+
 ## VPS Bootstrap
 
 The VPS build wrapper must pass the release SHA into Docker:

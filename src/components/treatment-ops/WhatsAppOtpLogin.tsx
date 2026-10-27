@@ -52,7 +52,7 @@ export default function WhatsAppOtpLogin() {
       setChallengeId(data.challengeId);
       setCode('');
       setResendIn(data.resendAfterSeconds || 60);
-      setNotice(data.message || 'Kode OTP telah dikirim melalui WhatsApp.');
+      setNotice(data.message || 'Permintaan kode diterima layanan WhatsApp. Pengiriman ke perangkat belum terkonfirmasi.');
     } catch {
       setError('Tidak dapat terhubung ke server. Coba lagi.');
     } finally {
@@ -103,7 +103,7 @@ export default function WhatsAppOtpLogin() {
         <h1 className="mt-2 text-3xl font-bold">{challengeId ? 'Masukkan kode OTP' : 'Masuk operasional'}</h1>
         <p className="mt-2 text-sm leading-6 text-white/50">
           {challengeId
-            ? `Masukkan enam digit kode yang dikirim ke WhatsApp ${phone}.`
+            ? `Periksa kode enam digit di WhatsApp ${phone}. Jika belum muncul, kirim ulang setelah waktu tunggu selesai.`
             : 'Gunakan nomor WhatsApp yang terdaftar pada data staf DRW Prime.'}
         </p>
 

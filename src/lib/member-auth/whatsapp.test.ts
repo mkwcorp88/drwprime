@@ -15,7 +15,9 @@ describe('member WhatsApp sender', () => {
   it('uses the dedicated sender and supplies the dynamic code to body and copy button', async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json({ messages: [{ id: 'wamid.test' }] }));
     vi.stubGlobal('fetch', fetchMock);
-    await sendMemberOtp('6281234567890', '012345');
+    await expect(sendMemberOtp('6281234567890', '012345')).resolves.toEqual({
+      messageId: 'wamid.test', messageStatus: 'unspecified',
+    });
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://graph.facebook.com/v25.0/1289265457605367/messages');
@@ -27,6 +29,14 @@ describe('member WhatsApp sender', () => {
         { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: '012345' }] },
       ],
     } });
+  });
+  it('reports a Meta quality hold without claiming device delivery', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({
+      messages: [{ id: 'wamid.held' }], message_status: 'held_for_quality_assessment',
+    })));
+    await expect(sendMemberOtp('6281234567890', '123456')).resolves.toEqual({
+      messageId: 'wamid.held', messageStatus: 'held_for_quality_assessment',
+    });
   });
   it('does not fall back to OPS or general notification credentials', async () => {
     vi.stubEnv('MEMBER_WHATSAPP_ACCESS_TOKEN', '');
