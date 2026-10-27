@@ -1,4 +1,3 @@
-import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
@@ -126,8 +125,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAdmin();
-    const { userId } = await auth();
+    const { clerkUserId: userId } = await requireAdmin();
 
     const body = await req.json();
 

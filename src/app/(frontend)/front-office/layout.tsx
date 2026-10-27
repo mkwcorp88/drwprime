@@ -15,7 +15,7 @@ export default async function FrontOfficeLayout({
 }) {
   const isAdmin = await isUserAdmin();
   if (!isAdmin) {
-    redirect('/');
+    redirect('/staff/sign-in?redirect_url=/front-office');
   }
   return <FrontOfficeShell>{children}</FrontOfficeShell>;
 }

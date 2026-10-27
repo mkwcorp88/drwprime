@@ -20,32 +20,22 @@ RUN npx prisma generate
 RUN npm run typecheck && npm run lint && npm run test
 USER root
 
-ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=145198419539-5kpfdj4683uc323s40ss4lcg599e4oqc.apps.googleusercontent.com
 ARG NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC=true
 ARG RELEASE_SHA=unknown
-ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
 ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
 ENV NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC=${NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC}
 ENV RELEASE_SHA=${RELEASE_SHA}
-ENV NEXT_PUBLIC_CLERK_SIGN_IN_URL="/staff/sign-in"
-ENV NEXT_PUBLIC_CLERK_SIGN_UP_URL="/staff/sign-in"
-ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL="/admin"
-ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL="/admin"
-ENV NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL="/admin"
-ENV NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL="/admin"
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 RUN --mount=type=secret,id=database_url \
     --mount=type=secret,id=database_uri \
     --mount=type=secret,id=payload_secret \
-    --mount=type=secret,id=clerk_secret_key \
     --mount=type=cache,target=/app/.next/cache \
     DATABASE_URL="$(cat /run/secrets/database_url)" \
     DATABASE_URI="$(cat /run/secrets/database_uri)" \
     PAYLOAD_SECRET="$(cat /run/secrets/payload_secret)" \
-    CLERK_SECRET_KEY="$(cat /run/secrets/clerk_secret_key)" \
     npm run build
 
 FROM node:22-bookworm-slim AS runner
@@ -59,21 +49,13 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 
-ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=145198419539-5kpfdj4683uc323s40ss4lcg599e4oqc.apps.googleusercontent.com
 ARG NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC=true
 ARG RELEASE_SHA=unknown
-ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
 ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
 ENV NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC=${NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC}
 ENV RELEASE_SHA=${RELEASE_SHA}
 LABEL org.opencontainers.image.revision=${RELEASE_SHA}
-ENV NEXT_PUBLIC_CLERK_SIGN_IN_URL="/staff/sign-in"
-ENV NEXT_PUBLIC_CLERK_SIGN_UP_URL="/staff/sign-in"
-ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL="/admin"
-ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL="/admin"
-ENV NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL="/admin"
-ENV NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL="/admin"
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next

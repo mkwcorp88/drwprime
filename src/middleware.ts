@@ -1,152 +1,89 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
 
-// Host(s) that serve the Derma Rich Wellness marketing dashboard.
-// Requests here are rewritten into the /marketing route group.
-const MARKETING_HOSTS = ["marketing.drwprime.com", "marketing.localhost"];
-const TREATMENT_HOSTS = ["admin.drwprime.com", "admin.localhost"];
+const MARKETING_HOSTS = ['marketing.drwprime.com', 'marketing.localhost'];
+const TREATMENT_HOSTS = ['admin.drwprime.com', 'admin.localhost'];
 
-function isMarketingHost(host: string | null): boolean {
-  if (!host) return false;
-  const hostname = host.split(":")[0];
-  return MARKETING_HOSTS.includes(hostname) || hostname.startsWith("marketing.");
+function hostname(request: NextRequest): string {
+  return request.headers.get('host')?.split(':')[0] || '';
 }
 
-function isTreatmentHost(host: string | null): boolean {
-  if (!host) return false;
-  const hostname = host.split(":")[0];
-  return TREATMENT_HOSTS.includes(hostname);
+function isMarketingHost(request: NextRequest): boolean {
+  const host = hostname(request);
+  return MARKETING_HOSTS.includes(host) || host.startsWith('marketing.');
 }
 
-function isTreatmentRequest(request: NextRequest): boolean {
-  const pathname = request.nextUrl.pathname;
-  return isTreatmentHost(request.headers.get("host")) ||
-    pathname.startsWith("/treatment-ops") ||
-    pathname.startsWith("/api/treatment-ops");
+function isTreatmentHost(request: NextRequest): boolean {
+  return TREATMENT_HOSTS.includes(hostname(request));
 }
 
-function handleTreatmentRequest(request: NextRequest): NextResponse {
-  if (!isTreatmentHost(request.headers.get("host"))) return NextResponse.next();
-
-  const url = request.nextUrl;
-  if (url.pathname.startsWith("/treatment-ops") || url.pathname.startsWith("/api/")) {
-    return NextResponse.next();
-  }
-
-  const rewritten = url.clone();
-  rewritten.pathname = `/treatment-ops${url.pathname === "/" ? "" : url.pathname}`;
-  return NextResponse.rewrite(rewritten);
+function matchesPath(path: string, prefix: string): boolean {
+  return path === prefix || path.startsWith(`${prefix}/`);
 }
 
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/treatments(.*)',
-  '/home-treatment(.*)',
-  '/products(.*)',
-  '/product-gallery(.*)',
-  '/best-deal(.*)',
-  '/blog(.*)',
-  '/sitemap.xml',
-  '/robots.txt',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/privacy-policy',
-  '/staff/sign-in(.*)',
-  // These routes validate the opaque member session in Node route/layout code.
-  '/my-prime(.*)',
-  '/affiliate-dashboard(.*)',
-  '/api/member-auth(.*)',
-  '/api/staff/session',
-  '/api/user',
-  '/api/user/affiliate-code',
-  '/api/profile',
-  '/api/membership',
-  '/api/member-qr',
-  '/api/withdrawals',
-  '/reservation(.*)',
-  // Payload CMS (has its own auth)
-  '/cms(.*)',
-  '/cms-api(.*)',
-  '/api/cms-auto-login',
-  // SEO cron jobs (Cronicle .159) — guarded by CRON_SECRET Bearer, not Clerk.
-  '/api/cron(.*)',
-  '/api/health',
-  // Treatment operations uses its own WhatsApp number/password session.
-  '/treatment-ops(.*)',
-  '/api/treatment-ops(.*)',
-  '/api/treatments(.*)',
-  '/api/best-deals(.*)',
-  '/api/blog(.*)',
-  '/api/reservations(.*)',
-  '/api/categories(.*)',
-  '/api/vouchers(.*)',
-  '/api/webhooks(.*)',
-  // Authenticated with a dedicated bearer secret inside the route.
-  '/api/internal/aido-sync',
-  '/api/internal/aido-browser-sync',
-  // Clerk OAuth callbacks
-  '/api/auth(.*)',
-  // Public product commerce routes
-  '/api/products',
-  '/api/products/doku/create-session',
-  '/api/products/doku/notification',
-  '/api/products/orders/(.*)',
-  '/api/payment/dummy-confirm',
-  // Front Office API routes (own auth via requireAdmin)
-  '/api/front-office(.*)',
-  '/payment(.*)',
-  // Static files
-  '/(.*\\.mp4$)',
-  '/(.*\\.webm$)',
-  '/(.*\\.png$)',
-  '/(.*\\.jpg$)',
-  '/(.*\\.jpeg$)',
-  '/(.*\\.svg$)',
-  '/(.*\\.ico$)',
+const PUBLIC_EXACT = new Set([
+  '/', '/sitemap.xml', '/robots.txt', '/api/health', '/api/user',
+  '/api/user/affiliate-code', '/api/profile', '/api/membership', '/api/member-qr',
+  '/api/withdrawals', '/api/products', '/api/staff/session',
+  '/api/products/doku/create-session', '/api/products/doku/notification',
+  '/api/payment/dummy-confirm', '/api/internal/aido-sync', '/api/internal/aido-browser-sync',
 ]);
+const PUBLIC_PREFIXES = [
+  '/treatments', '/home-treatment', '/products', '/product-gallery', '/best-deal',
+  '/blog', '/sign-in', '/sign-up', '/privacy-policy', '/staff/sign-in',
+  '/my-prime', '/affiliate-dashboard', '/api/member-auth', '/reservation',
+  '/cms', '/cms-api', '/api/cron', '/treatment-ops', '/api/treatment-ops',
+  '/api/treatments', '/api/best-deals', '/api/blog', '/api/reservations',
+  '/api/categories', '/api/vouchers', '/api/webhooks', '/api/products/orders', '/payment',
+];
+const STAFF_PREFIXES = [
+  '/staff/profile', '/front-office', '/marketing', '/admin', '/api/staff', '/api/front-office',
+  '/api/marketing', '/api/affiliate-codes', '/api/user', '/api/blog', '/api/cms-auto-login',
+];
 
-const withClerk = clerkMiddleware(async (auth, req: NextRequest) => {
-  // Auto-login for Payload CMS — bypass the login page
-  if (req.nextUrl.pathname === '/cms/login') {
-    return Response.redirect(new URL('/api/cms-auto-login', req.url));
+function isPublicRoute(path: string): boolean {
+  return PUBLIC_EXACT.has(path) || PUBLIC_PREFIXES.some((prefix) => matchesPath(path, prefix))
+    || /\.(?:mp4|webm|png|jpe?g|svg|ico)$/.test(path);
+}
+
+function isStaffRoute(path: string): boolean {
+  return STAFF_PREFIXES.some((prefix) => matchesPath(path, prefix));
+}
+
+export default function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  if (isTreatmentHost(request)) {
+    if (path.startsWith('/treatment-ops') || path.startsWith('/api/')) return NextResponse.next();
+    const rewritten = request.nextUrl.clone();
+    rewritten.pathname = `/treatment-ops${path === '/' ? '' : path}`;
+    return NextResponse.rewrite(rewritten);
+  }
+  if (path.startsWith('/treatment-ops') || path.startsWith('/api/treatment-ops')) return NextResponse.next();
+
+  if (isMarketingHost(request) && !path.startsWith('/marketing') && !path.startsWith('/api/')
+    && !path.startsWith('/sign-in') && !path.startsWith('/sign-up') && !path.startsWith('/staff/')) {
+    const rewritten = request.nextUrl.clone();
+    rewritten.pathname = `/marketing${path === '/' ? '' : path}`;
+    return NextResponse.rewrite(rewritten);
   }
 
-  const url = req.nextUrl;
-
-  // Subdomain routing: marketing.* → /marketing/*
-  if (isMarketingHost(req.headers.get("host"))) {
-    if (
-      !url.pathname.startsWith("/marketing") &&
-      !url.pathname.startsWith("/api") &&
-      !url.pathname.startsWith("/sign-in") &&
-      !url.pathname.startsWith("/sign-up") &&
-      !url.pathname.startsWith("/staff/")
-    ) {
-      const rewritten = url.clone();
-      rewritten.pathname = `/marketing${url.pathname === "/" ? "" : url.pathname}`;
-      const res = NextResponse.rewrite(rewritten);
-      await auth.protect({ unauthenticatedUrl: new URL('/staff/sign-in', req.url).toString() });
-      return res;
+  // Server layouts and handlers verify opaque staff/member sessions. The
+  // middleware only routes public pages; it never trusts a cookie as a role.
+  if (isStaffRoute(path) && path.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+    const allowedOrigins = [new URL(process.env.NEXT_PUBLIC_APP_URL || request.url).origin];
+    if (isMarketingHost(request)) allowedOrigins.push(request.nextUrl.origin);
+    if (process.env.NODE_ENV !== 'production') allowedOrigins.push(request.nextUrl.origin);
+    if (!allowedOrigins.includes(request.headers.get('origin') || '')) {
+      return NextResponse.json({ error: 'Origin tidak valid.' }, { status: 403 });
     }
   }
-
-  if (!isPublicRoute(req)) {
-    await auth.protect({ unauthenticatedUrl: new URL('/staff/sign-in', req.url).toString() });
-  }
-});
-
-// Admin treatment operations has its own internal authentication. Bypass Clerk
-// completely for its pages, APIs, and admin subdomain assets.
-export default function middleware(request: NextRequest, event: NextFetchEvent) {
-  if (isTreatmentRequest(request)) return handleTreatmentRequest(request);
-  return withClerk(request, event);
+  if (isPublicRoute(path) || isStaffRoute(path)) return NextResponse.next();
+  if (path.startsWith('/api/')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  return NextResponse.redirect(new URL(`/staff/sign-in?redirect_url=${encodeURIComponent(path + request.nextUrl.search)}`, request.url));
 }
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|json|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes
-    "/(api|trpc)(.*)",
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|json|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/(api|trpc)(.*)',
   ],
 };

@@ -55,6 +55,12 @@ the expand/contract pattern and remain compatible with the previous application
 release during rollout. Migration execution is capped at five minutes by default;
 override `DRWPRIME_MIGRATION_TIMEOUT` only for a reviewed long-running migration.
 
+The staff login cutover requires an additive migration **and a one-time import**
+of verified legacy staff identities before the new login replaces Clerk. Do not
+push the cutover through the automatic webhook until `staff_accounts` is populated
+and an imported staff member has a working Google account. See
+[`STAFF_AUTH.md`](STAFF_AUTH.md) for the import and verification sequence.
+
 Seeding is always explicit:
 
 ```bash
@@ -105,7 +111,6 @@ The VPS build wrapper must pass the release SHA into Docker:
 
 ```bash
 docker build \
-  --build-arg "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}" \
   --build-arg "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}" \
   --build-arg "NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC=${NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC:-true}" \
   --build-arg "RELEASE_SHA=${TAG}" \

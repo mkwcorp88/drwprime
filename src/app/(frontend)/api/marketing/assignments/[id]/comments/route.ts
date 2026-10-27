@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { currentUser } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
 
@@ -9,7 +8,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { clerkUserId: userId } = await requireAdmin();
+    const staff = await requireAdmin();
+    const userId = staff.clerkUserId;
 
     const { id } = await params;
     const assignment = await prisma.marketingAssignment.findUnique({ where: { id } });
@@ -22,11 +22,7 @@ export async function POST(
       return NextResponse.json({ error: 'Komentar tidak boleh kosong' }, { status: 400 });
     }
 
-    const user = await currentUser();
-    const authorName =
-      [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
-      user?.emailAddresses?.[0]?.emailAddress ||
-      'Anonim';
+    const authorName = [staff.firstName, staff.lastName].filter(Boolean).join(' ') || staff.primaryEmail || 'Staf';
 
     const comment = await prisma.marketingComment.create({
       data: {

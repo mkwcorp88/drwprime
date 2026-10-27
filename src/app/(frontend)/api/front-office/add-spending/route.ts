@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { isAidoManagedSpendingDate } from '@/lib/aido/config';
@@ -13,8 +12,7 @@ const RUPIAH_PER_POINT = 10_000; // Rp 10.000 = 1 poin
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAdmin();
-    const { userId } = await auth();
+    const { clerkUserId: userId } = await requireAdmin();
     const body = await req.json();
     const { phone, qrToken, amount, treatment, date } = body;
 

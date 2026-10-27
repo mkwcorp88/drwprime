@@ -68,7 +68,6 @@ jobs:
           cache-from: type=registry,ref=${{ env.DEPLOY_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.DEPLOY_IMAGE }}:buildcache,mode=max
           build-args: |
-            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsuZHJ3cHJpbWUuY29tJA
             NEXT_PUBLIC_GOOGLE_CLIENT_ID=145198419539-5kpfdj4683uc323s40ss4lcg599e4oqc.apps.googleusercontent.com
             NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC=true
             RELEASE_SHA=${{ github.sha }}
@@ -76,7 +75,6 @@ jobs:
             database_url=${{ secrets.DATABASE_URL }}
             database_uri=${{ secrets.DATABASE_URI }}
             payload_secret=${{ secrets.PAYLOAD_SECRET }}
-            clerk_secret_key=${{ secrets.CLERK_SECRET_KEY }}
 
   deploy:
     name: Deploy

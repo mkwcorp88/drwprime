@@ -1,7 +1,6 @@
 'use client';
 
-import { useClerk, useUser } from '@clerk/nextjs';
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { MemberClientUser, MemberEnrollment } from '@/lib/member-auth/types';
 
 type MemberAuth = {
@@ -21,38 +20,6 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
   const [enrollment, setEnrollment] = useState<MemberEnrollment | null>(null);
   const [isLoaded, setLoaded] = useState(false);
   const [otpAvailable, setOtpAvailable] = useState(false);
-  const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
-  const { signOut: signOutClerk } = useClerk();
-  const checkedLegacySession = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!clerkLoaded) return;
-    if (!clerkUser) {
-      checkedLegacySession.current = null;
-      return;
-    }
-    if (checkedLegacySession.current === clerkUser.id) return;
-    checkedLegacySession.current = clerkUser.id;
-
-    let cancelled = false;
-    void (async () => {
-      try {
-        const response = await fetch('/api/staff/session', { cache: 'no-store' });
-        if (cancelled || !response.ok) return;
-        const data = await response.json();
-        if (cancelled || data.isAdmin === true) return;
-
-        // Clerk is now reserved for staff. Legacy member sessions must start
-        // over with WhatsApp OTP instead of remaining signed in in the browser.
-        await signOutClerk({ redirectUrl: '/sign-in?redirect_url=/my-prime' });
-      } catch {
-        if (!cancelled) checkedLegacySession.current = null;
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [clerkLoaded, clerkUser, signOutClerk]);
-
   const refresh = useCallback(async () => {
     try {
       const response = await fetch('/api/member-auth/session', { cache: 'no-store' });

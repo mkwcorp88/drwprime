@@ -6,7 +6,6 @@ import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { getMember, requireVerifiedMember } from '@/lib/member-auth/session';
 import { MemberAuthError } from '@/lib/member-auth/policy';
 import { assertMemberOrigin, memberError, memberResponse } from '@/lib/member-auth/http';
-import { isHardcodedAdmin } from '@/lib/admin';
 import { normalizePhone } from '@/lib/phone';
 import { calculateCommission } from '@/lib/policies/commission';
 import { computeMemberTierFromSpending } from '@/lib/policies/loyalty';
@@ -28,11 +27,11 @@ export async function POST(req: Request) {
     assertMemberOrigin(req);
     const member = await getMember();
     if (member) { await requireVerifiedMember(); return memberResponse({ user: { ...member, isAdmin: false } }); }
-    // Clerk is reserved for staff. WhatsApp enrollment creates member records.
+    // Staff sessions are separate from member sessions.
     const authUser = await requireAdmin();
     const { clerkUserId } = authUser;
 
-    // Identity comes from Clerk — NEVER from request body.
+    // Identity comes from the verified staff session — NEVER from request body.
     const email = authUser.primaryEmail;
     const firstName = authUser.firstName || email?.split('@')[0] || 'Member';
     const lastName = authUser.lastName;
@@ -119,8 +118,7 @@ export async function POST(req: Request) {
       isTeamLeader = true;
     }
 
-    // isAdmin determined ONLY by hardcoded Clerk user ID list — never by email.
-    const isAdmin = isHardcodedAdmin(clerkUserId);
+    const isAdmin = authUser.isAdmin;
 
     // A matching walk-in record may contain medical or financial data. Keep the
     // phone unclaimed until profile completion supplies a second identity factor.

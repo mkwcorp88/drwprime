@@ -60,7 +60,7 @@ Website resmi klinik kecantikan **DRW Prime** dengan sistem affiliate marketing 
 - **Framework**: Next.js 15.5.9 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **Authentication**: Clerk
+- **Authentication**: Sesi DRW Prime, Google Identity Services, dan OTP WhatsApp (member/staf terpisah)
 - **Database**: PostgreSQL
 - **ORM**: Prisma 5.22.0
 - **Deployment**: Docker standalone di VPS
@@ -69,11 +69,9 @@ Website resmi klinik kecantikan **DRW Prime** dengan sistem affiliate marketing 
 ## 🔐 Environment Variables
 
 ```env
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+# Google login (Web Client ID, public)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+# WhatsApp OTP dan sesi member/staf: lihat docs/MEMBER_WHATSAPP_LOGIN.md dan docs/STAFF_AUTH.md
 
 # Database
 DATABASE_URL="postgresql://user:password@host/database"
@@ -157,20 +155,7 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ## 🔑 Admin Access
 
-Admin ditentukan berdasarkan Clerk User ID di file `src/lib/admin.ts`:
-
-```typescript
-export const ADMIN_USER_IDS = [
-  'user_36gdG2sWQfY5wdGby1gGgML4ziC', // DRW Prime
-  'user_36jTRE55RsrJHmYbYOaG2yK5MPf'  // MKW
-];
-```
-
-**Untuk menambah admin:**
-1. User harus signup dulu via Clerk
-2. Ambil Clerk User ID dari dashboard Clerk
-3. Tambahkan ke array `ADMIN_USER_IDS`
-4. Deploy/restart aplikasi
+Staf Front Office/marketing hanya dapat login bila identitasnya terdaftar aktif di `StaffAccount`. Google menggunakan email/subject terverifikasi; WhatsApp menggunakan nomor staf yang telah diverifikasi lewat OTP. Akun staf Clerk lama diimpor sekali sebelum cutover. Lihat [`docs/STAFF_AUTH.md`](docs/STAFF_AUTH.md).
 
 ## 📱 Pages & Routes
 

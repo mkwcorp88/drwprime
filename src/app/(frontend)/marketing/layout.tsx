@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { requireAdmin } from '@/lib/auth';
 
 export const metadata: Metadata = {
   title: 'Marketing Dashboard | Derma Rich Wellness',
@@ -6,10 +8,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function MarketingLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
+  try { await requireAdmin(); }
+  catch { redirect('/staff/sign-in?redirect_url=/marketing'); }
   return <div className="min-h-screen bg-dark text-white">{children}</div>;
 }

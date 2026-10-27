@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useStaffAuth } from '@/components/staff-auth/StaffAuthProvider';
 import { useRouter } from 'next/navigation';
 import MarketingHeader from '@/components/marketing/MarketingHeader';
 import AssignmentFormModal from '@/components/marketing/AssignmentFormModal';
@@ -44,7 +44,7 @@ function isOverdue(a: AssignmentRow) {
 }
 
 export default function MarketingDashboardPage() {
-  const { isLoaded, isSignedIn } = useUser();
+  const { isLoaded, isSignedIn } = useStaffAuth();
   const router = useRouter();
 
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);

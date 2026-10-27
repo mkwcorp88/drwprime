@@ -1,15 +1,9 @@
 /**
  * Admin authorization.
  *
- * The only authoritative source is the hardcoded Clerk User ID list.
- * Database `isAdmin` flag is a legacy convenience for quick bootstrapping
- * and will be deprecated once all production admins are in this list.
- *
- * IMPORTANT: never use email to determine admin status — email comes
- * from Clerk, not from a request body.
+ * Historical Clerk identifiers are retained only for the one-time staff
+ * migration and CMS access. Live authorization uses StaffAccount sessions.
  */
-import { prisma } from '@/lib/prisma';
-import { auth } from '@clerk/nextjs/server';
 
 export const ADMIN_USER_IDS = [
   'user_36gdG2sWQfY5wdGby1gGgML4ziC',
@@ -34,24 +28,9 @@ export function isAdminByEmail(email: string | null | undefined): boolean {
  * Returns true/false without throwing.
  */
 export async function isUserAdmin(): Promise<boolean> {
-  const { userId } = await auth();
-  if (!userId) return false;
-
-  if (isHardcodedAdmin(userId)) return true;
-
-  const { currentUser } = await import('@clerk/nextjs/server');
-  const clerkUser = await currentUser();
-  const clerkEmail = clerkUser?.emailAddresses[0]?.emailAddress;
-  if (isAdminByEmail(clerkEmail)) return true;
-
   try {
-    const user = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
-      select: { isAdmin: true },
-    });
-    return user?.isAdmin ?? false;
-  } catch (error) {
-    console.error('Error checking admin status:', error);
-    return false;
-  }
+    const { requireAdmin } = await import('@/lib/auth');
+    await requireAdmin();
+    return true;
+  } catch { return false; }
 }

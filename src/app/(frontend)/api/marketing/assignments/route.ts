@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { currentUser } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { isValidType, isValidStatus, isValidPriority } from '@/lib/marketing';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
@@ -46,13 +45,9 @@ export async function GET(req: NextRequest) {
 // POST - Create a new assignment
 export async function POST(req: NextRequest) {
   try {
-    const { clerkUserId: userId } = await requireAdmin();
-
-    const user = await currentUser();
-    const requesterName =
-      [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
-      user?.emailAddresses?.[0]?.emailAddress ||
-      'Anonim';
+    const staff = await requireAdmin();
+    const userId = staff.clerkUserId;
+    const requesterName = [staff.firstName, staff.lastName].filter(Boolean).join(' ') || staff.primaryEmail || 'Staf';
 
     const body = await req.json();
     const {

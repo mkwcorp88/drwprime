@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
 import { normalizePhone } from '@/lib/phone';
@@ -250,9 +249,7 @@ async function processImport(worksheet: ExcelJS.Worksheet, userId: string | null
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAdmin();
-
-    const { userId } = await auth();
+    const { clerkUserId: userId } = await requireAdmin();
     const formData = await req.formData();
     const file = formData.get('file');
 

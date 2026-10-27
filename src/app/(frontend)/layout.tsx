@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
 import Script from "next/script";
 import "./globals.css";
 import { SITE_URL, SITE_NAME, DEFAULT_OG_IMAGE } from "@/lib/seo";
 import { getRunningText } from "@/lib/running-text";
 import { RunningTextProvider } from "@/components/RunningTextProvider";
 import { MemberAuthProvider } from '@/components/member-auth/MemberAuthProvider';
+import { StaffAuthProvider } from '@/components/staff-auth/StaffAuthProvider';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -66,8 +66,7 @@ export default async function RootLayout({
   const runningText = await getRunningText();
 
   return (
-    <ClerkProvider signInUrl="/staff/sign-in" signUpUrl="/staff/sign-in">
-      <html lang="id">
+    <html lang="id">
         <head>
           <meta name="mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -150,10 +149,9 @@ export default async function RootLayout({
             />
           </noscript>
           <RunningTextProvider initialText={runningText}>
-            <MemberAuthProvider>{children}</MemberAuthProvider>
+            <StaffAuthProvider><MemberAuthProvider>{children}</MemberAuthProvider></StaffAuthProvider>
           </RunningTextProvider>
         </body>
       </html>
-    </ClerkProvider>
   );
 }

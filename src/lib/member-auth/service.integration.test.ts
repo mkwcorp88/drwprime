@@ -16,9 +16,11 @@ let db: PrismaClient;
 let service: typeof import('./service');
 let sessions: typeof import('./session');
 let google: typeof import('./google');
+let staffAuth: typeof import('@/lib/staff-auth/service');
 const deliveries = new Map<string, string>();
 const send = vi.fn(async (phone: string, code: string) => { deliveries.set(phone, code); });
 const browser = () => randomBytes(32).toString('base64url');
+let staffCookieToken: string | undefined;
 const runIntegrationTests = process.env.MEMBER_AUTH_RUN_INTEGRATION_TESTS === 'true' || !process.env.CI;
 const integrationDescribe = runIntegrationTests ? describe : describe.skip;
 
@@ -44,17 +46,24 @@ beforeAll(async () => {
   db = new PrismaClient({ datasources: { db: { url } } });
   vi.doMock('@/lib/prisma', () => ({ prisma: db }));
   vi.doMock('./whatsapp', () => ({ requireMemberOtpConfig: () => ({}), sendMemberOtp: send }));
-  vi.doMock('@clerk/nextjs/server', () => ({ auth: async () => ({ userId: null }), currentUser: async () => null }));
+  vi.doMock('@/lib/member-auth/whatsapp', () => ({ requireMemberOtpConfig: () => ({}), sendMemberOtp: send }));
+  vi.doMock('next/headers', () => ({ cookies: async () => ({
+    get: (name: string) => name === 'drw_staff_session' && staffCookieToken ? { value: staffCookieToken } : undefined,
+    set: () => {}, delete: () => {},
+  }) }));
   service = await import('./service');
   sessions = await import('./session');
   google = await import('./google');
+  staffAuth = await import('@/lib/staff-auth/service');
 }, 120_000);
 
 beforeEach(async () => {
   vi.stubEnv('MEMBER_OTP_SECRET', 'test-only-secret-thirty-two-characters-minimum');
   deliveries.clear(); send.mockClear();
+  staffCookieToken = undefined;
   await db.$executeRaw`TRUNCATE TABLE users CASCADE`;
   await db.memberLoginOtp.deleteMany();
+  await db.staffAccount.deleteMany();
   await db.preClaimAffiliateCode.deleteMany();
 });
 
@@ -240,7 +249,7 @@ integrationDescribe('legacy account continuity and recovery', () => {
     await expect(service.approveMemberPhoneRecovery(old.id, '081234567891', 'Identitas diperiksa di klinik.', 'staff-clerk')).rejects.toMatchObject({ code: 'PHONE_CONFLICT' });
   });
 
-  it('does not let a WhatsApp member session satisfy the Clerk admin guard', async () => {
+  it('does not let a WhatsApp member session satisfy the staff admin guard', async () => {
     const { requireAdmin } = await import('@/lib/auth');
     await registered('6281234567890', { isAdmin: true });
     const otp = await request();
@@ -269,8 +278,64 @@ integrationDescribe('legacy account continuity and recovery', () => {
       await client.query(googleMigration);
       expect((await client.query('SELECT COUNT(*)::int AS count FROM member_google_accounts')).rows[0].count).toBe(0);
       expect((await client.query("SELECT column_default FROM information_schema.columns WHERE table_name = 'member_login_otps' AND column_name = 'purpose'")).rows[0].column_default).toContain('login');
+      const staffMigration = await readFile(resolve('prisma/migrations/20261024000000_add_staff_auth/migration.sql'), 'utf8');
+      await client.query(staffMigration);
+      expect((await client.query('SELECT COUNT(*)::int AS count FROM staff_accounts')).rows[0].count).toBe(0);
       expect((await client.query('SELECT id, points FROM users')).rows).toEqual([{ id: 'existing', points: 42 }]);
     } finally { await client.end(); }
+  });
+});
+
+integrationDescribe('staff WhatsApp and Google sessions', () => {
+  it('requires a registered active staff phone and verifies OTP once in the requesting browser', async () => {
+    const staff = await db.staffAccount.create({ data: { name: 'Front Office', legacyClerkId: 'legacy-admin', email: 'fo@example.com', phone: '6281234567890', cmsAccess: true } });
+    await expect(staffAuth.requestStaffOtp('081234567891', browser(), '127.0.0.1')).rejects.toMatchObject({ code: 'STAFF_NOT_REGISTERED' });
+    const binding = browser();
+    const challenge = await staffAuth.requestStaffOtp('081234567890', binding, '127.0.0.1');
+    const code = deliveries.get('6281234567890')!;
+    await expect(staffAuth.verifyStaffOtp(challenge.challengeId, code, browser())).rejects.toMatchObject({ code: 'OTP_INVALID' });
+    const token = await staffAuth.verifyStaffOtp(challenge.challengeId, code, binding);
+    expect(await staffAuth.resolveStaffToken(token)).toMatchObject({ id: staff.id, legacyClerkId: 'legacy-admin', cmsAccess: true });
+    staffCookieToken = token;
+    expect(await (await import('@/lib/auth')).requireAdmin()).toMatchObject({ clerkUserId: 'legacy-admin', cmsAccess: true, isAdmin: true });
+    await expect(staffAuth.verifyStaffOtp(challenge.challengeId, code, binding)).rejects.toMatchObject({ code: 'OTP_INVALID' });
+    await db.staffAccount.update({ where: { id: staff.id }, data: { active: false } });
+    expect(await staffAuth.resolveStaffToken(token)).toBeNull();
+  });
+
+  it('limits wrong staff OTP attempts without consuming a valid code prematurely', async () => {
+    await db.staffAccount.create({ data: { name: 'Staf', phone: '6281234567890' } });
+    const binding = browser();
+    const challenge = await staffAuth.requestStaffOtp('6281234567890', binding, '127.0.0.1');
+    const code = deliveries.get('6281234567890')!;
+    const wrong = code === '000000' ? '111111' : '000000';
+    await Promise.allSettled(Array.from({ length: 8 }, () => staffAuth.verifyStaffOtp(challenge.challengeId, wrong, binding)));
+    expect((await db.staffLoginOtp.findUniqueOrThrow({ where: { id: challenge.challengeId } })).attempts).toBe(5);
+    await expect(staffAuth.verifyStaffOtp(challenge.challengeId, code, binding)).rejects.toMatchObject({ code: 'OTP_INVALID' });
+  });
+
+  it('binds a verified Google identity only to the imported staff allowlist', async () => {
+    const staff = await db.staffAccount.create({ data: { name: 'Staf', email: 'staff@example.com', legacyClerkId: 'old-clerk' } });
+    const identity = { sub: 'google-staff', email: 'staff@example.com', firstName: 'Staf', lastName: null };
+    await expect(staffAuth.signInVerifiedGoogleStaff({ ...identity, email: 'unknown@example.com' })).rejects.toMatchObject({ code: 'STAFF_NOT_REGISTERED' });
+    const token = await staffAuth.signInVerifiedGoogleStaff(identity);
+    expect(await staffAuth.resolveStaffToken(token)).toMatchObject({ id: staff.id, googleSub: identity.sub });
+    await expect(staffAuth.signInVerifiedGoogleStaff({ ...identity, sub: 'different-google' })).rejects.toMatchObject({ code: 'STAFF_NOT_REGISTERED' });
+    await db.staffAccount.create({ data: { name: 'Staf lain', email: 'other@example.com' } });
+    const changedEmail = await staffAuth.signInVerifiedGoogleStaff({ ...identity, email: 'other@example.com' });
+    expect((await staffAuth.resolveStaffToken(changedEmail))?.id).toBe(staff.id);
+  });
+
+  it('lets a Google-only staff member add WhatsApp through OTP without using that code to log in', async () => {
+    const staff = await db.staffAccount.create({ data: { name: 'Staf', email: 'staff@example.com' } });
+    const binding = browser();
+    const challenge = await staffAuth.requestStaffOtp('081234567890', binding, '127.0.0.1', staff.id);
+    const code = deliveries.get('6281234567890')!;
+    await expect(staffAuth.verifyStaffOtp(challenge.challengeId, code, binding)).rejects.toMatchObject({ code: 'OTP_INVALID' });
+    await expect(staffAuth.verifyStaffPhoneOtp(staff.id, challenge.challengeId, code, browser())).rejects.toMatchObject({ code: 'OTP_INVALID' });
+    await staffAuth.verifyStaffPhoneOtp(staff.id, challenge.challengeId, code, binding);
+    expect((await db.staffAccount.findUniqueOrThrow({ where: { id: staff.id } })).phone).toBe('6281234567890');
+    await expect(staffAuth.verifyStaffPhoneOtp(staff.id, challenge.challengeId, code, binding)).rejects.toMatchObject({ code: 'OTP_INVALID' });
   });
 });
 
@@ -379,7 +444,7 @@ integrationDescribe('Google member login and profile phone verification', () => 
     await expect(service.verifyProfilePhoneOtp(stub!.id, otp.challengeId, otp.code, otp.binding, null)).rejects.toMatchObject({ code: 'OTP_INVALID' });
   });
 
-  it('keeps Google and WhatsApp member sessions out of the Clerk admin guard', async () => {
+  it('keeps Google and WhatsApp member sessions out of the staff admin guard', async () => {
     const { requireAdmin } = await import('@/lib/auth');
     const login = await google.signInGoogleMember(googleIdentity());
     expect(await sessions.resolveMemberToken(login.token)).toBeTruthy();

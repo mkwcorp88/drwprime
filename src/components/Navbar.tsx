@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { UserButton, useUser } from '@clerk/nextjs';
 import { useMemberAuth } from '@/components/member-auth/MemberAuthProvider';
+import { useStaffAuth } from '@/components/staff-auth/StaffAuthProvider';
 import AnnouncementTicker from './AnnouncementTicker';
 
 const PUBLIC_LINKS = [
@@ -25,22 +25,14 @@ const memberLinkClass =
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const { user } = useMemberAuth();
-  const { user: staffUser, isLoaded } = useUser();
+  const { staff: staffUser } = useStaffAuth();
+  const isAdmin = Boolean(staffUser);
   const isAffiliate = Boolean(user?.isTeamLeader);
   const hasAccount = Boolean(user || isAdmin);
   const adminMenuRef = useRef<HTMLLIElement>(null);
 
   const hasWorkspaceMenu = isAffiliate || isAdmin;
-
-  useEffect(() => {
-    if (isLoaded && staffUser) {
-      checkAdminStatus();
-    } else if (isLoaded) {
-      setIsAdmin(false);
-    }
-  }, [isLoaded, staffUser]);
 
   useEffect(() => {
     if (!adminMenuOpen) return;
@@ -66,16 +58,6 @@ export default function Navbar() {
     };
   }, [adminMenuOpen]);
 
-  const checkAdminStatus = async () => {
-    try {
-      const response = await fetch('/api/staff/session', { cache: 'no-store' });
-      const data = await response.json();
-      setIsAdmin(Boolean(data.isAdmin));
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-    }
-  };
-
   const closeMenus = () => {
     setIsOpen(false);
     setAdminMenuOpen(false);
@@ -85,7 +67,7 @@ export default function Navbar() {
     <Link href="/my-prime" aria-label="Akun My Prime" className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">
       {user.firstName.slice(0, 1).toUpperCase()}
     </Link>
-  ) : <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: 'w-8 h-8' } }} />;
+  ) : <Link href="/front-office" aria-label="Akun staf" className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">{staffUser?.name.slice(0, 1).toUpperCase() || 'S'}</Link>;
 
   return (
     <nav className="hidden lg:block fixed top-0 w-full bg-black/95 backdrop-blur-md z-50 border-b border-primary/20">
@@ -111,11 +93,11 @@ export default function Navbar() {
           ))}
 
           {hasAccount && <>
-            <li>
+            {user && <li>
               <Link href="/my-prime" className={memberLinkClass}>
                 MY PRIME
               </Link>
-            </li>
+            </li>}
             {hasWorkspaceMenu && (
               <li ref={adminMenuRef} className="relative z-30">
                 <button
@@ -220,7 +202,7 @@ export default function Navbar() {
               </li>
             ))}
             {hasAccount && <>
-              <li>
+              {user && <li>
                 <Link
                   href="/my-prime"
                   onClick={closeMenus}
@@ -228,7 +210,7 @@ export default function Navbar() {
                 >
                   MY PRIME
                 </Link>
-              </li>
+              </li>}
               {isAffiliate && (
                 <li>
                   <Link

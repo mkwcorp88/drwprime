@@ -1,4 +1,3 @@
-import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, handleAuthError } from '@/lib/auth';
@@ -79,8 +78,7 @@ export async function PATCH(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    await requireAdmin();
-    const { userId } = await auth();
+    const { clerkUserId: userId } = await requireAdmin();
 
     const { slug } = await params;
 
@@ -146,7 +144,6 @@ export async function DELETE(
 ) {
   try {
     await requireAdmin();
-    const { userId } = await auth();
 
     const { slug } = await params;
 

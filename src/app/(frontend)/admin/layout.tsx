@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { auth } from "@clerk/nextjs/server";
+import { requireAdmin } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import AdminNavbar from "@/components/AdminNavbar";
 
@@ -12,11 +12,8 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { userId } = await auth();
-
-  if (!userId) {
-    redirect("/");
-  }
+  try { await requireAdmin(); }
+  catch { redirect('/staff/sign-in?redirect_url=/admin'); }
 
   return (
     <div className="min-h-screen bg-dark">

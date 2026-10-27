@@ -35,8 +35,6 @@ MEMBER_WHATSAPP_TREATMENT_MEMBER_TEMPLATE=treatment_completed_member
 MEMBER_WHATSAPP_TREATMENT_WALKIN_TEMPLATE=treatment_completed_walkin
 MEMBER_OTP_SECRET=<rahasia-acak-terpisah-minimal-32-karakter>
 MEMBER_TRUST_PROXY=true
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/staff/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/staff/sign-in
 ```
 
 `MEMBER_TRUST_PROXY=true` hanya digunakan di belakang reverse proxy yang **menimpa** `X-Real-IP` dengan IP koneksi sebenarnya, misalnya `proxy_set_header X-Real-IP $remote_addr;`. Pastikan endpoint aplikasi tidak dapat diakses langsung dengan header buatan pengguna. Tanpa pengaturan ini, permintaan memakai satu bucket IP konservatif bersama.
@@ -60,11 +58,11 @@ Pada cutover OTP, migrasi `20260916120000_force_member_otp_relogin` menghapus se
 
 Front Office dapat membuka detail member → **Aktivasi / pemulihan login WhatsApp**, mencatat verifikasi identitas, dan menyetujui nomor untuk 24 jam. Persetujuan mencabut sesi lama dan memblokir login lama. Pemilik nomor yang disetujui tetap harus lolos OTP sebelum nomor login diubah. Jika persetujuan kedaluwarsa, FO perlu memperbaruinya. Catatan tersimpan di `MemberPhoneRecovery` dengan aktor Clerk, alasan, waktu kedaluwarsa, dan waktu pemakaian.
 
-Login staf tersedia di `/staff/sign-in` menggunakan Clerk. API staf tetap memerlukan `requireAdmin()`. Cookie member, termasuk milik member dengan flag database `isAdmin`, tidak memenuhi autentikasi staf. Login OPS tetap menggunakan modul OPS tersendiri.
+Login staf tersedia di `/staff/sign-in` menggunakan sesi staf DRW Prime sendiri (Google atau OTP WhatsApp); lihat [`STAFF_AUTH.md`](STAFF_AUTH.md). API staf tetap memerlukan `requireAdmin()`. Cookie member, termasuk milik member dengan flag database `isAdmin`, tidak memenuhi autentikasi staf. Login OPS tetap menggunakan modul OPS tersendiri.
 
 ## Login Google untuk member
 
-Google adalah pilihan **tambahan** di `/sign-in`, bukan pengganti WhatsApp. Login member memakai Google Identity Services langsung dan sesi member DRW Prime sendiri, tanpa Clerk atau MCP. Clerk tetap khusus untuk login staf. Setelah OAuth Google Cloud berstatus **In production**, build memakai `NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC=true` sehingga kedua pilihan tampil untuk semua pengunjung. Saat pengujian terbatas sebelumnya, tautan `/sign-in?google_test=1` hanya menampilkan Google bagi test users.
+Google adalah pilihan **tambahan** di `/sign-in`, bukan pengganti WhatsApp. Login member memakai Google Identity Services langsung dan sesi member DRW Prime sendiri, tanpa Clerk atau MCP. Setelah OAuth Google Cloud berstatus **In production**, build memakai `NEXT_PUBLIC_GOOGLE_LOGIN_PUBLIC=true` sehingga kedua pilihan tampil untuk semua pengunjung. Saat pengujian terbatas sebelumnya, tautan `/sign-in?google_test=1` hanya menampilkan Google bagi test users.
 
 1. Di Google Cloud Console, buat **OAuth 2.0 Client ID** tipe **Web application**. Tambahkan `https://drwprime.com` pada **Authorized JavaScript origins** (dan origin lokal saat pengembangan). Atur consent screen dan publikasikan aplikasi sesuai kebutuhan. Alur Google Identity Services memakai ID token pada browser, tanpa client secret atau redirect URI aplikasi.
 2. `NEXT_PUBLIC_GOOGLE_CLIENT_ID` memakai Web Client ID DRW Prime pada `.env.local` untuk pengembangan dan argumen Docker untuk deployment; nilai default publik di Dockerfile dapat ditimpa dengan `--build-arg`. Client ID bersifat publik; jangan menyimpan Google Client Secret di aplikasi karena tidak digunakan. Backend memverifikasi signature, audience, issuer, dan masa berlaku ID token dari Google menggunakan `google-auth-library`.
@@ -93,7 +91,7 @@ npm run build
 
 Tes integrasi di `src/lib/member-auth/service.integration.test.ts` membuat cluster PostgreSQL sementara, memakai database uji terpisah, dan menghapusnya setelah selesai. Tes tidak menggunakan `DATABASE_URL` dari environment. Transport WhatsApp dimock; tes tidak mengirim pesan nyata. Docker menjalankannya sebagai user non-root.
 
-Build lokal membutuhkan konfigurasi Clerk/database/Payload. Untuk pemeriksaan build tanpa layanan produksi, gunakan nilai uji yang sudah didefinisikan pada `.github/workflows/ci.yml`. Nilai uji tersebut bukan konfigurasi deploy.
+Build lokal membutuhkan konfigurasi database/Payload. Untuk pemeriksaan build tanpa layanan produksi, gunakan nilai uji yang sudah didefinisikan pada `.github/workflows/ci.yml`. Nilai uji tersebut bukan konfigurasi deploy.
 
 ## Aktivasi produksi
 

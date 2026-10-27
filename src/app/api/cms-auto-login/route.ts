@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getPayload } from 'payload';
 import config from '@payload-config';
-import { auth } from '@clerk/nextjs/server';
-import { isHardcodedAdmin } from '@/lib/admin';
+import { requireAdmin } from '@/lib/auth';
 
 const COOKIE_NAME = 'payload-token';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://drwprime.com';
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) {
+  let staff;
+  try { staff = await requireAdmin(); }
+  catch {
     return NextResponse.redirect(new URL('/staff/sign-in?redirect_url=/cms', SITE_URL));
   }
-  if (!isHardcodedAdmin(userId)) {
+  if (!staff.cmsAccess) {
     return NextResponse.redirect(new URL('/', SITE_URL));
   }
 
