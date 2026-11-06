@@ -65,6 +65,23 @@ const CLUSTER_QUEUE: Array<Omit<Topic, 'source'>> = [
     topic: 'Body Spa dan Massage di Jogja: Manfaat Nyata untuk Pemulihan Tubuh',
     keyword: 'body spa jogja',
   },
+  // Volumes measured 6 Nov 2026 (keyword_overview, Indonesia). Every entry is on the menu.
+  {
+    topic: 'Nail Art di Jogja: Pilihan Nail Treatment dan Cara Merawat Kuku Sesudahnya',
+    keyword: 'nail art jogja', // 880/bln
+  },
+  {
+    topic: 'Cauter di Klinik: Cara Kerja, Persiapan, dan Perawatan Kulit Setelahnya',
+    keyword: 'cauter wajah', // 590/bln
+  },
+  {
+    topic: 'Manicure Pedicure di Jogja: Apa Saja yang Dikerjakan dan Berapa Sering Perlu Dilakukan',
+    keyword: 'manicure pedicure jogja', // 110/bln
+  },
+  {
+    topic: 'Eyelash Extension di Jogja: Cara Memilih Model dan Merawat Bulu Mata Sambungan',
+    keyword: 'eyelash extension jogja', // 70/bln
+  },
 ];
 
 /**
