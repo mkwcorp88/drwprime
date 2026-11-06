@@ -78,10 +78,10 @@ pickTopic() ──▶ generateArticle() ──▶ generateCover() ──▶ uplo
 1. **Idempoten per hari.** Job menghitung artikel yang sudah dibuat hari ini dan
    hanya menulis kekurangannya terhadap `BLOG_ARTICLES_PER_DAY` (default 1).
    Karena itu ia aman dipanggil **tiap jam** — dan memang harus tiap jam, lihat §7.
-2. **Pemilihan topik** (`src/lib/seo-engine/topics.ts`), berurutan:
-   curated cluster queue → ekspansi DataForSEO `keyword_ideas` → fallback generatif
-   (keyword × kategori treatment × angle) → fallback bertanggal. Semua kandidat
-   didedup terhadap judul/slug artikel yang sudah ada di Payload.
+2. **Pemilihan topik** (`src/lib/seo-engine/topics.ts`): hanya curated cluster queue.
+   Kandidat dilewati bila kata-katanya sudah ada di judul/slug artikel di Payload
+   (`topic-dedup.ts`). Antrean habis = job berhenti dan memberi tahu Telegram sekali
+   sehari, bukan menulis artikel pengisi.
 3. **Penulisan** — Gemini dengan `responseSchema`, di-ground pada blok DATA.
 4. **Cover** — Gemini image-to-image dari foto ruangan klinik asli, 16:9.
 5. **Publish** — media → MinIO lewat Payload, lalu post `_status: published`.

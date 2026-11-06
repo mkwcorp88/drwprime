@@ -22,7 +22,7 @@ import { guardCron } from '@/lib/seo-engine/cron-auth';
 import { generateArticle, generateCover, hasGeminiKey } from '@/lib/seo-engine/gemini';
 import { blocksToLexical, blocksToPlainText } from '@/lib/seo-engine/lexical';
 import { escapeHtml, telegramSend, telegramSendPhoto } from '@/lib/seo-engine/notify';
-import { pickTopic } from '@/lib/seo-engine/topics';
+import { pickTopic, type Topic } from '@/lib/seo-engine/topics';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 800;
@@ -70,8 +70,7 @@ async function publishedToday(payload: Payload): Promise<number> {
   return totalDocs;
 }
 
-async function generateOne(payload: Payload, { draft }: { draft: boolean }) {
-  const topic = await pickTopic();
+async function generateOne(payload: Payload, topic: Topic, { draft }: { draft: boolean }) {
   console.log(`[seo-blog] generating "${topic.topic}" (kw=${topic.keyword}, src=${topic.source})`);
 
   const article = await generateArticle(topic.topic, topic.keyword);
@@ -173,7 +172,22 @@ async function handler(request: Request) {
 
   for (let i = 0; i < toGenerate; i++) {
     try {
-      const result = await generateOne(payload, { draft });
+      const topic = await pickTopic();
+      if (!topic) {
+        console.log('[seo-blog] antrean topik habis, tidak ada artikel ditulis.');
+        // The job fires hourly until the daily target is met, so alert only on
+        // the 07:00 WIB run.
+        if (force || new Date().getUTCHours() === 0) {
+          await telegramSend(
+            '🛑 <b>Antrean topik habis: DRW Prime</b>\n\n' +
+              'Tidak ada artikel terbit sampai <code>CLUSTER_QUEUE</code> di ' +
+              '<code>src/lib/seo-engine/topics.ts</code> ditambah.'
+          );
+        }
+        return NextResponse.json({ ok: true, skipped: true, reason: 'queue-empty', target, doneToday, generated, failures });
+      }
+
+      const result = await generateOne(payload, topic, { draft });
       generated.push(result);
       console.log(
         `[seo-blog] ${draft ? 'draft' : 'published'} ${result.url} (${result.wordCount} kata)`

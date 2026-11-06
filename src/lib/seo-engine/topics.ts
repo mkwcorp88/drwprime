@@ -1,23 +1,18 @@
 /**
  * Topic picker for the DRW Prime auto-blog.
  *
- * Order of preference:
- *   1. A curated hub-and-spoke queue (highest SEO value, written by hand).
- *   2. DataForSEO keyword ideas, when there is budget.
- *   3. A generative cross-product of the keyword cluster and treatment categories.
- *   4. A dated fallback, so the job never blocks on "nothing left to write".
- *
- * Every candidate is deduped against titles/slugs already in Payload.
+ * Walks a curated hub-and-spoke queue, written by hand and highest SEO value
+ * first, skipping anything already covered by a post in Payload. An empty queue
+ * returns null and the job stops: publishing a filler article every day is worse
+ * than publishing nothing.
  */
-import { catalogCategories } from '@/lib/treatment-catalog';
 import { getPayloadClient } from '@/lib/payload';
-import { KEYWORD_CLUSTER } from './facts';
-import { hasBudget, keywordIdeas } from './dataforseo';
+import { isTopicCovered } from './topic-dedup';
 
 export type Topic = {
   topic: string;
   keyword: string;
-  source: 'cluster' | 'dataforseo' | 'generated' | 'fallback';
+  source: 'cluster';
 };
 
 /** Pillar + spoke topics, highest search value first. Mirrors docs/SEO_AUTOMATION.md. */
@@ -72,90 +67,33 @@ const CLUSTER_QUEUE: Array<Omit<Topic, 'source'>> = [
   },
 ];
 
-/** Angle templates for the generative fallback. */
-const ANGLES: Array<(keyword: string, category: string) => Omit<Topic, 'source'>> = [
-  (keyword, category) => ({
-    topic: `${category} di DRW Prime: Pilihan Treatment, Harga, dan Cara Memilihnya`,
-    keyword,
-  }),
-  (keyword, category) => ({
-    topic: `Apa yang Perlu Disiapkan Sebelum Menjalani ${category}?`,
-    keyword,
-  }),
-  (keyword, category) => ({
-    topic: `${category} untuk Pemula: Ekspektasi Realistis dan Perawatan Setelahnya`,
-    keyword,
-  }),
-];
-
-/** Titles + slugs already published or drafted, lowercased for dedup. */
-async function usedKeys(limit = 200): Promise<Set<string>> {
-  const used = new Set<string>();
-  try {
-    const payload = await getPayloadClient();
-    const { docs } = await payload.find({
-      collection: 'posts',
-      limit,
-      depth: 0,
-      sort: '-createdAt',
-      pagination: false,
-    });
-    for (const doc of docs as Array<{ title?: string; slug?: string }>) {
-      if (doc.title) used.add(doc.title.toLowerCase());
-      if (doc.slug) used.add(doc.slug.toLowerCase());
-    }
-  } catch (error) {
-    console.error('[seo-engine] gagal baca post lama untuk dedup:', error);
+/**
+ * Titles + slugs already published or drafted. Errors propagate on purpose: an
+ * empty result would make every queue entry look unwritten.
+ */
+async function usedKeys(limit = 1000): Promise<string[]> {
+  const payload = await getPayloadClient();
+  const { docs } = await payload.find({
+    collection: 'posts',
+    limit,
+    depth: 0,
+    sort: '-createdAt',
+    pagination: false,
+    select: { title: true, slug: true },
+  });
+  const used: string[] = [];
+  for (const doc of docs as Array<{ title?: string; slug?: string }>) {
+    if (doc.title) used.push(doc.title);
+    if (doc.slug) used.push(doc.slug);
   }
   return used;
 }
 
-function isFresh(candidate: Omit<Topic, 'source'>, used: Set<string>): boolean {
-  return (
-    !used.has(candidate.topic.toLowerCase()) && !used.has((candidate.keyword || '').toLowerCase())
-  );
-}
-
-function titleCase(value: string): string {
-  return value.replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-export async function pickTopic(): Promise<Topic> {
+export async function pickTopic(): Promise<Topic | null> {
   const used = await usedKeys();
 
-  // 1) Curated queue first.
   for (const candidate of CLUSTER_QUEUE) {
-    if (isFresh(candidate, used)) return { ...candidate, source: 'cluster' };
+    if (!isTopicCovered(candidate, used)) return { ...candidate, source: 'cluster' };
   }
-
-  // 2) DataForSEO expansion — only when there is budget.
-  if (await hasBudget()) {
-    const ideas = await keywordIdeas(KEYWORD_CLUSTER.primary, { limit: 25 });
-    for (const idea of ideas) {
-      const candidate = {
-        topic: `${titleCase(idea.keyword)}: Panduan Lengkap dari DRW Prime`,
-        keyword: idea.keyword,
-      };
-      if (isFresh(candidate, used)) return { ...candidate, source: 'dataforseo' };
-    }
-  }
-
-  // 3) Generative fallback: keyword cluster x treatment categories x angles.
-  const keywords = [KEYWORD_CLUSTER.primary, ...KEYWORD_CLUSTER.secondary];
-  const categories = catalogCategories.map((category) => category.name);
-  for (const angle of ANGLES) {
-    for (const keyword of keywords) {
-      for (const category of categories) {
-        const candidate = angle(keyword, category);
-        if (isFresh(candidate, used)) return { ...candidate, source: 'generated' };
-      }
-    }
-  }
-
-  // 4) Last resort — never blocks the job.
-  return {
-    topic: `Rangkuman Perawatan Kecantikan di DRW Prime (${new Date().toISOString().slice(0, 10)})`,
-    keyword: KEYWORD_CLUSTER.primary,
-    source: 'fallback',
-  };
+  return null;
 }
