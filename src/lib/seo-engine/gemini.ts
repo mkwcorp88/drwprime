@@ -16,6 +16,7 @@
 import { COMPANY, factSheet, SOURCE_PHOTOS } from './facts';
 import type { ArticleBlock } from './lexical';
 
+const API_ROOT = `${(process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '')}/v1beta`;
 const KEY = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
 const TEXT_MODEL = process.env.GEO_GEN_GEMINI_MODEL || 'gemini-flash-latest';
@@ -112,7 +113,7 @@ FIELD LAIN:
 - tags: 3-6 tag pendek yang relevan.`;
 
 async function callGemini<T>(prompt: string, schema: object, maxOutputTokens: number): Promise<T> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${KEY()}`;
+  const url = `${API_ROOT}/models/${TEXT_MODEL}:generateContent?key=${KEY()}`;
   const body = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
@@ -231,7 +232,7 @@ export async function generateCover({
 
     let lastError: unknown;
     for (const model of IMAGE_MODELS) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${KEY()}`;
+      const url = `${API_ROOT}/models/${model}:generateContent?key=${KEY()}`;
       const body = {
         contents: [
           {
