@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import Image from 'next/image';
 import { BarChart3, CalendarDays, CircleDollarSign, Database, LayoutDashboard, Megaphone, Users, CalendarCheck, Upload, Plus } from 'lucide-react';
 import { CRM_AD_ROLES, CRM_BOOKING_ROLES, CRM_PLATFORMS, CRM_ROLES, CRM_SOURCES, CRM_STATUSES, CRM_WRITE_ROLES } from '@/lib/crm/constants';
 import ImportPanel from './ImportPanel';
@@ -80,7 +81,7 @@ export default function CrmApp({ initialActor }: { initialActor: Actor }) {
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Belum dapat keluar.'); }
   }
   const current = nav.find((item) => item.id === view)?.title || (view === 'import' ? 'Upload database' : 'Kontak');
-  return <div className="crm-root"><div className="crm-shell"><aside className="crm-sidebar"><div className="crm-brand"><span className="crm-mark">P</span><div><strong>DRW PRIMÉ</strong><small>CRM WORKSPACE</small></div></div><p className="crm-caption">Menu utama</p><nav className="crm-nav">{nav.filter((item) => item.id !== 'users' || initialActor.role === 'ADMIN').filter((item) => !['campaigns','spend'].includes(item.id) || canAds).map(({id,title,icon:Icon}) => <button type="button" key={id} className={(view === id || (id === 'leads' && ['lead','lead-edit','import'].includes(view))) ? 'active' : ''} onClick={() => go(id)}><Icon size={17} />{title}</button>)}</nav><div className="crm-sidebar-bottom"><strong>{initialActor.name}</strong><small>{CRM_ROLES[initialActor.role]} · DRW Prime</small><button type="button" onClick={logout}>Keluar →</button></div></aside>
+  return <div className="crm-root"><div className="crm-shell"><aside className="crm-sidebar"><div className="crm-brand"><Image className="crm-brand-logo" src="/drwprime-logo.png" alt="DRW Prime" width={1095} height={277} priority /><small>CRM WORKSPACE</small></div><p className="crm-caption">Menu utama</p><nav className="crm-nav">{nav.filter((item) => item.id !== 'users' || initialActor.role === 'ADMIN').filter((item) => !['campaigns','spend'].includes(item.id) || canAds).map(({id,title,icon:Icon}) => <button type="button" key={id} className={(view === id || (id === 'leads' && ['lead','lead-edit','import'].includes(view))) ? 'active' : ''} onClick={() => go(id)}><Icon size={17} />{title}</button>)}</nav><div className="crm-sidebar-bottom"><strong>{initialActor.name}</strong><small>{CRM_ROLES[initialActor.role]} · DRW Prime</small><button type="button" onClick={logout}>Keluar →</button></div></aside>
     <main className="crm-main"><header className="crm-topbar"><div><small>DRW Prime Aesthetic Clinic</small><strong>{current}</strong></div><div className="crm-row"><span className="crm-pill">{CRM_ROLES[initialActor.role]}</span><button type="button" className="crm-mobile-logout" onClick={logout}>Keluar</button></div></header><div className="crm-content">
       {error && <div className="crm-alert error" role="alert">{error}</div>}{notice && <div className="crm-alert" role="status">{notice}</div>}
       {loading && !['import','lead-edit','campaigns'].includes(view) && <p className="crm-muted">Memuat data…</p>}

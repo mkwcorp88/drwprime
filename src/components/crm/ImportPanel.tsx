@@ -10,6 +10,7 @@ export default function ImportPanel({ data, onDone }: { data: Bootstrap; onDone:
   const [source, setSource] = useState('EVENT');
   const [batch, setBatch] = useState<ImportBatch | null>(null);
   const [rows, setRows] = useState<ImportRow[]>([]);
+  const [fileNames, setFileNames] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function upload(event: FormEvent<HTMLFormElement>) {
@@ -33,7 +34,7 @@ export default function ImportPanel({ data, onDone }: { data: Bootstrap; onDone:
   async function discard() {
     if (!batch) return;
     setBusy(true); setError('');
-    try { await action('discard_import', { id: batch.id }); setBatch(null); setRows([]); }
+    try { await action('discard_import', { id: batch.id }); setBatch(null); setRows([]); setFileNames([]); }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Pratinjau belum dapat dibatalkan.'); }
     finally { setBusy(false); }
   }
@@ -49,7 +50,7 @@ export default function ImportPanel({ data, onDone }: { data: Bootstrap; onDone:
         <label className="crm-field">PIC untuk kontak baru<select name="assignedTo" defaultValue={data.actor.id}><option value="">Tentukan nanti</option>{data.assignees.map((staff) => <option key={staff.id} value={staff.id}>{staff.name}</option>)}</select></label>
       </div></section>
       <section className="crm-card"><div className="crm-card-head"><div><span className="crm-eyebrow">Dokumen kontak</span><h2>Pilih file</h2><p className="crm-muted crm-small">Foto kertas, PDF, Excel (.xlsx), atau CSV.</p></div></div>
-        <label className="crm-upload"><span className="crm-upload-icon"><FileUp size={22} /></span><strong>Pilih foto atau dokumen</strong><span className="crm-muted crm-small">Hingga 3 file, maksimal 5 MB per file dan 100 kontak per batch</span><input type="file" name="documents" accept=".jpg,.jpeg,.png,.pdf,.xlsx,.csv" multiple required /></label>
+        <label className="crm-upload"><span className="crm-upload-icon"><FileUp size={22} /></span><strong>Pilih foto atau dokumen</strong><span className="crm-muted crm-small">Hingga 3 file, maksimal 5 MB per file dan 100 kontak per batch</span><span className="crm-upload-picker" aria-hidden="true">Pilih file</span><span className="crm-upload-selection" aria-live="polite">{fileNames.length ? fileNames.join(' · ') : 'Belum ada file dipilih'}</span><input className="crm-file-input" type="file" name="documents" aria-label="Pilih foto atau dokumen" accept=".jpg,.jpeg,.png,.pdf,.xlsx,.csv" multiple required onChange={(event) => setFileNames(Array.from(event.currentTarget.files || []).map((file) => file.name))} /></label>
         <p className="crm-muted crm-small" style={{ marginTop: 15 }}>Untuk Excel/CSV gunakan kolom <strong>Nama</strong> dan <strong>WhatsApp</strong>; layanan dan catatan opsional. <a className="crm-link-text" href="/crm-template-leads.csv" download>Unduh contoh CSV ↓</a></p>
         <p className="crm-muted crm-small" style={{ marginTop: 9 }}>Foto/PDF diproses melalui Google Gemini. Periksa setiap hasil, terutama nomor WhatsApp.</p>
       </section><div className="crm-actions"><button className="crm-btn primary" disabled={busy}>{busy ? 'Membaca dokumen…' : <>Baca dokumen <ArrowRight size={15} /></>}</button></div>
