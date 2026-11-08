@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const MARKETING_HOSTS = ['marketing.drwprime.com', 'marketing.localhost'];
 const TREATMENT_HOSTS = ['admin.drwprime.com', 'admin.localhost'];
+const CRM_HOSTS = process.env.NODE_ENV === 'production' ? ['crm.drwprime.com'] : ['crm.drwprime.com', 'crm.localhost', 'crm.prime.localhost'];
 
 function hostname(request: NextRequest): string {
   return request.headers.get('host')?.split(':')[0] || '';
@@ -14,6 +15,10 @@ function isMarketingHost(request: NextRequest): boolean {
 
 function isTreatmentHost(request: NextRequest): boolean {
   return TREATMENT_HOSTS.includes(hostname(request));
+}
+
+function isCrmHost(request: NextRequest): boolean {
+  return CRM_HOSTS.includes(hostname(request));
 }
 
 function matchesPath(path: string, prefix: string): boolean {
@@ -37,7 +42,7 @@ const PUBLIC_PREFIXES = [
 ];
 const STAFF_PREFIXES = [
   '/staff/profile', '/front-office', '/marketing', '/admin', '/api/staff', '/api/front-office',
-  '/api/marketing', '/api/affiliate-codes', '/api/user', '/api/blog', '/api/cms-auto-login',
+  '/api/marketing', '/api/affiliate-codes', '/api/user', '/api/blog', '/api/cms-auto-login', '/crm', '/api/crm',
 ];
 
 function isPublicRoute(path: string): boolean {
@@ -59,6 +64,14 @@ export default function middleware(request: NextRequest) {
   }
   if (path.startsWith('/treatment-ops') || path.startsWith('/api/treatment-ops')) return NextResponse.next();
 
+  if (isCrmHost(request) && path === '/') {
+    // Keep the browser's host intact; rewriting through Next's internal origin
+    // can otherwise make the server layout see localhost instead of CRM.
+    const port = request.headers.get('host')?.split(':')[1];
+    const origin = process.env.NODE_ENV === 'production' ? 'https://crm.drwprime.com' : `http://${hostname(request)}${port ? `:${port}` : ''}`;
+    return NextResponse.redirect(new URL('/crm', origin), { status: 307, headers: { 'Cache-Control': 'private, no-store' } });
+  }
+
   if (isMarketingHost(request) && !path.startsWith('/marketing') && !path.startsWith('/api/')
     && !path.startsWith('/sign-in') && !path.startsWith('/sign-up') && !path.startsWith('/staff/')) {
     const rewritten = request.nextUrl.clone();
@@ -71,6 +84,15 @@ export default function middleware(request: NextRequest) {
   if (isStaffRoute(path) && path.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
     const allowedOrigins = [new URL(process.env.NEXT_PUBLIC_APP_URL || request.url).origin];
     if (isMarketingHost(request)) allowedOrigins.push(request.nextUrl.origin);
+    if (isCrmHost(request)) {
+      const hostPort = request.headers.get('host')?.split(':')[1];
+      allowedOrigins.push(process.env.NODE_ENV === 'production' ? 'https://crm.drwprime.com' : `http://${hostname(request)}${hostPort ? `:${hostPort}` : ''}`);
+    }
+    if (isCrmHost(request) && path === '/api/crm/sso/consume') {
+      allowedOrigins.push('https://drwprime.com');
+      if (process.env.NODE_ENV !== 'production') allowedOrigins.push(`http://localhost${request.nextUrl.port ? `:${request.nextUrl.port}` : ''}`);
+      if (process.env.NODE_ENV !== 'production') allowedOrigins.push(`http://prime.localhost${request.headers.get('host')?.split(':')[1] ? `:${request.headers.get('host')?.split(':')[1]}` : ''}`);
+    }
     if (process.env.NODE_ENV !== 'production') allowedOrigins.push(request.nextUrl.origin);
     if (!allowedOrigins.includes(request.headers.get('origin') || '')) {
       return NextResponse.json({ error: 'Origin tidak valid.' }, { status: 403 });

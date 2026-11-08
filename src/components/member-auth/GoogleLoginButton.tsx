@@ -44,7 +44,7 @@ export default function GoogleLoginButton({ destination, referralCode = null, mo
               const result = await response.json();
               if (!response.ok) throw new Error(result.error || 'Login Google belum berhasil.');
               if (!result.authenticated) throw new Error('Login Google belum berhasil.');
-              window.location.assign(mode === 'staff' ? (result.needsPhone ? '/staff/profile' : destination) : result.phoneVerified ? destination : '/my-prime/profile');
+              window.location.assign(mode === 'staff' ? (result.needsPhone && !destination.startsWith('/crm') ? '/staff/profile' : destination) : result.phoneVerified ? destination : '/my-prime/profile');
             } catch (failure) {
               setError(failure instanceof Error ? failure.message : 'Login Google belum berhasil.');
               setBusy(false);

@@ -1,0 +1,9 @@
+export const CRM_ROLES = { ADMIN: 'Admin', MARKETING: 'Marketing', FRONT_OFFICE: 'Front Office', MANAGEMENT: 'Manajemen' } as const;
+export type CrmRole = keyof typeof CRM_ROLES;
+export const CRM_SOURCES = { ADS: 'Iklan', ORGANIC: 'Organik', REFERRAL: 'Referral', EVENT: 'Aktivasi event', WALK_IN: 'Datang langsung', OTHER: 'Lainnya' } as const;
+export const CRM_STATUSES = { NEW: 'Baru', CONTACTED: 'Sudah dihubungi', NO_RESPONSE: 'Belum merespons', INTERESTED: 'Berminat', FOLLOW_UP: 'Hubungi lagi nanti', NOT_INTERESTED: 'Tidak berminat / tidak ingin dihubungi' } as const;
+export const CRM_PLATFORMS = { META: 'Meta Ads', TIKTOK: 'TikTok Ads', GOOGLE: 'Google Ads', OTHER: 'Lainnya' } as const;
+export const CRM_INITIAL_ADMINS = ['drwprimegejayan@gmail.com', 'drwcorpora@gmail.com'] as const;
+export const CRM_WRITE_ROLES: CrmRole[] = ['ADMIN', 'MARKETING', 'FRONT_OFFICE'];
+export const CRM_AD_ROLES: CrmRole[] = ['ADMIN', 'MARKETING'];
+export const CRM_BOOKING_ROLES: CrmRole[] = ['ADMIN', 'FRONT_OFFICE'];

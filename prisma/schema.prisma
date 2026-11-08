@@ -123,6 +123,8 @@ model StaffAccount {
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   sessions      StaffSession[]
   loginOtps     StaffLoginOtp[]
+  crmGrant      CrmGrant?
+  crmSsoTickets CrmSsoTicket[]
 
   @@map("staff_accounts")
 }
@@ -316,8 +318,203 @@ model Reservation {
   user      User?     @relation(fields: [userId], references: [id])
   treatment Treatment @relation(fields: [treatmentId], references: [id])
   referrer  User?     @relation("ReferredBy", fields: [referrerId], references: [id])
+  crmLink   CrmReservationLink?
 
   @@map("reservations")
+}
+
+// CRM Prime: separate leads and attribution without changing member identity.
+model CrmGrant {
+  staffId   String       @id @map("staff_id")
+  role      String
+  active    Boolean      @default(true)
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  staff     StaffAccount @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  @@map("crm_grants")
+}
+
+model CrmSsoTicket {
+  tokenHash     String       @id @map("token_hash")
+  challengeHash String       @map("challenge_hash")
+  staffId       String       @map("staff_id")
+  expiresAt     DateTime     @map("expires_at") @db.Timestamptz(3)
+  staff         StaffAccount @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  @@index([expiresAt])
+  @@map("crm_sso_tickets")
+}
+
+model CrmEvent {
+  id           String               @id @default(cuid())
+  name         String
+  eventDate    DateTime             @map("event_date") @db.Date
+  createdBy    String               @map("created_by")
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  leads        CrmLeadEvent[]
+  primaryLeads CrmLead[]
+  followUps    CrmFollowUp[]
+  reservations CrmReservationLink[]
+  @@unique([name, eventDate])
+  @@map("crm_events")
+}
+
+model CrmCampaign {
+  id           String               @id @default(cuid())
+  name         String
+  platform     String
+  status       String               @default("ACTIVE")
+  createdBy    String               @map("created_by")
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  leads        CrmLead[]
+  spend        CrmSpend[]
+  spendHistory CrmSpendHistory[]
+  reservations CrmReservationLink[]
+  @@unique([platform, name])
+  @@map("crm_campaigns")
+}
+
+model CrmLead {
+  id              String               @id @default(cuid())
+  name            String
+  phone           String
+  phoneNormalized String               @unique @map("phone_normalized")
+  source          String
+  eventId         String?              @map("event_id")
+  campaignId      String?              @map("campaign_id")
+  interest        String?
+  notes           String?
+  assignedTo      String?              @map("assigned_to")
+  status          String               @default("NEW")
+  nextFollowUp    DateTime?            @map("next_follow_up") @db.Date
+  revision        Int                  @default(1)
+  createdBy       String               @map("created_by")
+  updatedBy       String               @map("updated_by")
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  event           CrmEvent?            @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  campaign        CrmCampaign?         @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  events          CrmLeadEvent[]
+  followUps       CrmFollowUp[]
+  reservations    CrmReservationLink[]
+  @@index([status, nextFollowUp])
+  @@index([assignedTo, status])
+  @@map("crm_leads")
+}
+
+model CrmLeadEvent {
+  leadId    String   @map("lead_id")
+  eventId   String   @map("event_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  lead      CrmLead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  event     CrmEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  @@id([leadId, eventId])
+  @@index([eventId, leadId])
+  @@map("crm_lead_events")
+}
+
+model CrmFollowUp {
+  id           String    @id @default(cuid())
+  leadId       String    @map("lead_id")
+  eventId      String?   @map("event_id")
+  actorId      String    @map("actor_id")
+  status       String
+  note         String
+  nextFollowUp DateTime? @map("next_follow_up") @db.Date
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  lead         CrmLead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  event        CrmEvent? @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  @@index([leadId, createdAt])
+  @@index([eventId, leadId])
+  @@map("crm_follow_ups")
+}
+
+model CrmSpend {
+  id         String      @id @default(cuid())
+  campaignId String      @map("campaign_id")
+  spendDate  DateTime    @map("spend_date") @db.Date
+  amount     Decimal     @db.Decimal(14, 0)
+  updatedBy  String      @map("updated_by")
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  campaign   CrmCampaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  @@unique([campaignId, spendDate])
+  @@index([spendDate])
+  @@map("crm_spend")
+}
+
+model CrmSpendHistory {
+  id         String      @id @default(cuid())
+  campaignId String      @map("campaign_id")
+  spendDate  DateTime    @map("spend_date") @db.Date
+  previous   Decimal?    @db.Decimal(14, 0)
+  amount     Decimal     @db.Decimal(14, 0)
+  actorId    String      @map("actor_id")
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  campaign   CrmCampaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  @@index([campaignId, spendDate])
+  @@map("crm_spend_history")
+}
+
+model CrmReservationLink {
+  reservationId String      @id @map("reservation_id")
+  requestKey    String?     @unique @map("request_key")
+  leadId        String      @map("lead_id")
+  source        String
+  eventId       String?     @map("event_id")
+  campaignId    String?     @map("campaign_id")
+  createdBy     String      @map("created_by")
+  visitResult   String      @default("PENDING") @map("visit_result")
+  cancellationReason String? @map("cancellation_reason")
+  notes         String?
+  rescheduledAt DateTime?   @map("rescheduled_at") @db.Timestamptz(3)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  lead          CrmLead     @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  event         CrmEvent?   @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  campaign      CrmCampaign? @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  history       CrmReservationHistory[]
+  @@index([leadId])
+  @@index([eventId])
+  @@index([campaignId])
+  @@map("crm_reservation_links")
+}
+
+model CrmReservationHistory {
+  id            String             @id @default(cuid())
+  reservationId String             @map("reservation_id")
+  actorId       String             @map("actor_id")
+  action        String
+  details       Json
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  link          CrmReservationLink @relation(fields: [reservationId], references: [reservationId], onDelete: Cascade)
+  @@index([reservationId, createdAt])
+  @@map("crm_reservation_history")
+}
+
+model CrmImportBatch {
+  id        String          @id @default(cuid())
+  actorId   String          @map("actor_id")
+  context   Json
+  rows      Json
+  state     String          @default("READY")
+  result    Json?
+  expiresAt DateTime        @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  files     CrmImportFile[]
+  @@index([actorId, expiresAt])
+  @@map("crm_import_batches")
+}
+
+model CrmImportFile {
+  id       String         @id @default(cuid())
+  batchId  String         @map("batch_id")
+  name     String
+  mime     String
+  data     Bytes
+  batch    CrmImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  @@index([batchId])
+  @@map("crm_import_files")
 }
 
 // Transaction history

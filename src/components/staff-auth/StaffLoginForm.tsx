@@ -14,7 +14,7 @@ function staffRedirect(value: string | null): string {
   if (!value || !value.startsWith('/') || value.startsWith('//') || /[\\\r\n]/.test(value)) return '/front-office';
   try {
     const url = new URL(value, 'https://staff.invalid');
-    const allowed = ['/front-office', '/marketing', '/admin', '/cms', '/staff/profile'];
+    const allowed = ['/front-office', '/marketing', '/admin', '/cms', '/staff/profile', '/crm'];
     if (url.origin !== 'https://staff.invalid' || !allowed.some((path) => url.pathname === path || url.pathname.startsWith(`${path}/`))) return '/front-office';
     return `${url.pathname}${url.search}${url.hash}`;
   } catch { return '/front-office'; }

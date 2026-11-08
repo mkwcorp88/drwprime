@@ -11,7 +11,11 @@ export function assertStaffOrigin(request: Request) {
   const url = new URL(request.url);
   const appOrigin = new URL(process.env.NEXT_PUBLIC_APP_URL || request.url).origin;
   const allowed = [appOrigin];
+  const [host, port] = (request.headers.get('host') || '').toLowerCase().split(':');
+  if (host === 'crm.drwprime.com') allowed.push('https://crm.drwprime.com');
+  if (process.env.NODE_ENV !== 'production' && ['crm.localhost','crm.prime.localhost'].includes(host) && (!port || /^\d{1,5}$/.test(port))) allowed.push(`http://${host}${port ? `:${port}` : ''}`);
   if (url.hostname === 'marketing.drwprime.com' || url.hostname === 'marketing.localhost'
+    || url.hostname === 'crm.drwprime.com' || url.hostname === 'crm.localhost'
     || (process.env.NODE_ENV !== 'production' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1'))) {
     allowed.push(url.origin);
   }

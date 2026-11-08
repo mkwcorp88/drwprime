@@ -30,13 +30,26 @@ export class ReservationError extends Error {
   }
 }
 
-export async function confirmReservation(reservationId: string) {
-  return transitionStatus(reservationId, 'confirmed');
+export async function confirmReservation(reservationId: string, crmActorId?: string) {
+  return transitionStatus(reservationId, 'confirmed', crmActorId ? { actorId: crmActorId } : undefined);
+}
+
+export async function rescheduleCrmReservation(reservationId: string, reservationDate: Date, reservationTime: string, actorId: string) {
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.reservation.findUnique({ where: { id: reservationId } });
+    if (!current || !['pending','confirmed'].includes(current.status)) throw new ReservationError('Hanya reservasi aktif yang dapat dijadwalkan ulang.', 'INVALID_TRANSITION');
+    if (current.reservationDate.getTime() === reservationDate.getTime() && current.reservationTime === reservationTime) throw new ReservationError('Masukkan jadwal baru yang berbeda.', 'INVALID_DATE');
+    const changed = await tx.reservation.updateMany({ where: { id: reservationId, status: current.status, reservationDate: current.reservationDate, reservationTime: current.reservationTime }, data: { reservationDate, reservationTime } });
+    if (changed.count !== 1) throw new ReservationError('Reservasi telah diubah petugas lain.', 'CONCURRENT_UPDATE');
+    await tx.crmReservationLink.update({ where: { reservationId }, data: { rescheduledAt: new Date() } });
+    await tx.crmReservationHistory.create({ data: { reservationId, actorId, action: 'RESCHEDULED', details: { from: `${current.reservationDate.toISOString().slice(0,10)} ${current.reservationTime}`, to: `${reservationDate.toISOString().slice(0,10)} ${reservationTime}` } } });
+    return tx.reservation.findUniqueOrThrow({ where: { id: reservationId } });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function completeReservation(
   reservationId: string,
-  options: { finalPrice?: number; adminNotes?: string } = {},
+  options: { finalPrice?: number; adminNotes?: string; crmVisitResult?: 'CONSULTATION' | 'TREATMENT'; crmActorId?: string } = {},
 ) {
   const completedAt = new Date();
   return prisma.$transaction(async (tx) => {
@@ -69,6 +82,10 @@ export async function completeReservation(
         adminNotes: options.adminNotes ?? null,
       },
     });
+    if (options.crmVisitResult) {
+      await tx.crmReservationLink.update({ where: { reservationId }, data: { visitResult: options.crmVisitResult } });
+      if (options.crmActorId) await tx.crmReservationHistory.create({ data: { reservationId, actorId: options.crmActorId, action: 'COMPLETED', details: { visitResult: options.crmVisitResult, amount: finalPrice } } });
+    }
 
     // Award spending points to the user
     if (current.userId && !isAidoManagedSpendingDate(completedAt)) {
@@ -114,8 +131,8 @@ export async function completeReservation(
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
-export async function cancelReservation(reservationId: string) {
-  return transitionStatus(reservationId, 'cancelled');
+export async function cancelReservation(reservationId: string, crm?: { reason?: string | null; noShow?: boolean; actorId?: string }) {
+  return transitionStatus(reservationId, 'cancelled', crm);
 }
 
 export async function addReferrer(
@@ -161,6 +178,7 @@ export async function addReferrer(
 async function transitionStatus(
   reservationId: string,
   targetStatus: ReservationStatus,
+  crm?: { reason?: string | null; noShow?: boolean; actorId?: string },
 ) {
   return prisma.$transaction(async (tx) => {
     const current = await tx.reservation.findUnique({ where: { id: reservationId } });
@@ -183,6 +201,10 @@ async function transitionStatus(
     if (result.count !== 1) {
       throw new ReservationError('Reservation was changed by another request', 'CONCURRENT_UPDATE');
     }
+    if (crm && targetStatus === 'cancelled') {
+      await tx.crmReservationLink.update({ where: { reservationId }, data: { cancellationReason: crm.reason || null, visitResult: crm.noShow ? 'NO_SHOW' : 'PENDING' } });
+    }
+    if (crm?.actorId) await tx.crmReservationHistory.create({ data: { reservationId, actorId: crm.actorId, action: crm.noShow ? 'NO_SHOW' : targetStatus.toUpperCase(), details: { reason: crm.reason || null } } });
 
     const reservation = await tx.reservation.findUniqueOrThrow({ where: { id: reservationId } });
     console.log(`[RESERVATION] ${current.status} -> ${targetStatus}: ${reservationId}`);
