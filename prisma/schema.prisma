@@ -517,6 +517,30 @@ model CrmImportFile {
   @@map("crm_import_files")
 }
 
+// Primeniversary IPL package registrations (separate from treatment appointments).
+model PrimeniversaryRegistration {
+  id              String    @id @default(cuid())
+  requestId       String    @unique @map("request_id")
+  code            String    @unique
+  patientName     String    @map("patient_name")
+  patientPhone    String    @map("patient_phone")
+  patientEmail    String?   @map("patient_email")
+  price           Int
+  status          String    @default("pending")
+  consentAt       DateTime  @map("consent_at") @db.Timestamptz(3)
+  paidAt          DateTime? @map("paid_at") @db.Timestamptz(3)
+  expiresAt       DateTime? @map("expires_at") @db.Timestamptz(3)
+  confirmedBy     String?   @map("confirmed_by")
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancelledBy     String?   @map("cancelled_by")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, createdAt])
+  @@index([patientPhone])
+  @@map("primeniversary_registrations")
+}
+
 // Transaction history
 model Transaction {
   id          String  @id @default(cuid())

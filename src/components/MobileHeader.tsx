@@ -37,8 +37,11 @@ export default function MobileHeader({ embedded = false }: MobileHeaderProps) {
             />
           </Link>
 
-          {/* User Profile Only */}
-          <Link href={profileHref} className="mobile-touch-target flex items-center justify-center rounded-full">
+          <div className="flex items-center gap-3">
+          <Link href="/primeniversary" className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-[11px] font-bold tracking-wide text-primary" aria-label="Primeniversary 11.11">
+            11.11 ✦
+          </Link>
+          <Link href={profileHref} className="mobile-touch-target flex items-center justify-center rounded-full" aria-label="Akun My Prime">
             <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-primary/35 bg-white/[0.06] shadow-[0_4px_16px_rgba(0,0,0,0.25)]">
               {profileImageUrl ? (
                 <Image 
@@ -58,6 +61,7 @@ export default function MobileHeader({ embedded = false }: MobileHeaderProps) {
               )}
             </div>
           </Link>
+          </div>
         </div>
       </div>
     </header>

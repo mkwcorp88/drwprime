@@ -34,11 +34,11 @@ const PUBLIC_EXACT = new Set([
 ]);
 const PUBLIC_PREFIXES = [
   '/treatments', '/home-treatment', '/products', '/product-gallery', '/best-deal',
-  '/blog', '/sign-in', '/sign-up', '/privacy-policy', '/staff/sign-in',
+  '/blog', '/sign-in', '/sign-up', '/privacy-policy', '/staff/sign-in', '/primeniversary',
   '/my-prime', '/affiliate-dashboard', '/api/member-auth', '/reservation',
   '/cms', '/cms-api', '/api/cron', '/treatment-ops', '/api/treatment-ops',
   '/api/treatments', '/api/best-deals', '/api/blog', '/api/reservations',
-  '/api/categories', '/api/vouchers', '/api/webhooks', '/api/products/orders', '/payment',
+  '/api/categories', '/api/vouchers', '/api/webhooks', '/api/products/orders', '/api/primeniversary', '/payment',
 ];
 const STAFF_PREFIXES = [
   '/staff/profile', '/front-office', '/marketing', '/admin', '/api/staff', '/api/front-office',

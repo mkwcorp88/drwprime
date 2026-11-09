@@ -7,6 +7,7 @@ import InstallPrompt from '@/components/InstallPrompt';
 import { Hourglass } from '@/components/LoadingScreen';
 import type { Reservation, Treatment, EditFormData } from '@/types/front-office';
 import QuickActions from '@/components/front-office/QuickActions';
+import PrimeniversaryTable from '@/components/front-office/PrimeniversaryTable';
 import StatusTracker from '@/components/front-office/StatusTracker';
 import ReservationFilter from '@/components/front-office/ReservationFilter';
 import ReservationCard from '@/components/front-office/ReservationCard';
@@ -367,6 +368,7 @@ export default function FrontOfficePage() {
             </div>
           )}
         </div>
+        <PrimeniversaryTable />
       </div>
 
       {/* Detail Modal */}

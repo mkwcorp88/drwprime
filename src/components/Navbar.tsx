@@ -12,6 +12,7 @@ const PUBLIC_LINKS = [
   { href: '/home-treatment', label: 'HOME TREATMENT' },
   { href: '/#gallery', label: 'GALERI' },
   { href: '/product-gallery', label: 'PRODUCT GALLERY' },
+  { href: '/primeniversary', label: 'PRIMENIVERSARY' },
   { href: '/best-deal', label: 'BEST DEAL' },
   { href: '/prime-insight', label: 'PRIME INSIGHT' },
   { href: '/#contact', label: 'KONTAK' },
@@ -83,10 +84,10 @@ export default function Navbar() {
           />
         </Link>
 
-        <ul className="hidden min-w-0 flex-1 items-center justify-end gap-3 overflow-visible xl:flex 2xl:gap-4">
+        <ul className="hidden min-w-0 flex-1 items-center justify-end gap-2 overflow-visible xl:flex 2xl:gap-4">
           {PUBLIC_LINKS.map((item) => (
             <li key={item.href}>
-              <Link href={item.href} className={linkClass}>
+              <Link href={item.href} className={item.href === '/primeniversary' ? memberLinkClass : linkClass}>
                 {item.label}
               </Link>
             </li>
@@ -195,7 +196,7 @@ export default function Navbar() {
                 <Link
                   href={item.href}
                   onClick={closeMenus}
-                  className="block px-5 py-3 text-sm font-medium tracking-wide text-white transition-colors duration-300 hover:bg-primary/10 hover:text-primary"
+                  className={`block px-5 py-3 text-sm font-medium tracking-wide transition-colors duration-300 hover:bg-primary/10 hover:text-primary ${item.href === '/primeniversary' ? 'text-primary' : 'text-white'}`}
                 >
                   {item.label}
                 </Link>
