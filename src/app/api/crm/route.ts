@@ -1,8 +1,8 @@
 import { ReservationError } from '@/lib/services/reservation';
 import { assertCrmOrigin, crmError, CrmError, requireCrm } from '@/lib/crm/auth';
-import { CRM_AD_ROLES, CRM_BOOKING_ROLES, CRM_WRITE_ROLES } from '@/lib/crm/constants';
-import { bootstrap, createReservation, followUp, handleDbError, leadDetail, listLeads, saveCampaign, saveEvent, saveLead, saveSpend, setGrant, updateReservation, users } from '@/lib/crm/service';
-import { dashboard, eventSummary, report, reservations } from '@/lib/crm/reports';
+import { CRM_AD_ROLES, CRM_BOOKING_ROLES, CRM_TRACKER_ROLES, CRM_WRITE_ROLES } from '@/lib/crm/constants';
+import { attributeReservationToAds, bootstrap, createReservation, followUp, handleDbError, leadDetail, listLeads, saveCampaign, saveEvent, saveLead, saveSpend, setGrant, updateReservation, users } from '@/lib/crm/service';
+import { adsReservationTracker, dashboard, eventSummary, report, reservations } from '@/lib/crm/reports';
 import { discardImport, importPreview, saveImport } from '@/lib/crm/import-service';
 import { readCrmJson, text } from '@/lib/crm/validation';
 import { prisma } from '@/lib/prisma';
@@ -20,6 +20,7 @@ export async function GET(request: Request) {
     if (view === 'dashboard') return response(await dashboard());
     if (view === 'events') return response(await eventSummary());
     if (view === 'reservations') return response(await reservations());
+    if (view === 'ads_tracker') { await requireCrm(CRM_TRACKER_ROLES); return response(await adsReservationTracker({from:params.get('from')||'',to:params.get('to')||'',campaignId:params.get('campaignId')||'',status:params.get('status')||'',q:params.get('q')||'',page:params.get('page')||''})); }
     if (view === 'lead') return response(await leadDetail(text(params.get('id'), 'Kontak', 100, true)));
     if (view === 'report') return response(await report({ from: params.get('from') || '', to: params.get('to') || '', campaignId: params.get('campaignId') || '', platform: params.get('platform') || '' }));
     if (view === 'spend') {
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
     if (action === 'set_grant') { await requireCrm(['ADMIN']); return response(await setGrant(input, actor)); }
     if (action === 'create_reservation') { await requireCrm(CRM_BOOKING_ROLES); return response(await createReservation(input, actor)); }
     if (action === 'update_reservation') { await requireCrm(CRM_BOOKING_ROLES); return response(await updateReservation(input, actor)); }
+    if (action === 'attribute_reservation_ads') { await requireCrm(CRM_TRACKER_ROLES); return response(await attributeReservationToAds(input, actor)); }
     if (action === 'save_import') { await requireCrm(CRM_WRITE_ROLES); return response(await saveImport(input, staff.id)); }
     if (action === 'discard_import') { await requireCrm(CRM_WRITE_ROLES); return response(await discardImport(text(input.id, 'Pratinjau', 100, true), staff.id)); }
     throw new CrmError('Tindakan tidak dikenal.', 404);

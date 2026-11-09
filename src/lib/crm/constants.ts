@@ -7,3 +7,4 @@ export const CRM_INITIAL_ADMINS = ['drwprimegejayan@gmail.com', 'drwcorpora@gmai
 export const CRM_WRITE_ROLES: CrmRole[] = ['ADMIN', 'MARKETING', 'FRONT_OFFICE'];
 export const CRM_AD_ROLES: CrmRole[] = ['ADMIN', 'MARKETING'];
 export const CRM_BOOKING_ROLES: CrmRole[] = ['ADMIN', 'FRONT_OFFICE'];
+export const CRM_TRACKER_ROLES: CrmRole[] = ['ADMIN', 'MARKETING', 'FRONT_OFFICE'];

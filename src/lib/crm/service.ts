@@ -196,6 +196,33 @@ export async function createReservation(input: Record<string, unknown>, actor: A
   }
 }
 
+export async function attributeReservationToAds(input: Record<string, unknown>,actor:Actor) {
+  const reservationId=text(input.reservationId,'Reservasi',100,true);
+  const campaignId=text(input.campaignId,'Campaign',100,true);
+  const reservation=await prisma.reservation.findUnique({where:{id:reservationId},include:{treatment:{select:{name:true}}}});
+  if(!reservation || !['pending','confirmed','completed'].includes(reservation.status)) throw new CrmError('Reservasi tidak tersedia untuk dihubungkan ke campaign ads.');
+  const campaign=await prisma.crmCampaign.findUnique({where:{id:campaignId}});
+  if(!campaign || campaign.status!=='ACTIVE') throw new CrmError('Pilih campaign ads yang aktif.');
+  const normalized=phoneNumber(reservation.patientPhone);
+  try {
+    return await prisma.$transaction(async(tx)=>{
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`crm-lead-phone:${normalized}`},0))::text`;
+      const existingLink=await tx.crmReservationLink.findUnique({where:{reservationId}});
+      if(existingLink) throw new CrmError('Reservasi ini sudah tercatat dari sumber lain.',409);
+      let lead=await tx.crmLead.findUnique({where:{phoneNormalized:normalized}});
+      if(!lead){
+        lead=await tx.crmLead.create({data:{name:text(reservation.patientName,'Nama pasien',100,true),phone:reservation.patientPhone,phoneNormalized:normalized,source:'ADS',campaignId,assignedTo:actor.id,interest:reservation.treatment.name,notes:reservation.patientNotes,createdBy:actor.id,updatedBy:actor.id}});
+      }
+      await tx.crmReservationLink.create({data:{reservationId,leadId:lead.id,source:'ADS',campaignId,createdBy:actor.id}});
+      await tx.crmReservationHistory.create({data:{reservationId,actorId:actor.id,action:'ADS_ATTRIBUTED',details:{campaignId,campaignName:campaign.name,leadId:lead.id}}});
+      return {reservationId,leadId:lead.id};
+    },{timeout:15_000});
+  } catch(error){
+    if(error instanceof Prisma.PrismaClientKnownRequestError&&error.code==='P2002') throw new CrmError('Reservasi atau kontak sudah dihubungkan oleh petugas lain.',409);
+    throw error;
+  }
+}
+
 export async function updateReservation(input: Record<string, unknown>, actor: Actor) {
   const id = text(input.id, 'Reservasi', 100, true), operation = text(input.operation, 'Tindakan', 30, true);
   const link = await prisma.crmReservationLink.findUnique({ where: { reservationId: id }, include: { reservation: true } });

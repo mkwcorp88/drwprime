@@ -133,6 +133,7 @@
 .crm-field b { color: #f0c884; }
 .crm-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 11px; }
 .crm-filters .crm-field { flex: 1 1 155px; }
+.crm-tracker-campaign { max-width: 260px; min-width: 170px; min-height: 36px; padding: 7px 10px; color: #f9f4e8; border: 1px solid rgba(231, 219, 194, .22); border-radius: 9px; background: rgba(7,7,7,.56); }
 
 .crm-table-wrap { width: 100%; overflow: auto; border: 1px solid rgba(225, 202, 151, .15); border-radius: 12px; background: rgba(7, 7, 7, .22); }
 .crm-table { width: 100%; min-width: 650px; border-collapse: collapse; text-align: left; }

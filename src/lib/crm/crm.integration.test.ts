@@ -116,10 +116,21 @@ integration('CRM Prime integration', () => {
     await service.updateReservation({id:eventBooking.id,operation:'complete',visitResult:'TREATMENT',amount:'500000'},actor);
     const result=await reports.report({from:service.jakartaToday(),to:service.jakartaToday()});
     expect(result.total).toMatchObject({spend:100000,reservations:1,revenue:300000});
+    const tracker=await reports.adsReservationTracker({from:service.jakartaToday(),to:service.jakartaToday()});
+    expect(tracker.total).toMatchObject({total:1,completed:1,noShow:0,revenue:300000});
+    expect(tracker.rows.map((row)=>row.lead.name)).toEqual(['Ads']);
     expect((await reports.eventSummary()).find((e)=>e.id===event.id)?.revenue).toBe(500000);
     expect(await db.reservation.count()).toBe(2);
     expect(await db.crmReservationHistory.count({where:{reservationId:first.id}})).toBe(4);
     expect((await service.leadDetail(adLead.id)).reservations[0].history.map((event)=>event.action)).toEqual(expect.arrayContaining(['CREATED','Dijadwalkan ulang','CONFIRMED','COMPLETED']));
+    const legacy=await db.reservation.create({data:{treatmentId:treatment.id,patientName:'Booking Lama',patientEmail:'legacy@example.test',patientPhone:'628133334444',reservationDate:new Date(),reservationTime:'11:00',status:'pending',originalPrice:250000,finalPrice:250000}});
+    const before=await reports.adsReservationTracker({from:service.jakartaToday(),to:service.jakartaToday()});
+    expect(before.unattributed.map((row)=>row.id)).toContain(legacy.id);
+    await service.attributeReservationToAds({reservationId:legacy.id,campaignId:campaign.id},actor);
+    const after=await reports.adsReservationTracker({from:service.jakartaToday(),to:service.jakartaToday()});
+    expect(after.rows.map((row)=>row.reservationId)).toContain(legacy.id);
+    expect(after.unattributed.map((row)=>row.id)).not.toContain(legacy.id);
+    await expect(service.attributeReservationToAds({reservationId:legacy.id,campaignId:campaign.id},actor)).rejects.toMatchObject({status:409});
   });
 
   it('binds SSO tickets to the original browser and consumes them once', async () => {
