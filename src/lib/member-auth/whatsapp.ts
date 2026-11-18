@@ -47,15 +47,35 @@ export async function sendMemberOtp(phone: string, code: string): Promise<MetaOt
         },
       }),
     });
-    const result = await response.json();
-    if (!response.ok || typeof result.messages?.[0]?.id !== 'string') throw new Error('Meta rejected OTP');
+    const result = await response.json().catch(() => null);
+    if (!response.ok || typeof result?.messages?.[0]?.id !== 'string') {
+      logMetaOtpFailure(response.status, result, config.template);
+      throw new Error('Meta rejected OTP');
+    }
     return {
       messageId: result.messages[0].id,
       messageStatus: result.message_status === 'accepted' || result.message_status === 'held_for_quality_assessment'
         ? result.message_status : 'unspecified',
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message !== 'Meta rejected OTP') {
+      console.error('[MEMBER OTP] Gagal menghubungi Meta:', error.name);
+    }
     // Provider payloads can contain phone numbers, tokens or message text.
     throw new MemberAuthError(502, 'Kode belum dapat dikirim. Tunggu sebentar lalu coba lagi.', 'OTP_SEND_FAILED', 60);
   }
+}
+
+// Logs only Meta's numeric/enum error fields. Provider `message` and
+// `error_data` can echo phone numbers or template text, so they are omitted.
+function logMetaOtpFailure(status: number, result: unknown, template: string) {
+  const err = (result as { error?: Record<string, unknown> } | null)?.error;
+  console.error('[MEMBER OTP] Meta menolak OTP', {
+    status,
+    template,
+    code: typeof err?.code === 'number' ? err.code : undefined,
+    subcode: typeof err?.error_subcode === 'number' ? err.error_subcode : undefined,
+    type: typeof err?.type === 'string' ? err.type : undefined,
+    fbtrace_id: typeof err?.fbtrace_id === 'string' ? err.fbtrace_id : undefined,
+  });
 }

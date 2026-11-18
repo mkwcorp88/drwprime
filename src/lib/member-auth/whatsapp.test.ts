@@ -47,6 +47,19 @@ describe('member WhatsApp sender', () => {
     await expect(sendMemberOtp('6281234567890', '123456')).rejects.toMatchObject({ code: 'OTP_NOT_CONFIGURED' });
     expect(fetchMock).not.toHaveBeenCalled();
   });
+  it('logs Meta error codes without the provider message', async () => {
+    const logSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(
+      { error: { message: 'secret 6281234567890', type: 'OAuthException', code: 132001, error_subcode: 2494073, fbtrace_id: 'trace1' } },
+      { status: 400 },
+    )));
+    await expect(sendMemberOtp('6281234567890', '123456')).rejects.toMatchObject({ code: 'OTP_SEND_FAILED' });
+    expect(logSpy).toHaveBeenCalledWith('[MEMBER OTP] Meta menolak OTP', {
+      status: 400, template: 'drwprime_member_login_otp', code: 132001, subcode: 2494073, type: 'OAuthException', fbtrace_id: 'trace1',
+    });
+    expect(JSON.stringify(logSpy.mock.calls)).not.toContain('6281234567890');
+    logSpy.mockRestore();
+  });
   it('redacts a provider failure and rejects an empty successful response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ error: { message: 'secret token and phone here' } }, { status: 403 })));
     await expect(sendMemberOtp('6281234567890', '123456')).rejects.toMatchObject({ code: 'OTP_SEND_FAILED', message: 'Kode belum dapat dikirim. Tunggu sebentar lalu coba lagi.' });
