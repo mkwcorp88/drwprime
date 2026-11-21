@@ -1,3 +1,4 @@
+import ExcelJS from 'exceljs';
 import { crmError, CrmError, requireCrm } from '@/lib/crm/auth';
 import { adsReservationTracker, report, reservations } from '@/lib/crm/reports';
 import { CRM_AD_ROLES, CRM_PLATFORMS, CRM_SOURCES, CRM_STATUSES, CRM_TRACKER_ROLES } from '@/lib/crm/constants';
@@ -22,8 +23,22 @@ export async function GET(request: Request) {
       await requireCrm(CRM_AD_ROLES);
       const where = leadFilter(Object.fromEntries(params.entries()), { id: access.staff.id, role: access.role });
       const leads = await prisma.crmLead.findMany({ where: { AND: [where, { status: { not: 'NOT_INTERESTED' } }] }, include: { events: { include: { event: true } } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 20_000 });
-      rows = [['Nama','Nomor WhatsApp','Event','Sumber','Status','Layanan diminati','Catatan']];
-      for (const lead of leads) rows.push([lead.name, lead.phoneNormalized, lead.events.map((e) => e.event.name).join('; '), CRM_SOURCES[lead.source as keyof typeof CRM_SOURCES] || lead.source, CRM_STATUSES[lead.status as keyof typeof CRM_STATUSES] || lead.status, lead.interest || '', lead.notes || '']);
+      const table = leads.map((lead) => [lead.name, lead.phoneNormalized, lead.events.map((e) => e.event.name).join('; '), CRM_SOURCES[lead.source as keyof typeof CRM_SOURCES] || lead.source, CRM_STATUSES[lead.status as keyof typeof CRM_STATUSES] || lead.status]);
+      if (params.get('format') === 'csv') rows = [['Nama','Nomor WhatsApp','Event','Sumber','Status'], ...table];
+      else {
+        // Excel: nomor disimpan sebagai teks agar tidak berubah menjadi 6,28E+12.
+        const book = new ExcelJS.Workbook(), sheet = book.addWorksheet('Kontak');
+        sheet.columns = [{ header: 'Nama', key: 'n', width: 32 }, { header: 'Nomor WhatsApp', key: 'p', width: 20, style: { numFmt: '@' } }, { header: 'Event', key: 'e', width: 28 }, { header: 'Sumber', key: 's', width: 18 }, { header: 'Status', key: 't', width: 20 }];
+        for (const r of table) sheet.addRow({ n: r[0], p: r[1], e: r[2], s: r[3], t: r[4] });
+        const head = sheet.getRow(1);
+        head.font = { bold: true, color: { argb: 'FF1A1A1A' } };
+        head.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8C766' } };
+        head.alignment = { vertical: 'middle' };
+        sheet.views = [{ state: 'frozen', ySplit: 1 }];
+        sheet.autoFilter = { from: 'A1', to: 'E1' };
+        const buffer = await book.xlsx.writeBuffer();
+        return new Response(buffer as ArrayBuffer, { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': 'attachment; filename="kontak-crm-prime.xlsx"', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
+      }
     } else if (type === 'reservations') {
       const entries = await reservations(0);
       rows = [['ID','Nama','WhatsApp','Sumber','Event','Campaign','Tanggal','Jam','Status','Hasil','Pembayaran']];
