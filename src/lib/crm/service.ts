@@ -43,13 +43,12 @@ export async function bootstrap(actor: Actor) {
   return { events, campaigns, assignees: grants.map((grant) => ({ id: grant.staffId, name: grant.staff.name, role: grant.role })), treatments, role: actor.role, ocrReady: Boolean(process.env.CRM_GEMINI_API_KEY) };
 }
 
-export async function listLeads(input: Record<string, unknown>, actor: Actor) {
+export function leadFilter(input: Record<string, unknown>, actor: Actor) {
   const q = text(input.q, 'Pencarian', 100);
   const status = text(input.status, 'Status', 30);
   const source = text(input.source, 'Sumber', 30);
   const eventId = text(input.eventId, 'Event', 100);
   const work = text(input.work, 'Prioritas', 30);
-  const page = Math.min(Math.max(Number(input.page) || 1, 1), 100_000);
   const where: Prisma.CrmLeadWhereInput = {};
   if (q) where.OR = [{ name: { contains: q, mode: 'insensitive' } }, { phone: { contains: q } }, { phoneNormalized: { contains: q.replace(/\D/g, '') || q } }];
   if (status) where.status = statusValue(status);
@@ -61,6 +60,12 @@ export async function listLeads(input: Record<string, unknown>, actor: Actor) {
   else if (work === 'reserved') where.reservations = { some: {} };
   else if (work === 'not_reserved') where.reservations = { none: {} };
   else if (work) throw new CrmError('Filter prioritas tidak valid.');
+  return where;
+}
+
+export async function listLeads(input: Record<string, unknown>, actor: Actor) {
+  const page = Math.min(Math.max(Number(input.page) || 1, 1), 100_000);
+  const where = leadFilter(input, actor);
   const [rows, total, assignees, all, fresh, due, unassigned] = await Promise.all([
     prisma.crmLead.findMany({ where, include: { event: true, campaign: true, _count: { select: { reservations: true } } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 50, skip: (page - 1) * 50 }),
     prisma.crmLead.count({ where }), prisma.staffAccount.findMany({ where: { active: true }, select: { id: true, name: true } }),

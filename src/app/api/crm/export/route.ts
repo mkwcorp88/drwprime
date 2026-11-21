@@ -1,6 +1,8 @@
 import { crmError, CrmError, requireCrm } from '@/lib/crm/auth';
 import { adsReservationTracker, report, reservations } from '@/lib/crm/reports';
-import { CRM_PLATFORMS, CRM_SOURCES, CRM_TRACKER_ROLES } from '@/lib/crm/constants';
+import { CRM_AD_ROLES, CRM_PLATFORMS, CRM_SOURCES, CRM_STATUSES, CRM_TRACKER_ROLES } from '@/lib/crm/constants';
+import { leadFilter } from '@/lib/crm/service';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 function csv(values: unknown[]): string {
@@ -12,10 +14,17 @@ function csv(values: unknown[]): string {
 }
 export async function GET(request: Request) {
   try {
-    await requireCrm();
+    const access = await requireCrm();
     const params = new URL(request.url).searchParams, type = params.get('type');
     let rows: unknown[][];
-    if (type === 'reservations') {
+    if (type === 'leads') {
+      // Daftar blasting (mis. Cekat): hanya Admin/Marketing, dan kontak "tidak berminat / tidak ingin dihubungi" tidak pernah ikut.
+      await requireCrm(CRM_AD_ROLES);
+      const where = leadFilter(Object.fromEntries(params.entries()), { id: access.staff.id, role: access.role });
+      const leads = await prisma.crmLead.findMany({ where: { AND: [where, { status: { not: 'NOT_INTERESTED' } }] }, include: { events: { include: { event: true } } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 20_000 });
+      rows = [['Nama','Nomor WhatsApp','Event','Sumber','Status','Layanan diminati','Catatan']];
+      for (const lead of leads) rows.push([lead.name, lead.phoneNormalized, lead.events.map((e) => e.event.name).join('; '), CRM_SOURCES[lead.source as keyof typeof CRM_SOURCES] || lead.source, CRM_STATUSES[lead.status as keyof typeof CRM_STATUSES] || lead.status, lead.interest || '', lead.notes || '']);
+    } else if (type === 'reservations') {
       const entries = await reservations(0);
       rows = [['ID','Nama','WhatsApp','Sumber','Event','Campaign','Tanggal','Jam','Status','Hasil','Pembayaran']];
       for (const entry of entries) rows.push([entry.reservationId, entry.lead.name, entry.lead.phone, CRM_SOURCES[entry.source as keyof typeof CRM_SOURCES] || entry.source, entry.event?.name, entry.campaign?.name, entry.reservation.reservationDate.toISOString().slice(0,10), entry.reservation.reservationTime, entry.reservation.status, entry.visitResult, entry.reservation.status === 'completed' ? entry.reservation.finalPrice : '']);
