@@ -82,6 +82,95 @@ const CLUSTER_QUEUE: Array<Omit<Topic, 'source'>> = [
     topic: 'Eyelash Extension di Jogja: Cara Memilih Model dan Merawat Bulu Mata Sambungan',
     keyword: 'eyelash extension jogja', // 70/bln
   },
+  // Wave 2, measured 25 Nov 2026. Infus, suntik, dan klaim pengobatan sengaja tidak ada.
+  {
+    topic: 'Nail Gel atau Nail Polish Biasa: Daya Tahan dan Cara Merawatnya',
+    keyword: 'nail gel', // 2900/bln
+  },
+  {
+    topic: 'Botox Rahang: Tujuan, Durasi Hasil, dan Pertanyaan untuk Dokter',
+    keyword: 'botox rahang', // 1900/bln
+  },
+  {
+    topic: 'Perawatan Kuku Rapuh: Kebiasaan Harian dan Layanan di Klinik',
+    keyword: 'perawatan kuku', // 480/bln
+  },
+  {
+    topic: 'HIFU untuk Double Chin: Siapa yang Cocok dan Hasil yang Realistis',
+    keyword: 'hifu double chin', // 390/bln
+  },
+  {
+    topic: 'Paket Slimming Treatment: Yang Dikerjakan dan Perannya di Samping Pola Makan',
+    keyword: 'slimming treatment', // 390/bln
+  },
+  {
+    topic: 'Eyelash Extension Tahan Berapa Lama dan Kapan Perlu Retouch',
+    keyword: 'eyelash extension tahan berapa lama', // 320/bln
+  },
+  {
+    topic: 'Efek Samping Pico Laser yang Wajar dan Tanda Perlu Kontrol',
+    keyword: 'efek samping pico laser', // 260/bln
+  },
+  {
+    topic: 'Botox Dahi: Area, Durasi, dan Persiapan Sebelum Tindakan',
+    keyword: 'botox dahi', // 210/bln
+  },
+  {
+    topic: 'Efek Samping HIFU: Yang Umum Dirasakan dan Cara Menyikapinya',
+    keyword: 'efek samping hifu', // 110/bln
+  },
+  {
+    topic: 'Jadwal Perawatan Sebelum Menikah: Urutan dan Jarak Antar Treatment',
+    keyword: 'perawatan sebelum menikah', // 110/bln
+  },
+  {
+    topic: 'Dermapen EPN untuk Bopeng: Berapa Sesi dan Apa yang Bisa Diharapkan',
+    keyword: 'dermapen untuk bopeng', // 90/bln
+  },
+  {
+    topic: 'Chemical Peeling untuk Bopeng: Batas Kemampuannya dan Alternatifnya',
+    keyword: 'chemical peeling untuk bopeng', // 70/bln
+  },
+  {
+    topic: 'HIFU atau Botox: Perbedaan Cara Kerja dan Cara Memilihnya',
+    keyword: 'hifu vs botox', // 20/bln
+  },
+  {
+    topic: 'Perawatan Setelah Dermapen: Tujuh Hari Pertama',
+    keyword: 'perawatan setelah dermapen', // 20/bln
+  },
+  {
+    topic: 'Perawatan Setelah Pico Laser agar Kulit Pulih dengan Baik',
+    keyword: 'perawatan setelah pico laser', // 10/bln
+  },
+  {
+    topic: 'Perawatan Setelah Chemical Peeling: Yang Dihindari dan Dianjurkan',
+    keyword: 'perawatan setelah chemical peeling', // 10/bln
+  },
+  {
+    topic: 'IPL Hair Removal di Jogja: Persiapan dan Jarak Antar Sesi',
+    keyword: 'ipl hair removal jogja', // 10/bln
+  },
+  {
+    topic: 'Skin Booster atau Botox: Tujuan yang Berbeda, Jangan Tertukar',
+    keyword: 'skin booster vs botox', // 10/bln
+  },
+  {
+    topic: 'Pico Laser atau IPL: Mana untuk Masalah Pigmen Anda',
+    keyword: 'pico laser vs ipl',
+  },
+  {
+    topic: 'Facial atau Chemical Peeling: Kapan Memilih yang Mana',
+    keyword: 'facial vs chemical peeling',
+  },
+  {
+    topic: 'Hand Spa di Jogja: Tahapan dan Manfaat untuk Tangan Kering',
+    keyword: 'hand spa jogja',
+  },
+  {
+    topic: 'Anti Dandruff Treatment: Tahapan Perawatan Kulit Kepala di Klinik',
+    keyword: 'perawatan ketombe di klinik',
+  },
 ];
 
 /**
