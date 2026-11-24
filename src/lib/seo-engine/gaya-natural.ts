@@ -10,6 +10,8 @@ export const GAYA_NATURAL = `GAYA (wajib, mengalahkan aturan gaya lain di atas b
 - Paragraf pertama langsung menjawab pertanyaan pembaca. JANGAN dibuka dengan definisi "X adalah/merupakan ...", "Mengetahui/Memilih ... sangat penting", sapaan, atau "Di era ...".
 - Tiap paragraf membawa satu hal baru. Paragraf yang hanya mengulang dihapus.
 - Fakta tentang perusahaan, produk, layanan, harga, kebijakan, jaminan, dan hasil HANYA dari DATA atau FAKTA. Yang tidak ada di sana: minta pembaca menanyakannya, jangan dijawab. JANGAN mengarang batasan, pengalaman, testimoni, kutipan, atau angka agar terdengar manusiawi.
+- Cara kerja atau tahapan layanan yang tidak ada di data ditulis sebagai gambaran umum ("umumnya", "biasanya"), bukan seolah prosedur pasti di tempat ini.
+- Satu sapaan sepanjang artikel. Jangan mencampur "kamu" dan "Anda".
 - Pakai kata sehari-hari: "cocok" bukan "ideal bagi", "bisa" bukan "mampu", "supaya" bukan "guna".
 - Panjang kalimat dan paragraf beragam.
 - Daftar berpoin hanya untuk yang berurutan atau dibandingkan. JANGAN pola "Label tebal: penjelasan" di tiap poin. Tebal paling banyak tiga kali.
@@ -41,6 +43,7 @@ export function periksaGaya(html: string): string[] {
   tolak(hitung(html, /<(?:strong|b)>/g) > 5, 'terlalu banyak teks tebal');
   tolak(hitung(html, /<li[^>]*>\s*<(?:strong|b)>/g) > 2, 'poin berpola label tebal');
   tolak(paragraf.filter((p) => /^(?:selain itu|oleh karena itu|dengan demikian|tak hanya itu|tidak hanya itu)\b/i.test(p)).length > 1, 'paragraf berulang diawali kata penghubung');
+  tolak(/\bkamu\b/i.test(teks) && /\bAnda\b/.test(teks), 'mencampur "kamu" dan "Anda"');
   return masalah;
 }
 
@@ -64,7 +67,7 @@ export function hargaTanpaDasar(html: string, fakta: string): string[] {
 const tautan = (html: string): string[] => Array.from(html.matchAll(/href="([^"]+)"/g)).map((m) => m[1]);
 
 const PERIKSA_BAWAAN =
-  'fakta tentang perusahaan, produk, layanan, fasilitas, kebijakan, biaya, yang termasuk atau tidak termasuk harga, jam, jaminan, hasil, sertifikasi, atau tenaga ahlinya; juga janji hasil, klaim menyembuhkan, dan angka statistik';
+  'fakta tentang perusahaan, produk, layanan, fasilitas, kebijakan, biaya, yang termasuk atau tidak termasuk harga, jam, jaminan, hasil, sertifikasi, tenaga ahli, atau tahapan layanan di tempatnya (kecuali jelas disebut gambaran umum dengan "umumnya" atau "biasanya"); juga janji hasil, janji tanpa rasa sakit atau tanpa risiko, klaim menyembuhkan, dan angka statistik';
 
 export interface Penghalus<T> {
   artikel: T;
