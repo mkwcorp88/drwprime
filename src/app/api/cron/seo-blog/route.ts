@@ -74,6 +74,11 @@ async function generateOne(payload: Payload, topic: Topic, { draft }: { draft: b
   console.log(`[seo-blog] generating "${topic.topic}" (kw=${topic.keyword}, src=${topic.source})`);
 
   const article = await generateArticle(topic.topic, topic.keyword);
+  // An unsupported claim that survives editing waits for a human in /cms.
+  if (article.unsupportedClaims.length) {
+    draft = true;
+    console.warn(`[seo-blog] draft, klaim tanpa dasar: ${article.unsupportedClaims.slice(0, 3).join(' | ')}`);
+  }
   const slug = await uniqueSlug(payload, article.slug || article.title);
   const content = blocksToLexical(article.blocks);
   const wordCount = blocksToPlainText(article.blocks).split(/\s+/).filter(Boolean).length;

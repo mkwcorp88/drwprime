@@ -13,6 +13,7 @@
  * even though it still appears in the models list. `gemini-flash-latest`
  * resolves to the current Flash and is verified working with this project's key.
  */
+import { GAYA_NATURAL, haluskan } from './gaya-natural';
 import { COMPANY, factSheet, SOURCE_PHOTOS } from './facts';
 import type { ArticleBlock } from './lexical';
 
@@ -81,6 +82,12 @@ const ARTICLE_SCHEMA = {
   ],
 };
 
+const CLAIM_SCHEMA = {
+  type: 'object',
+  properties: { klaim: { type: 'array', items: { type: 'string' } } },
+  required: ['klaim'],
+};
+
 /**
  * The production prompt. Rules are deliberately strict: these articles publish
  * without human review on a medical-aesthetics site, so anything the model is
@@ -110,7 +117,9 @@ FIELD LAIN:
 - seoTitle maksimal 60 karakter, seoDescription maksimal 155 karakter, keduanya mengandung keyword.
 - slug: huruf kecil, dipisah tanda hubung, tanpa tahun/tanggal.
 - excerpt 1-2 kalimat ringkas.
-- tags: 3-6 tag pendek yang relevan.`;
+- tags: 3-6 tag pendek yang relevan.
+
+${GAYA_NATURAL}`;
 
 async function callGemini<T>(prompt: string, schema: object, maxOutputTokens: number): Promise<T> {
   const url = `${API_ROOT}/models/${TEXT_MODEL}:generateContent?key=${KEY()}`;
@@ -157,7 +166,21 @@ async function callGemini<T>(prompt: string, schema: object, maxOutputTokens: nu
   throw lastError instanceof Error ? lastError : new Error('gemini failed');
 }
 
-export async function generateArticle(topic: string, keyword: string): Promise<GeneratedArticle> {
+/** Just enough HTML for the style and fact checks to read. */
+function blocksToHtml(blocks: ArticleBlock[]): string {
+  return (Array.isArray(blocks) ? blocks : [])
+    .map((block) => {
+      const inline = (value?: string) => (value ?? '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      if (block.type === 'ul') return `<ul>${(block.items ?? []).map((i) => `<li>${inline(i)}</li>`).join('')}</ul>`;
+      return `<${block.type}>${inline(block.text)}</${block.type}>`;
+    })
+    .join('\n');
+}
+
+export async function generateArticle(
+  topic: string,
+  keyword: string
+): Promise<GeneratedArticle & { unsupportedClaims: string[] }> {
   if (!KEY()) throw new Error('GEMINI_API_KEY belum diset');
 
   const prompt = `${SYSTEM}
@@ -171,9 +194,17 @@ ${factSheet()}`;
 
   // 24k, not 8k: a 700-1000 word article is ~2k tokens, but Flash spends a few
   // thousand more on reasoning and both share this budget.
-  const result = await callGemini<GeneratedArticle>(prompt, ARTICLE_SCHEMA, 24000);
+  const first = await callGemini<GeneratedArticle>(prompt, ARTICLE_SCHEMA, 24000);
+  const { artikel: result, klaim } = await haluskan<GeneratedArticle>({
+    artikel: first,
+    html: (a) => blocksToHtml(a.blocks),
+    aturan: prompt,
+    fakta: factSheet(),
+    minta: (p) => callGemini<unknown>(p, p.startsWith('PERIKSA KLAIM') ? CLAIM_SCHEMA : ARTICLE_SCHEMA, 24000),
+  });
   return {
     ...result,
+    unsupportedClaims: klaim,
     tags: Array.isArray(result.tags)
       ? result.tags.map((tag) => String(tag).trim()).filter(Boolean).slice(0, 6)
       : [],
