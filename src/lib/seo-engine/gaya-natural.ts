@@ -102,7 +102,7 @@ export async function haluskan<T>(o: Penghalus<T>): Promise<{ artikel: T; klaim:
     if (!klaim.length && !rusak.length && (!gaya.length || i > 0)) break;
     try {
       const baru = (await o.minta(
-        `Sunting ARTIKEL di bawah supaya terbaca ditulis manusia. Hapus, atau ubah jadi ajakan bertanya, setiap klaim tanpa dasar yang disebut. Fakta lain, angka, harga, nama, dan tautan tetap. Jangan menambah fakta atau tautan baru. Panjangnya kurang lebih tetap.\n\nMASALAH: ${rusak.concat(klaim.map((k) => `klaim tanpa dasar: "${k}"`), gaya).join('; ')}.\n\nATURAN ASLI, format keluaran WAJIB sama persis:\n${o.aturan}\n\nARTIKEL:\n${JSON.stringify(artikel)}`,
+        `Sunting ARTIKEL di bawah supaya terbaca ditulis manusia. Hapus, atau ubah jadi ajakan bertanya, setiap klaim tanpa dasar yang disebut. Fakta lain, angka, harga, nama, dan tautan tetap. Jangan menambah fakta atau tautan baru. Panjangnya kurang lebih tetap, kecuali MASALAH menyebut terlalu pendek: perpanjang dengan saran umum yang berguna, bukan fakta perusahaan.\n\nMASALAH: ${rusak.concat(klaim.map((k) => `klaim tanpa dasar: "${k}"`), gaya).join('; ')}.\n\nATURAN ASLI, format keluaran WAJIB sama persis:\n${o.aturan}\n\nARTIKEL:\n${JSON.stringify(artikel)}`,
       )) as T;
       const lama = new Set(tautan(o.html(artikel)));
       if (!o.html(baru) || tautan(o.html(baru)).some((t) => !lama.has(t))) continue;
