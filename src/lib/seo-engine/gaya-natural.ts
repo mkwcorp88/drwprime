@@ -1,6 +1,6 @@
 // Gaya tulisan natural + pemeriksa fakta untuk blog otomatis.
 // Modul yang sama dipasang di tiap mesin blog; sumbernya repo r2media-otomatisasi
-// (lib/mesin/gaya.ts) dan skill blog-natural. Prinsip gaya dari blader/humanizer (MIT).
+// (modul/gaya-natural.ts) dan skill blog-natural. Prinsip gaya dari blader/humanizer (MIT).
 //
 // Gaya natural TIDAK boleh dipakai tanpa pemeriksa faktanya: diminta terdengar
 // manusiawi, AI mengarang kebijakan dan spesifikasi (uji 25 Nov 2026).
@@ -85,7 +85,7 @@ export interface Penghalus<T> {
 export async function haluskan<T>(o: Penghalus<T>): Promise<{ artikel: T; klaim: string[] }> {
   const cekKlaim = async (a: T): Promise<string[]> => {
     const jawab = (await o.minta(
-      `PERIKSA KLAIM. Kutip dari ARTIKEL setiap kalimat yang menyatakan ${o.yangDiperiksa || PERIKSA_BAWAAN}, yang TIDAK tertulis di DATA dan tidak bisa disimpulkan langsung darinya. JANGAN kutip: saran umum untuk pembaca, pengetahuan umum yang lazim, ajakan bertanya, atau yang sesuai DATA. Bila tidak ada, kembalikan daftar kosong.\n\nBalas HANYA JSON: {"klaim": ["kalimat", ...]}\n\nDATA:\n${o.fakta}\n\nARTIKEL:\n${polos(o.html(a))}`,
+      `PERIKSA KLAIM. Kutip dari ARTIKEL setiap kalimat yang menyatakan ${o.yangDiperiksa || PERIKSA_BAWAAN}, yang TIDAK tertulis di DATA dan tidak bisa disimpulkan langsung darinya. JANGAN kutip: pernyataan bahwa suatu informasi belum tercantum atau perlu ditanyakan, saran umum untuk pembaca, aturan keselamatan umum, pengetahuan umum yang lazim, ajakan bertanya, atau yang sesuai DATA. Bila tidak ada, kembalikan daftar kosong.\n\nBalas HANYA JSON: {"klaim": ["kalimat", ...]}\n\nDATA:\n${o.fakta}\n\nARTIKEL:\n${polos(o.html(a))}`,
     )) as { klaim?: unknown };
     // Jawaban rusak melempar: yang faktanya tak terperiksa tidak boleh tayang.
     if (!jawab || !Array.isArray(jawab.klaim)) throw new Error('pemeriksa fakta tidak menjawab');

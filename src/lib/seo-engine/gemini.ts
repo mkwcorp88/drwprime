@@ -13,6 +13,7 @@
  * even though it still appears in the models list. `gemini-flash-latest`
  * resolves to the current Flash and is verified working with this project's key.
  */
+import { gambarFlare } from './flare';
 import { GAYA_NATURAL, haluskan } from './gaya-natural';
 import { COMPANY, factSheet, SOURCE_PHOTOS } from './facts';
 import type { ArticleBlock } from './lexical';
@@ -258,8 +259,12 @@ export async function generateCover({
   if (!KEY()) return null;
 
   try {
-    const reference = await fetchAsBase64(`${COMPANY.site}${pickSourcePhoto(slug)}`);
+    const photoUrl = `${COMPANY.site}${pickSourcePhoto(slug)}`;
     const prompt = coverPrompt(title, keyword);
+    const flare = await gambarFlare(KEY(), prompt, [photoUrl]);
+    if (flare) return { buffer: flare.data, mime: flare.mime };
+
+    const reference = await fetchAsBase64(photoUrl);
 
     let lastError: unknown;
     for (const model of IMAGE_MODELS) {
